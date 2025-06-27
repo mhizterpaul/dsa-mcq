@@ -2,9 +2,11 @@
 
 **Think First. Code Later.**
 
-**DSA-MCQ** is a **Kotlin + Compose Multiplatform** mobile app that presents users with **interview-style data structure and algorithm (DSA) questions** in the form of multiple choice quizzes. The goal is to help users build strong problem-solving intuition by identifying the correct **approach, data structure, or algorithm** — before ever writing code.
+**DSA-MCQ** is a **java springboot + Compose Multiplatform(offline mode on mobile)** mobile app that presents users with **interview-style data structure and algorithm (DSA) questions** in the form of multiple choice quizzes. The goal is to help users build strong problem-solving intuition by identifying the correct **approach, data structure, or algorithm** — before ever writing code.
 
 This project is currently in its **early stages**. Questions are being added and refined during personal development time.
+
+check if the question is an algorithm or data-structure focused question then use that knowledge to generate optins for the question
 
 ---
 
