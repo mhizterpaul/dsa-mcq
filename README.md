@@ -2,7 +2,7 @@
 
 **Think First. Code Later.**
 
-**DSA-MCQ** is a **java springboot + Compose Multiplatform(offline mode on mobile)** mobile app that presents users with **interview-style data structure and algorithm (DSA) questions** in the form of multiple choice quizzes. The goal is to help users build strong problem-solving intuition by identifying the correct **approach, data structure, or algorithm** — before ever writing code.
+**DSA-MCQ** is a **springboot + Compose Multiplatform(offline mode on mobile)** mobile app that presents users with **interview-style data structure and algorithm (DSA) questions** in the form of multiple choice quizzes. The goal is to help users build strong problem-solving intuition by identifying the correct **approach, data structure, or algorithm** — before ever writing code.
 
 This project is currently in its **early stages**. Questions are being added and refined during personal development time.
 
@@ -54,9 +54,9 @@ These kinds of problems help you **compose and layer data structures** effective
 
 ## 📱 Tech Stack
 
-* **Language**: Kotlin
+* **Language**: Java & Kotlin
 * **UI**: JetBrains Compose Multiplatform
-* **Targets**: Android (primary), iOS & Desktop (planned)
+* **Targets**: Android & Server (primary), iOS(planned)
 * **Future Additions**: Java solutions for selected problems (when available)
 
 ---
