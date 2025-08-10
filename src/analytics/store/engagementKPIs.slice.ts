@@ -1,5 +1,5 @@
-import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
-import { EngagementKPI } from '../interface';
+import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
+import { EngagementKPI } from './primitives/EngagementKPI';
 
 const engagementKPIsAdapter = createEntityAdapter<EngagementKPI>({
   selectId: (kpi) => kpi.id,
@@ -9,20 +9,14 @@ const engagementKPIsSlice = createSlice({
   name: 'engagementKPIs',
   initialState: engagementKPIsAdapter.getInitialState(),
   reducers: {
-    addEngagementKPI: engagementKPIsAdapter.addOne,
-    addEngagementKPIs: engagementKPIsAdapter.addMany,
-    updateEngagementKPI: engagementKPIsAdapter.updateOne,
-    removeEngagementKPI: engagementKPIsAdapter.removeOne,
-    setEngagementKPIs: engagementKPIsAdapter.setAll,
+    addEngagementKPI: (state, action: PayloadAction<{ id: string; value: number }>) => {
+        const { id, value } = action.payload;
+        const newKPI = new EngagementKPI(id, value);
+        engagementKPIsAdapter.addOne(state, { ...newKPI });
+    },
   },
 });
 
-export const {
-  addEngagementKPI,
-  addEngagementKPIs,
-  updateEngagementKPI,
-  removeEngagementKPI,
-  setEngagementKPIs,
-} = engagementKPIsSlice.actions;
+export const { addEngagementKPI } = engagementKPIsSlice.actions;
 
 export default engagementKPIsSlice.reducer;

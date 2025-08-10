@@ -1,11 +1,9 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store'; // Assuming a root store will be created
-import {
-  addAnomaly,
-  addDevOpsMetric,
-  addEngagementKPI,
-  addInsight,
-} from '../store';
+import { RootState } from '../../store/store';
+import { addAnomaly } from '../store/anomalies.slice';
+import { addDevOpsMetric } from '../store/devOpsMetrics.slice';
+import { addEngagementKPI } from '../store/engagementKPIs.slice';
+import { addInsight } from '../store/insights.slice';
 
 export const useAnalytics = () => {
   const dispatch = useDispatch();
