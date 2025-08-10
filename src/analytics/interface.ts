@@ -1,60 +1,10 @@
-// Data Entities
-export class DevOpsMetric {
-  id: string;
-  value: number;
-  timestamp: number;
-
-  constructor(id: string, value: number) {
-    this.id = id;
-    this.value = value;
-    this.timestamp = Date.now();
-  }
+export interface IAnalyticsComponent {
+  loadTelemetryData(): void;
+  computeKpis(): void;
+  renderDashboard(): void;
 }
 
-export class EngagementKPI {
-  id: string;
-  value: number;
-  timestamp: number;
-
-  constructor(id: string, value: number) {
-    this.id = id;
-    this.value = value;
-    this.timestamp = Date.now();
-  }
-}
-
-export class Anomaly {
-  id: string;
-  metricId: string;
-  type: 'performance' | 'engagement';
-  timestamp: number;
-  deviation: number;
-
-  constructor(id: string, metricId: string, type: 'performance' | 'engagement', deviation: number) {
-    this.id = id;
-    this.metricId = metricId;
-    this.type = type;
-    this.timestamp = Date.now();
-    this.deviation = deviation;
-  }
-}
-
-export class Insight {
-  id: string;
-  anomalyId: string;
-  recommendation: string;
-  timestamp: number;
-
-  constructor(id: string, anomalyId: string, recommendation: string) {
-    this.id = id;
-    this.anomalyId = anomalyId;
-    this.recommendation = recommendation;
-    this.timestamp = Date.now();
-  }
-}
-
-// Component Contract
-export class AnalyticsComponent {
+export class AnalyticsComponent implements IAnalyticsComponent {
     loadTelemetryData() {
         console.log("Loading telemetry data...");
     }

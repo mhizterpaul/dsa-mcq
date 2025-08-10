@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { Insight } from '../interface';
+import { Insight } from './primitives/Insight';
 
 const insightsAdapter = createEntityAdapter<Insight>({
   selectId: (insight) => insight.id,

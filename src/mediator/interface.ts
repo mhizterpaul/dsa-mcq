@@ -1,51 +1,63 @@
-import { LearningComponent } from '../learning/interface';
-import { EngagementComponent } from '../engagement/interface';
-import { UserComponent } from '../user/interface';
-import { AnalyticsComponent } from '../analytics/interface';
+import { ILearningComponent, LearningComponent } from '../learning/interface';
+import { IEngagementComponent, EngagementComponent } from '../engagement/interface';
+import { IUserComponent, UserComponent } from '../user/interface';
+import { IAnalyticsComponent, AnalyticsComponent } from '../analytics/interface';
 
-// This interface defines the contract for all components that the Mediator can manage.
-export interface IComponent {
-  // Placeholder for common methods, if any.
-  // For now, we rely on the specific component classes.
+export interface IMediator {
+  initiate(): void;
+  getLearningComponent(): ILearningComponent;
+  getEngagementComponent(): IEngagementComponent;
+  getUserComponent(): IUserComponent;
+  getAnalyticsComponent(): IAnalyticsComponent;
+
+  // Methods for cross-component communication
+  renderLeaderboard(): void;
+  scheduleReminders(): void;
 }
 
-export class Mediator {
-  private components: {
-    learning: LearningComponent;
-    engagement: EngagementComponent;
-    user: UserComponent;
-    analytics: AnalyticsComponent;
-  };
+export class Mediator implements IMediator {
+  private learning: ILearningComponent;
+  private engagement: IEngagementComponent;
+  private user: IUserComponent;
+  private analytics: IAnalyticsComponent;
 
   constructor() {
-    this.components = {
-      learning: new LearningComponent(),
-      engagement: new EngagementComponent(),
-      user: new UserComponent(),
-      analytics: new AnalyticsComponent(),
-    };
+    this.learning = new LearningComponent();
+    this.engagement = new EngagementComponent();
+    this.user = new UserComponent();
+    this.analytics = new AnalyticsComponent();
   }
 
   initiate() {
     console.log("Mediator initiating workflow...");
-    this.components.learning.loadQuestions();
-    this.components.user.loadUserProfile();
-    // ... and so on, following the sequence from the style guide.
+    this.learning.loadQuestions();
+    this.user.loadUserProfile();
+    // ... and so on
   }
 
-  getLearningComponent(): LearningComponent {
-    return this.components.learning;
+  // Getter methods for components
+  getLearningComponent(): ILearningComponent {
+    return this.learning;
   }
 
-  getEngagementComponent(): EngagementComponent {
-    return this.components.engagement;
+  getEngagementComponent(): IEngagementComponent {
+    return this.engagement;
   }
 
-  getUserComponent(): UserComponent {
-    return this.components.user;
+  getUserComponent(): IUserComponent {
+    return this.user;
   }
 
-  getAnalyticsComponent(): AnalyticsComponent {
-    return this.components.analytics;
+  getAnalyticsComponent(): IAnalyticsComponent {
+    return this.analytics;
+  }
+
+  // Cross-component communication methods
+  renderLeaderboard() {
+    this.engagement.renderLeaderboard();
+  }
+
+  scheduleReminders() {
+    this.engagement.scheduleReminders();
   }
 }

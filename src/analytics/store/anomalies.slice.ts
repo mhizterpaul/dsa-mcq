@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { Anomaly } from '../interface';
+import { Anomaly } from './primitives/Anomaly';
 
 const anomaliesAdapter = createEntityAdapter<Anomaly>({
   selectId: (anomaly) => anomaly.id,

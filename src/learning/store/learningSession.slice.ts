@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { LearningSession } from '../interface';
+import { LearningSession } from './primitives/LearningSession';
 
 interface LearningSessionState {
   session: LearningSession | null;

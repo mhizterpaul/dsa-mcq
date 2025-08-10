@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { UserEngagement } from '../interface';
+import { UserEngagement } from './primitives/UserEngagement';
 
 interface UserEngagementState {
   [userId: string]: UserEngagement;

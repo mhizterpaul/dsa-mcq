@@ -1,38 +1,11 @@
-// Data Entities
-export class User {
-  id: string;
-  username: string;
-  email: string;
-  isBlacklisted: boolean;
-  authToken: string | null;
-  masteryLevels: { [categoryId: string]: number };
-  historicalPerformance: any[];
-  preferences: {
-    difficulty: 'easy' | 'medium' | 'hard';
-  };
-
-  constructor(id: string, username: string, email: string) {
-    this.id = id;
-    this.username = username;
-    this.email = email;
-    this.isBlacklisted = false;
-    this.authToken = null;
-    this.masteryLevels = {};
-    this.historicalPerformance = [];
-    this.preferences = { difficulty: 'medium' };
-  }
-
-  updatePreference(difficulty: 'easy' | 'medium' | 'hard') {
-    this.preferences.difficulty = difficulty;
-  }
-
-  updateMasteryLevel(categoryId: string, score: number) {
-    this.masteryLevels[categoryId] = score;
-  }
+export interface IUserComponent {
+  loadUserProfile(): void;
+  authenticateUser(): void;
+  renderProfile(): void;
+  renderLogin(): void;
 }
 
-// Component Contract
-export class UserComponent {
+export class UserComponent implements IUserComponent {
     loadUserProfile() {
         console.log("Loading user profile...");
     }

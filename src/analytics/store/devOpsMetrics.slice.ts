@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { DevOpsMetric } from '../interface';
+import { DevOpsMetric } from './primitives/DevOpsMetric';
 
 const devOpsMetricsAdapter = createEntityAdapter<DevOpsMetric>({
   selectId: (metric) => metric.id,

@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { EngagementKPI } from '../interface';
+import { EngagementKPI } from './primitives/EngagementKPI';
 
 const engagementKPIsAdapter = createEntityAdapter<EngagementKPI>({
   selectId: (kpi) => kpi.id,

@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { UserQuestionData } from '../interface';
+import { UserQuestionData } from './primitives/UserQuestionData';
 
 const userQuestionDataAdapter = createEntityAdapter<UserQuestionData>({
   selectId: (userQuestionData) => `${userQuestionData.userId}-${userQuestionData.questionId}`,

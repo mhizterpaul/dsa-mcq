@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { Category } from '../interface';
+import { Category } from './primitives/Category';
 
 const categoriesAdapter = createEntityAdapter<Category>({
   selectId: (category) => category.id,

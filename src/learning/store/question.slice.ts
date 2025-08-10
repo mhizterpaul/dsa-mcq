@@ -1,5 +1,5 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
-import { Question } from '../interface';
+import { Question } from './primitives/Question';
 
 const questionsAdapter = createEntityAdapter<Question>({
   selectId: (question) => question.id,
