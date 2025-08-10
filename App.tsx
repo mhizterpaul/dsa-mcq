@@ -6,10 +6,12 @@
  */
 
 import React from 'react';
+import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar, useColorScheme } from 'react-native';
 
+import store from './src/store/store';
 import HomeScreen from './src/screens/HomeScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
@@ -19,16 +21,18 @@ function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <NavigationContainer>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <Stack.Navigator
-        initialRouteName="Home"
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Provider store={store}>
+      <NavigationContainer>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <Stack.Navigator
+          initialRouteName="Home"
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Provider>
   );
 }
 
