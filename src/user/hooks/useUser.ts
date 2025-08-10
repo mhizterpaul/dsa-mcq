@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store/store';
+import { RootState } from '../../mediator/store/store';
 import {
   setCurrentUser,
   updatePreference,

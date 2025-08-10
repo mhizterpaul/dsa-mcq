@@ -1,10 +1,10 @@
 import { combineReducers } from '@reduxjs/toolkit';
 
 // Learning Component Reducers
-import categoryReducer from '../learning/store/category.slice';
-import questionReducer from '../learning/store/question.slice';
-import userQuestionDataReducer from '../learning/store/userQuestionData.slice';
-import learningSessionReducer from '../learning/store/learningSession.slice';
+import categoryReducer from '../../learning/store/category.slice';
+import questionReducer from '../../learning/store/question.slice';
+import userQuestionDataReducer from '../../learning/store/userQuestionData.slice';
+import learningSessionReducer from '../../learning/store/learningSession.slice';
 
 const learningRootReducer = combineReducers({
   categories: categoryReducer,
@@ -14,8 +14,8 @@ const learningRootReducer = combineReducers({
 });
 
 // Engagement Component Reducers
-import userEngagementReducer from '../engagement/store/userEngagement.slice';
-import notificationReducer from '../engagement/store/notification.slice';
+import userEngagementReducer from '../../engagement/store/userEngagement.slice';
+import notificationReducer from '../../engagement/store/notification.slice';
 
 const engagementRootReducer = combineReducers({
   userEngagement: userEngagementReducer,
@@ -23,10 +23,10 @@ const engagementRootReducer = combineReducers({
 });
 
 // Analytics Component Reducers
-import devOpsMetricsReducer from '../analytics/store/devOpsMetrics.slice';
-import engagementKPIsReducer from '../analytics/store/engagementKPIs.slice';
-import anomaliesReducer from '../analytics/store/anomalies.slice';
-import insightsReducer from '../analytics/store/insights.slice';
+import devOpsMetricsReducer from '../../analytics/store/devOpsMetrics.slice';
+import engagementKPIsReducer from '../../analytics/store/engagementKPIs.slice';
+import anomaliesReducer from '../../analytics/store/anomalies.slice';
+import insightsReducer from '../../analytics/store/insights.slice';
 
 const analyticsRootReducer = combineReducers({
     devOpsMetrics: devOpsMetricsReducer,
@@ -36,10 +36,10 @@ const analyticsRootReducer = combineReducers({
 });
 
 // User Component Reducer
-import userReducer from '../user/store/user.slice';
+import userReducer from '../../user/store/user.slice';
 
 // Mediator Component Reducer
-import sharedStateReducer from '../mediator/store/sharedState.slice';
+import sharedStateReducer from '../../mediator/store/sharedState.slice';
 
 const rootReducer = combineReducers({
   learning: learningRootReducer,
