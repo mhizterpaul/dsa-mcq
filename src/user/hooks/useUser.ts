@@ -1,10 +1,11 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store'; // Assuming a root store will be created
+import { RootState } from '../../store/store';
 import {
   setCurrentUser,
-  updateCurrentUser,
+  updatePreference,
+  updateMasteryLevel,
   logout,
-} from '../store';
+} from '../store/user.slice';
 
 export const useUser = () => {
   const dispatch = useDispatch();
@@ -15,7 +16,8 @@ export const useUser = () => {
     userState,
     actions: {
       setCurrentUser: (user: any) => dispatch(setCurrentUser(user)),
-      updateCurrentUser: (updates: any) => dispatch(updateCurrentUser(updates)),
+      updatePreference: (difficulty: 'easy' | 'medium' | 'hard') => dispatch(updatePreference(difficulty)),
+      updateMasteryLevel: (data: { categoryId: string; score: number }) => dispatch(updateMasteryLevel(data)),
       logout: () => dispatch(logout()),
     },
   };
