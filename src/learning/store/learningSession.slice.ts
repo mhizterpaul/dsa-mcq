@@ -13,21 +13,28 @@ const learningSessionSlice = createSlice({
   name: 'learningSession',
   initialState,
   reducers: {
-    startSession: (state, action: PayloadAction<LearningSession>) => {
-      state.session = action.payload;
+    startSession: (state, action: PayloadAction<{ id: string; userId: string; questionIds: string[] }>) => {
+      const { id, userId, questionIds } = action.payload;
+      const newSession = new LearningSession(id, userId, questionIds);
+      state.session = { ...newSession };
+    },
+    answerQuestion: (state, action: PayloadAction<{ questionId: string; answer: string; isCorrect: boolean }>) => {
+      if (state.session) {
+        const { questionId, answer, isCorrect } = action.payload;
+        const sessionInstance = Object.assign(new LearningSession(state.session.id, state.session.userId, state.session.questionIds), state.session);
+        sessionInstance.answerQuestion(questionId, answer, isCorrect);
+        state.session = { ...sessionInstance };
+      }
     },
     endSession: (state) => {
       if (state.session) {
-        state.session.endTime = Date.now();
+        const sessionInstance = Object.assign(new LearningSession(state.session.id, state.session.userId, state.session.questionIds), state.session);
+        sessionInstance.end();
+        state.session = { ...sessionInstance };
       }
     },
     clearSession: (state) => {
       state.session = null;
-    },
-    updateSession: (state, action: PayloadAction<Partial<LearningSession>>) => {
-      if (state.session) {
-        state.session = { ...state.session, ...action.payload };
-      }
     },
   },
 });
@@ -36,7 +43,7 @@ export const {
   startSession,
   endSession,
   clearSession,
-  updateSession,
+  answerQuestion,
 } = learningSessionSlice.actions;
 
 export default learningSessionSlice.reducer;

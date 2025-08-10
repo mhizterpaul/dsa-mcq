@@ -9,11 +9,27 @@ const categorySlice = createSlice({
   name: 'categories',
   initialState: categoriesAdapter.getInitialState(),
   reducers: {
-    addCategory: categoriesAdapter.addOne,
-    addCategories: categoriesAdapter.addMany,
+    addCategory: (state, action: PayloadAction<{ id: string; name: string; masteryScore?: number }>) => {
+      const { id, name, masteryScore } = action.payload;
+      const newCategory = new Category(id, name, masteryScore);
+      categoriesAdapter.addOne(state, { ...newCategory });
+    },
+    addCategories: (state, action: PayloadAction<{ id: string; name: string; masteryScore?: number }[]>) => {
+      const newCategories = action.payload.map(({ id, name, masteryScore }) => {
+        const newCategory = new Category(id, name, masteryScore);
+        return { ...newCategory };
+      });
+      categoriesAdapter.addMany(state, newCategories);
+    },
     updateCategory: categoriesAdapter.updateOne,
     removeCategory: categoriesAdapter.removeOne,
-    setCategories: categoriesAdapter.setAll,
+    setCategories: (state, action: PayloadAction<{ id: string; name: string; masteryScore?: number }[]>) => {
+        const newCategories = action.payload.map(({ id, name, masteryScore }) => {
+            const newCategory = new Category(id, name, masteryScore);
+            return { ...newCategory };
+        });
+        categoriesAdapter.setAll(state, newCategories);
+    },
   },
 });
 

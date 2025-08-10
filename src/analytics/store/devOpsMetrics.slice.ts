@@ -1,4 +1,4 @@
-import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
+import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
 import { DevOpsMetric } from '../interface';
 
 const devOpsMetricsAdapter = createEntityAdapter<DevOpsMetric>({
@@ -9,20 +9,14 @@ const devOpsMetricsSlice = createSlice({
   name: 'devOpsMetrics',
   initialState: devOpsMetricsAdapter.getInitialState(),
   reducers: {
-    addDevOpsMetric: devOpsMetricsAdapter.addOne,
-    addDevOpsMetrics: devOpsMetricsAdapter.addMany,
-    updateDevOpsMetric: devOpsMetricsAdapter.updateOne,
-    removeDevOpsMetric: devOpsMetricsAdapter.removeOne,
-    setDevOpsMetrics: devOpsMetricsAdapter.setAll,
+    addDevOpsMetric: (state, action: PayloadAction<{ id: string; value: number }>) => {
+      const { id, value } = action.payload;
+      const newMetric = new DevOpsMetric(id, value);
+      devOpsMetricsAdapter.addOne(state, { ...newMetric });
+    },
   },
 });
 
-export const {
-  addDevOpsMetric,
-  addDevOpsMetrics,
-  updateDevOpsMetric,
-  removeDevOpsMetric,
-  setDevOpsMetrics,
-} = devOpsMetricsSlice.actions;
+export const { addDevOpsMetric } = devOpsMetricsSlice.actions;
 
 export default devOpsMetricsSlice.reducer;

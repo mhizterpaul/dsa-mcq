@@ -13,13 +13,25 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    setCurrentUser: (state, action: PayloadAction<User | null>) => {
-      state.currentUser = action.payload;
+    setCurrentUser: (state, action: PayloadAction<{ id: string; username: string; email: string }>) => {
+      const { id, username, email } = action.payload;
+      const newUser = new User(id, username, email);
+      state.currentUser = { ...newUser };
     },
-    updateCurrentUser: (state, action: PayloadAction<Partial<User>>) => {
+    updatePreference: (state, action: PayloadAction<'easy' | 'medium' | 'hard'>) => {
       if (state.currentUser) {
-        state.currentUser = { ...state.currentUser, ...action.payload };
+        const userInstance = Object.assign(new User(state.currentUser.id, state.currentUser.username, state.currentUser.email), state.currentUser);
+        userInstance.updatePreference(action.payload);
+        state.currentUser = { ...userInstance };
       }
+    },
+    updateMasteryLevel: (state, action: PayloadAction<{ categoryId: string; score: number }>) => {
+        if (state.currentUser) {
+            const { categoryId, score } = action.payload;
+            const userInstance = Object.assign(new User(state.currentUser.id, state.currentUser.username, state.currentUser.email), state.currentUser);
+            userInstance.updateMasteryLevel(categoryId, score);
+            state.currentUser = { ...userInstance };
+        }
     },
     logout: (state) => {
       state.currentUser = null;
@@ -29,7 +41,8 @@ const userSlice = createSlice({
 
 export const {
   setCurrentUser,
-  updateCurrentUser,
+  updatePreference,
+  updateMasteryLevel,
   logout,
 } = userSlice.actions;
 

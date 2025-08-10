@@ -1,4 +1,4 @@
-import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
+import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
 import { Insight } from '../interface';
 
 const insightsAdapter = createEntityAdapter<Insight>({
@@ -9,20 +9,14 @@ const insightsSlice = createSlice({
   name: 'insights',
   initialState: insightsAdapter.getInitialState(),
   reducers: {
-    addInsight: insightsAdapter.addOne,
-    addInsights: insightsAdapter.addMany,
-    updateInsight: insightsAdapter.updateOne,
-    removeInsight: insightsAdapter.removeOne,
-    setInsights: insightsAdapter.setAll,
+    addInsight: (state, action: PayloadAction<{ id: string; anomalyId: string; recommendation: string }>) => {
+      const { id, anomalyId, recommendation } = action.payload;
+      const newInsight = new Insight(id, anomalyId, recommendation);
+      insightsAdapter.addOne(state, { ...newInsight });
+    },
   },
 });
 
-export const {
-  addInsight,
-  addInsights,
-  updateInsight,
-  removeInsight,
-  setInsights,
-} = insightsSlice.actions;
+export const { addInsight } = insightsSlice.actions;
 
 export default insightsSlice.reducer;
