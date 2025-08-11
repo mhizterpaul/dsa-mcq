@@ -5,6 +5,7 @@ export class UserEngagement {
   response_latency: number;
   xp_progress: number;
   leaderboard_rank: number;
+  last_session_timestamp: number | null;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -13,6 +14,7 @@ export class UserEngagement {
     this.response_latency = 0;
     this.xp_progress = 0;
     this.leaderboard_rank = 0;
+    this.last_session_timestamp = null;
   }
 
   updateStreak(didAttend: boolean) {
@@ -21,9 +23,28 @@ export class UserEngagement {
     } else {
       this.streak_length = 0;
     }
+    this.last_session_timestamp = Date.now();
   }
 
   addXp(points: number) {
     this.xp_progress += points;
+  }
+
+  updateSessionAttendance(attended: boolean) {
+    // This is a simplified implementation. A real one would use a rolling window.
+    if (attended) {
+        this.session_attendance = Math.min(1, this.session_attendance + 0.1);
+    } else {
+        this.session_attendance = Math.max(0, this.session_attendance - 0.1);
+    }
+  }
+
+  updateResponseLatency(latency: number) {
+    // Simple average for now.
+    this.response_latency = (this.response_latency + latency) / 2;
+  }
+
+  updateLeaderboardRank(newRank: number) {
+    this.leaderboard_rank = newRank;
   }
 }

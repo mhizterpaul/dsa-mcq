@@ -1,8 +1,12 @@
+import React from 'react';
+import UserProfileSummary from './components/UserProfileSummary';
+
 export interface IUserComponent {
   loadUserProfile(): void;
   authenticateUser(): void;
   renderProfile(): void;
   renderLogin(): void;
+  renderUserProfileSummary(): React.ReactElement;
 }
 
 export class UserComponent implements IUserComponent {
@@ -20,5 +24,9 @@ export class UserComponent implements IUserComponent {
 
     renderLogin() {
         console.log("Rendering login...");
+    }
+
+    renderUserProfileSummary(): React.ReactElement {
+        return <UserProfileSummary />;
     }
 }

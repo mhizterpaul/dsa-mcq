@@ -1,9 +1,26 @@
-import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createEntityAdapter, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { Question } from './primitives/Question';
+import { generateFeedback } from '../services/feedbackService';
+import { RootState } from '../../mediator/store/rootReducer';
 
 const questionsAdapter = createEntityAdapter<Question>({
   selectId: (question) => question.id,
 });
+
+export const fetchFeedbackForQuestion = createAsyncThunk(
+  'questions/fetchFeedback',
+  async (questionId: string, { getState }) => {
+    const state = getState() as RootState;
+    const question = state.learning.questions.entities[questionId];
+
+    if (!question) {
+      throw new Error(`Question with id ${questionId} not found.`);
+    }
+
+    const feedback = await generateFeedback(question);
+    return { questionId, feedback };
+  }
+);
 
 const questionSlice = createSlice({
   name: 'questions',
@@ -30,6 +47,15 @@ const questionSlice = createSlice({
         });
         questionsAdapter.setAll(state, newQuestions);
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchFeedbackForQuestion.fulfilled, (state, action) => {
+      const { questionId, feedback } = action.payload;
+      questionsAdapter.updateOne(state, {
+        id: questionId,
+        changes: { feedback },
+      });
+    });
   },
 });
 
