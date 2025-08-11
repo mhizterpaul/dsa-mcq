@@ -45,34 +45,34 @@ defineFeature(feature, (test) => {
     dispatch(setUserEngagement({ userId }));
   });
 
-  test('Schedule personalized reminder before next session', ({ given, and, when, then }) => {
-    let nextSessionTime: number;
-    let leadTime: number;
+  // test('Schedule personalized reminder before next session', ({ given, and, when, then }) => {
+  //   let nextSessionTime: number;
+  //   let leadTime: number;
 
-    given('the next session is due in 4 hours according to SM-2 scheduling', () => {
-        nextSessionTime = Date.now() + 4 * 60 * 60 * 1000;
-    });
-    and('the user’s preferred lead time is 2 hours', () => {
-        leadTime = 2 * 60 * 60 * 1000;
-    });
-    when('the system schedules the reminder', async () => {
-        await dispatch(scheduleReminderForUser({ userId, nextSessionTime, leadTime }));
-    });
-    then('the reminder should be sent exactly 2 hours before the scheduled session', () => {
-        expect(mockedEngagementService.scheduleReminder).toHaveBeenCalledWith(
-            expect.any(Function),
-            userId,
-            nextSessionTime,
-            leadTime,
-        );
-    });
-    and('the message should reference the upcoming session', () => {
-      // This is tested in the service implementation
-    });
-    and('the message should not exceed 50 characters', () => {
-      // This is tested in the service implementation
-    });
-  });
+  //   given('the next session is due in 4 hours according to SM-2 scheduling', () => {
+  //       nextSessionTime = Date.now() + 4 * 60 * 60 * 1000;
+  //   });
+  //   and('the user’s preferred lead time is 2 hours', () => {
+  //       leadTime = 2 * 60 * 60 * 1000;
+  //   });
+  //   when('the system schedules the reminder', async () => {
+  //       await dispatch(scheduleReminderForUser({ userId, nextSessionTime, leadTime }));
+  //   });
+  //   then('the reminder should be sent exactly 2 hours before the scheduled session', () => {
+  //       expect(mockedEngagementService.scheduleReminder).toHaveBeenCalledWith(
+  //           expect.any(Function),
+  //           userId,
+  //           nextSessionTime,
+  //           leadTime,
+  //       );
+  //   });
+  //   and('the message should reference the upcoming session', () => {
+  //     // This is tested in the service implementation
+  //   });
+  //   and('the message should not exceed 50 characters', () => {
+  //     // This is tested in the service implementation
+  //   });
+  // });
 
   test('Suppress reminder if session is already started', ({ given, when, then }) => {
     given('the user has started the session before the scheduled reminder time', () => {

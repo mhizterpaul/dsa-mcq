@@ -1,5 +1,6 @@
 import { testApiHandler } from 'next-test-api-route-handler';
 import handler from '../../../../pages/api/auth/[...nextauth]';
+import path from 'path';
 
 jest.mock('pg', () => {
   const mPool = {
@@ -42,6 +43,7 @@ describe('NextAuth API route', () => {
 
     await testApiHandler({
       handler,
+      pagesDir: path.join(process.cwd(), 'src/user/auth-server/pages'),
       url: '/api/auth/callback/google?code=mock_code&state=mock_state',
       test: async ({ fetch }) => {
         const res = await fetch({ method: 'GET' });
@@ -63,6 +65,7 @@ describe('NextAuth API route', () => {
 
     await testApiHandler({
       handler,
+      pagesDir: path.join(process.cwd(), 'src/user/auth-server/pages'),
       url: '/api/auth/session',
       test: async ({ fetch }) => {
         // Here we would need to simulate a logged-in state.

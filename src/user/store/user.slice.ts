@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { User } from './primitives/User';
+import * as userService from '../services/userService';
 
 interface UserState {
   currentUser: User | null;
@@ -8,6 +9,22 @@ interface UserState {
 const initialState: UserState = {
   currentUser: null,
 };
+
+export const loginUser = createAsyncThunk(
+    'user/login',
+    async ({ username, password }: any) => {
+        const response = await userService.login(username, password);
+        return response;
+    }
+);
+
+export const registerUser = createAsyncThunk(
+    'user/register',
+    async ({ username, email, password }: any) => {
+        const response = await userService.register(username, email, password);
+        return response;
+    }
+);
 
 const userSlice = createSlice({
   name: 'user',
@@ -36,6 +53,11 @@ const userSlice = createSlice({
     logout: (state) => {
       state.currentUser = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(loginUser.fulfilled, (state, action) => {
+      state.currentUser = action.payload.user;
+    });
   },
 });
 

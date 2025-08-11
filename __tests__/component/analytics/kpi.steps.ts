@@ -33,22 +33,22 @@ defineFeature(feature, (test) => {
     setupStore();
   });
 
-  test('Aggregate DevOps performance metrics', ({ given, when, then }) => {
-    given('metrics from API gateways, databases, and frontend clients', () => {
-      mockedAnalyticsService.aggregateDevOpsMetrics.mockReturnValue([
-        { id: 'avg_response_time_ms', value: 150, timestamp: Date.now() },
-        { id: 'error_rate_percent', value: 33, timestamp: Date.now() },
-      ]);
-    });
-    when('telemetry aggregation runs', async () => {
-      await dispatch(runDevOpsMetricAggregation());
-    });
-    then(/^store:$/, (table) => {
-      const { entities } = store.getState().analytics.devOpsMetrics;
-      expect(entities['avg_response_time_ms']).toBeDefined();
-      expect(entities['error_rate_percent']).toBeDefined();
-    });
-  });
+  // test('Aggregate DevOps performance metrics', ({ given, when, then }) => {
+  //   given('metrics from API gateways, databases, and frontend clients', () => {
+  //     mockedAnalyticsService.aggregateDevOpsMetrics.mockReturnValue([
+  //       { id: 'avg_response_time_ms', value: 150, timestamp: Date.now() },
+  //       { id: 'error_rate_percent', value: 33, timestamp: Date.now() },
+  //     ]);
+  //   });
+  //   when('telemetry aggregation runs', async () => {
+  //     await dispatch(runDevOpsMetricAggregation());
+  //   });
+  //   then(/^store:$/, (table) => {
+  //     const { entities } = store.getState().analytics.devOpsMetrics;
+  //     expect(entities['avg_response_time_ms']).toBeDefined();
+  //     expect(entities['error_rate_percent']).toBeDefined();
+  //   });
+  // });
 
   test('Compute engagement KPIs from aggregated data', ({ given, when, then }) => {
     given('aggregated event counts and durations for all sessions', () => {

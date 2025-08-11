@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { LearningSession } from './primitives/LearningSession';
-import { getTopKQuestionRecommendations, getCategoryRecommendations, processAnswer, compileSessionSummary } from '../services/learningService';
+import { startNewSession as startNewSessionService, getTopKQuestionRecommendations, getCategoryRecommendations, processAnswer, compileSessionSummary } from '../services/learningService';
 import { RootState } from '../../mediator/store/rootReducer';
 import { UserQuestionData } from './primitives/UserQuestionData';
 import { setUserQuestionData } from './userQuestionData.slice';
@@ -25,10 +25,7 @@ export const startNewSession = createAsyncThunk(
     async ({ userId, allQuestionIds, subsetSize }: { userId: string, allQuestionIds: string[], subsetSize: number }, { getState }) => {
         const state = getState() as RootState;
         const userQuestionData = Object.values(state.learning.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
-        const newSession = new LearningSession('session1', userId, allQuestionIds);
-        const nextSubset = getTopKQuestionsForSession(userQuestionData, subsetSize);
-        newSession.questionIds = nextSubset;
-        newSession.subsetHistory.push(nextSubset);
+        const newSession = startNewSessionService(userId, allQuestionIds, userQuestionData, subsetSize);
         return newSession;
     }
 );

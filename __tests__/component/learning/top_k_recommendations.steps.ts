@@ -1,11 +1,12 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore } from '@reduxjs/toolkit';
+import path from 'path';
 import rootReducer from '../../../src/mediator/store/rootReducer';
 import { generateRecommendations } from '../../../src/learning/store/learningSession.slice';
 import { UserQuestionData } from '../../../src/learning/store/primitives/UserQuestionData';
 import { Category } from '../../../src/learning/store/primitives/Category';
 
-const feature = loadFeature('./top_k_recommendations.feature', { loadRelativePath: true });
+const feature = loadFeature(path.resolve(__dirname, './top_k_recommendations.feature'));
 
 let store: ReturnType<typeof configureStore>;
 let userId = 'test-user';
