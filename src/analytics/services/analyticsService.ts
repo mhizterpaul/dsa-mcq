@@ -88,6 +88,39 @@ export const detectAnomalies = (
     return null;
 };
 
+export const detectAnomaliesForMetrics = (
+    devOpsMetrics: { [id: string]: DevOpsMetric },
+    engagementKPIs: { [id: string]: EngagementKPI }
+): Anomaly[] => {
+    const anomalies: Anomaly[] = [];
+    const historicalData = {
+        avg_response_time_ms: [100, 110, 105],
+        'Low Improvement Rate (%)': [10, 12, 11],
+    };
+
+    for (const metricId in devOpsMetrics) {
+        const metric = devOpsMetrics[metricId];
+        if (metric && historicalData[metricId]) {
+            const anomaly = detectAnomalies(metricId, historicalData[metricId], metric.value, 'performance');
+            if (anomaly) {
+                anomalies.push(anomaly);
+            }
+        }
+    }
+
+    for (const kpiId in engagementKPIs) {
+        const kpi = engagementKPIs[kpiId];
+        if (kpi && historicalData[kpiId]) {
+            const anomaly = detectAnomalies(kpiId, historicalData[kpiId], kpi.value, 'engagement');
+            if (anomaly) {
+                anomalies.push(anomaly);
+            }
+        }
+    }
+
+    return anomalies;
+}
+
 export const generateInsights = (anomalies: Anomaly[]): Insight[] => {
     const insights: Insight[] = [];
 

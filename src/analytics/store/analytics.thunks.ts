@@ -33,31 +33,10 @@ export const runAnomalyDetection = createAsyncThunk(
         const devOpsMetrics = state.analytics.devOpsMetrics.entities;
         const engagementKPIs = state.analytics.engagementKPIs.entities;
 
-        // This is a simplified example. A real implementation would have historical data.
-        const historicalData = {
-            avg_response_time_ms: [100, 110, 105],
-            'Low Improvement Rate (%)': [10, 12, 11],
-        };
-
-        for (const metricId in devOpsMetrics) {
-            const metric = devOpsMetrics[metricId];
-            if (metric && historicalData[metricId]) {
-                const anomaly = analyticsService.detectAnomalies(metricId, historicalData[metricId], metric.value, 'performance');
-                if (anomaly) {
-                    dispatch(addAnomaly({ id: anomaly.id, metricId: anomaly.metricId, type: anomaly.type, deviation: anomaly.deviation }));
-                }
-            }
-        }
-
-        for (const kpiId in engagementKPIs) {
-            const kpi = engagementKPIs[kpiId];
-            if (kpi && historicalData[kpiId]) {
-                const anomaly = analyticsService.detectAnomalies(kpiId, historicalData[kpiId], kpi.value, 'engagement');
-                if (anomaly) {
-                    dispatch(addAnomaly({ id: anomaly.id, metricId: anomaly.metricId, type: anomaly.type, deviation: anomaly.deviation }));
-                }
-            }
-        }
+        const anomalies = analyticsService.detectAnomaliesForMetrics(devOpsMetrics, engagementKPIs);
+        anomalies.forEach(anomaly => {
+            dispatch(addAnomaly({ id: anomaly.id, metricId: anomaly.metricId, type: anomaly.type, deviation: anomaly.deviation }));
+        });
     }
 );
 

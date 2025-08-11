@@ -59,6 +59,20 @@ export const checkForMilestones = createAsyncThunk(
     }
 );
 
+export const updateLeaderboardRankAndCheckForUIUpdate = createAsyncThunk(
+    'userEngagement/updateLeaderboardRankAndCheckForUIUpdate',
+    async ({ userId, newRank }: { userId: string, newRank: number }, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const currentRank = state.engagement.userEngagement.engagements[userId]?.leaderboard_rank;
+
+        dispatch(userEngagementSlice.actions.updateLeaderboardRank({ userId, newRank }));
+
+        if (currentRank !== undefined && currentRank !== newRank) {
+            dispatch(userEngagementSlice.actions.setShowLeaderboardChange(true));
+        }
+    }
+);
+
 const userEngagementSlice = createSlice({
   name: 'userEngagement',
   initialState,
@@ -108,9 +122,6 @@ const userEngagementSlice = createSlice({
         const { userId, newRank } = action.payload;
         const existingData = state.engagements[userId];
         if (existingData) {
-            if (existingData.leaderboard_rank !== newRank) {
-                state.ui.showLeaderboardChange = true;
-            }
             const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
             engagementInstance.updateLeaderboardRank(newRank);
             state.engagements[userId] = { ...engagementInstance };

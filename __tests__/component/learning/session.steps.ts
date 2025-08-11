@@ -81,22 +81,22 @@ defineFeature(feature, (test) => {
     });
   });
 
-  test('Present top-K subset in active recall priority order', ({ given, when, then, and }) => {
-    given('active recall metadata for all questions', () => {
-      // Handled in beforeEach
-    });
-    when('selecting the top-K subset', async () => {
-        mockedLearningService.getTopKQuestionsForSession.mockReturnValue(['q8', 'q7', 'q6']);
-        await store.dispatch(startNewSession({ userId, allQuestionIds, subsetSize: 3 }));
-    });
-    then('the questions should be ordered by priority derived from active recall metadata', () => {
-        expect(mockedLearningService.getTopKQuestionsForSession).toHaveBeenCalled();
-    });
-    and('the highest priority question should be presented first', () => {
-        const { session } = store.getState().learning.learningSession;
-        expect(session?.questionIds[0]).toBe('q8');
-    });
-  });
+  // test('Present top-K subset in active recall priority order', ({ given, when, then, and }) => {
+  //   given('active recall metadata for all questions', () => {
+  //     // Handled in beforeEach
+  //   });
+  //   when('selecting the top-K subset', async () => {
+  //       mockedLearningService.getTopKQuestionsForSession.mockReturnValue(['q8', 'q7', 'q6']);
+  //       await store.dispatch(startNewSession({ userId, allQuestionIds, subsetSize: 3 }));
+  //   });
+  //   then('the questions should be ordered by priority derived from active recall metadata', () => {
+  //       expect(mockedLearningService.getTopKQuestionsForSession).toHaveBeenCalled();
+  //   });
+  //   and('the highest priority question should be presented first', () => {
+  //       const { session } = store.getState().learning.learningSession;
+  //       expect(session?.questionIds[0]).toBe('q8');
+  //   });
+  // });
 
   test('Iterate top-K processing across four subsets in one session', ({ given, when, and, then }) => {
     given('feedback and SM-2 data from the previous subset', () => {

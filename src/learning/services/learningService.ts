@@ -68,6 +68,7 @@ export const updateSM2Data = (
 };
 
 import { UserQuestionData } from '../store/primitives/UserQuestionData';
+import { LearningSession } from '../store/primitives/LearningSession';
 import { Category } from '../store/primitives/Category';
 
 interface QuestionRecommendation {
@@ -106,6 +107,19 @@ export const getTopKQuestionsForSession = (
 ): string[] => {
   const recommendations = getTopKQuestionRecommendations(userQuestionData, k);
   return recommendations.map(r => r.questionId);
+};
+
+export const startNewSession = (
+  userId: string,
+  allQuestionIds: string[],
+  userQuestionData: UserQuestionData[],
+  subsetSize: number
+): LearningSession => {
+  const newSession = new LearningSession('session1', userId, allQuestionIds);
+  const nextSubset = getTopKQuestionsForSession(userQuestionData, subsetSize);
+  newSession.questionIds = nextSubset;
+  newSession.subsetHistory.push(nextSubset);
+  return newSession;
 };
 
 export const processAnswer = (
