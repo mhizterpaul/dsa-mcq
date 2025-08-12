@@ -42,6 +42,7 @@ CREATE TABLE users
   email VARCHAR(255),
   "emailVerified" TIMESTAMPTZ,
   image TEXT,
+  password VARCHAR(255),
 
   PRIMARY KEY (id)
 );
