@@ -1,6 +1,6 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore, AnyAction } from '@reduxjs/toolkit';
-import rootReducer from '../../../src/mediator/store/rootReducer';
+import engagementRootReducer from '../../../src/engagement/store/store';
 import {
   setUserEngagement,
   updateLeaderboardRank,
@@ -27,7 +27,7 @@ let dispatchedActions: AnyAction[] = [];
 const setupStore = (initialState?: any) => {
   dispatchedActions = [];
   const a = configureStore({
-    reducer: rootReducer,
+    reducer: engagementRootReducer,
     preloadedState: initialState,
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware().prepend(store => next => action => {
@@ -75,6 +75,15 @@ defineFeature(feature, (test) => {
   // });
 
   test('Suppress reminder if session is already started', ({ given, when, then }) => {
+    given('the system tracks:', (table) => {
+      // empty
+    });
+    and('reminder/nudge tone is encouraging, action-oriented, and ≤ 50 characters', () => {
+      // empty
+    });
+    and('visual cues include progress bars, animations, and leaderboard change indicators', () => {
+      // empty
+    });
     given('the user has started the session before the scheduled reminder time', () => {
       // This logic is inside the scheduleReminder service, which is mocked.
     });
@@ -87,10 +96,19 @@ defineFeature(feature, (test) => {
   });
 
   test('Trigger nudge for missed session', ({ given, and, when, then }) => {
+    given('the system tracks:', (table) => {
+      // empty
+    });
+    and('reminder/nudge tone is encouraging, action-oriented, and ≤ 50 characters', () => {
+      // empty
+    });
+    and('visual cues include progress bars, animations, and leaderboard change indicators', () => {
+      // empty
+    });
     given('the user missed yesterday’s session', () => {
       const userEngagement = new UserEngagement(userId);
       userEngagement.last_session_timestamp = Date.now() - 25 * 60 * 60 * 1000;
-      setupStore({ engagement: { userEngagement: { engagements: { [userId]: userEngagement }, ui:{} } } });
+      setupStore({ userEngagement: { engagements: { [userId]: userEngagement }, ui:{} } });
     });
     and('streak_length has decreased by 1', () => {
       // This is a side effect of missing a session, assumed to be handled elsewhere.
@@ -118,16 +136,25 @@ defineFeature(feature, (test) => {
   });
 
   test('Trigger visual cue for leaderboard change', ({ given, when, then, and }) => {
+    given('the system tracks:', (table) => {
+      // empty
+    });
+    and('reminder/nudge tone is encouraging, action-oriented, and ≤ 50 characters', () => {
+      // empty
+    });
+    and('visual cues include progress bars, animations, and leaderboard change indicators', () => {
+      // empty
+    });
     given('the user has moved up or down at least 1 position on the leaderboard since the last session', () => {
         const userEngagement = new UserEngagement(userId);
         userEngagement.leaderboard_rank = 5;
-        setupStore({ engagement: { userEngagement: { engagements: { [userId]: userEngagement }, ui:{} } } });
+        setupStore({ userEngagement: { engagements: { [userId]: userEngagement }, ui:{} } });
     });
     when('the leaderboard is displayed', async () => {
         await dispatch(updateLeaderboardRank({ userId, newRank: 4 }));
     });
     then('a visual cue should indicate the position change', () => {
-        const { ui } = store.getState().engagement.userEngagement;
+        const { ui } = store.getState().userEngagement;
         expect(ui.showLeaderboardChange).toBe(true);
     });
     and('the visual cue should be animated for emphasis', () => {
@@ -140,6 +167,15 @@ defineFeature(feature, (test) => {
   });
 
   test('Trigger visual cue for XP milestone', ({ given, when, then, and }) => {
+    given('the system tracks:', (table) => {
+      // empty
+    });
+    and('reminder/nudge tone is encouraging, action-oriented, and ≤ 50 characters', () => {
+      // empty
+    });
+    and('visual cues include progress bars, animations, and leaderboard change indicators', () => {
+      // empty
+    });
     given('the user needs ≤ 50 XP to reach the next level', () => {
         mockedEngagementService.checkXpMilestone.mockReturnValue(true);
     });
@@ -147,7 +183,7 @@ defineFeature(feature, (test) => {
         await dispatch(checkForMilestones(userId));
     });
     then('an animated progress bar should be displayed', () => {
-        const { ui } = store.getState().engagement.userEngagement;
+        const { ui } = store.getState().userEngagement;
         expect(ui.showXpMilestone).toBe(true);
     });
     and('the progress bar should highlight the XP remaining', () => {
@@ -160,6 +196,15 @@ defineFeature(feature, (test) => {
   });
 
   test('Trigger visual cue for streak milestone', ({ given, when, then, and }) => {
+    given('the system tracks:', (table) => {
+      // empty
+    });
+    and('reminder/nudge tone is encouraging, action-oriented, and ≤ 50 characters', () => {
+      // empty
+    });
+    and('visual cues include progress bars, animations, and leaderboard change indicators', () => {
+      // empty
+    });
     given('the user has reached a streak milestone (e.g., 7, 30, or 100 days)', () => {
         mockedEngagementService.checkStreakMilestone.mockReturnValue(true);
     });
@@ -167,7 +212,7 @@ defineFeature(feature, (test) => {
         await dispatch(checkForMilestones(userId));
     });
     then('an animated badge should be displayed', () => {
-        const { ui } = store.getState().engagement.userEngagement;
+        const { ui } = store.getState().userEngagement;
         expect(ui.showStreakMilestone).toBe(true);
     });
     and('the badge animation should last between 0.8s and 1.2s', () => {

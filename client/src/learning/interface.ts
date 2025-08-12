@@ -7,7 +7,6 @@ import FeaturedCategories from './components/FeaturedCategories';
 import RecentQuizzes from './components/RecentQuizzes';
 
 export interface ILearningComponent {
-  loadQuestions(): void;
   loadUserProgress(): void;
   renderQuiz(onNext: () => void): React.ReactElement;
   renderSummary(): void;
@@ -19,9 +18,6 @@ export interface ILearningComponent {
 }
 
 export class LearningComponent implements ILearningComponent {
-    loadQuestions() {
-      console.log("Loading questions...");
-    }
 
     loadUserProgress() {
       console.log("Loading user progress...");

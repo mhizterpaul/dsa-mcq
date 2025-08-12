@@ -25,7 +25,7 @@ export interface UpdatedSM2Data extends SM2Data {
  * @param quality - The quality of the user's response (0-5).
  * @returns The updated SM-2 data.
  */
-export const updateSM2Data = (
+const updateSM2Data = (
   currentData: SM2Data,
   quality: number,
 ): UpdatedSM2Data => {
@@ -76,7 +76,7 @@ interface QuestionRecommendation {
   recommendationScore: number;
 }
 
-export const getTopKQuestionRecommendations = (
+const getTopKQuestionRecommendations = (
   userQuestionData: UserQuestionData[],
   k: number,
   beta: number = 1.0,
@@ -101,7 +101,7 @@ interface CategoryRecommendation {
   explanation: string;
 }
 
-export const getTopKQuestionsForSession = (
+const getTopKQuestionsForSession = (
   userQuestionData: UserQuestionData[],
   k: number,
 ): string[] => {
@@ -109,7 +109,7 @@ export const getTopKQuestionsForSession = (
   return recommendations.map(r => r.questionId);
 };
 
-export const startNewSession = (
+const startNewSession = (
   userId: string,
   allQuestionIds: string[],
   userQuestionData: UserQuestionData[],
@@ -122,7 +122,7 @@ export const startNewSession = (
   return newSession;
 };
 
-export const processAnswer = (
+const processAnswer = (
   uqd: UserQuestionData,
   isCorrect: boolean,
   quality: number,
@@ -136,13 +136,13 @@ export const processAnswer = (
     updatedUqd.updateRecallOnIncorrectAnswer(techniqueIds);
   }
 
-  const updatedSm2 = updateSM2Data(updatedUqd.sm2, quality);
+  const updatedSm2 = updateSM2Data(uqd.sm2, quality);
   updatedUqd.sm2 = updatedSm2;
 
   return updatedUqd;
 };
 
-export const compileSessionSummary = (
+const compileSessionSummary = (
     answers: { [questionId: string]: { answer: string; isCorrect: boolean } },
   ): { strengths: string[]; weaknesses: string[] } => {
     const strengths: string[] = [];
@@ -159,7 +159,7 @@ export const compileSessionSummary = (
     return { strengths, weaknesses };
 };
 
-export const getCategoryRecommendations = (
+const getCategoryRecommendations = (
   categories: Category[],
 ): CategoryRecommendation[] => {
   return categories.map((category) => {
@@ -187,4 +187,14 @@ export const getCategoryRecommendations = (
       explanation,
     };
   });
+};
+
+export const learningService = {
+    updateSM2Data,
+    getTopKQuestionRecommendations,
+    getTopKQuestionsForSession,
+    startNewSession,
+    processAnswer,
+    compileSessionSummary,
+    getCategoryRecommendations,
 };

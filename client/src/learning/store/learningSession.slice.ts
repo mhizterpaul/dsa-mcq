@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { LearningSession } from './primitives/LearningSession';
-import { startNewSession as startNewSessionService, getTopKQuestionRecommendations, getCategoryRecommendations, processAnswer, compileSessionSummary } from '../services/learningService';
-import { RootState } from '../../mediator/store/rootReducer';
+import { learningService } from '../services/learningService';
+import { LearningRootState } from './store';
 import { UserQuestionData } from './primitives/UserQuestionData';
 import { setUserQuestionData } from './userQuestionData.slice';
 
@@ -23,20 +23,20 @@ const initialState: LearningSessionState = {
 export const startNewSession = createAsyncThunk(
     'learningSession/startNewSession',
     async ({ userId, allQuestionIds, subsetSize }: { userId: string, allQuestionIds: string[], subsetSize: number }, { getState }) => {
-        const state = getState() as RootState;
-        const userQuestionData = Object.values(state.learning.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
-        const newSession = startNewSessionService(userId, allQuestionIds, userQuestionData, subsetSize);
+        const state = getState() as LearningRootState;
+        const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
+        const newSession = learningService.startNewSession(userId, allQuestionIds, userQuestionData, subsetSize);
         return newSession;
     }
 );
 
 export const processAnswerAndUpdate = createAsyncThunk(
     'learningSession/processAnswer',
-    async ({ questionId, answer, isCorrect, quality, techniqueIds }: { questionId: string, answer: string, isCorrect: boolean, quality: number, techniqueIds?: string[] }, { getState, dispatch }) => {
-        const state = getState() as RootState;
-        const uqd = state.learning.userQuestionData.entities[questionId];
+    async ({ userId, questionId, answer, isCorrect, quality, techniqueIds }: { userId: string, questionId: string, answer: string, isCorrect: boolean, quality: number, techniqueIds?: string[] }, { getState, dispatch }) => {
+        const state = getState() as LearningRootState;
+        const uqd = state.userQuestionData.entities[`${userId}-${questionId}`];
         if (uqd) {
-            const updatedUqd = processAnswer(uqd, isCorrect, quality, techniqueIds);
+            const updatedUqd = learningService.processAnswer(uqd, isCorrect, quality, techniqueIds);
             dispatch(setUserQuestionData(updatedUqd));
         }
         return { questionId, answer, isCorrect };
@@ -46,10 +46,10 @@ export const processAnswerAndUpdate = createAsyncThunk(
 export const endCurrentSession = createAsyncThunk(
     'learningSession/endCurrentSession',
     async (_, { getState }) => {
-        const state = getState() as RootState;
-        const session = state.learning.learningSession.session;
+        const state = getState() as LearningRootState;
+        const session = state.learningSession.session;
         if (session) {
-            const summary = compileSessionSummary(session.answers);
+            const summary = learningService.compileSessionSummary(session.answers);
             return summary;
         }
         return { strengths: [], weaknesses: [] };
@@ -60,12 +60,12 @@ export const endCurrentSession = createAsyncThunk(
 export const generateRecommendations = createAsyncThunk(
   'learningSession/generateRecommendations',
   async (_, { getState }) => {
-    const state = getState() as RootState;
-    const userQuestionData = Object.values(state.learning.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
-    const categories = Object.values(state.learning.categories.entities).filter(Boolean);
+    const state = getState() as LearningRootState;
+    const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
+    const categories = Object.values(state.categories.entities).filter(Boolean);
 
-    const questionRecommendations = getTopKQuestionRecommendations(userQuestionData, 3);
-    const categoryRecommendations = getCategoryRecommendations(categories);
+    const questionRecommendations = learningService.getTopKQuestionRecommendations(userQuestionData, 3);
+    const categoryRecommendations = learningService.getCategoryRecommendations(categories);
 
     return {
       questions: questionRecommendations,

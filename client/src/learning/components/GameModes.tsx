@@ -13,10 +13,6 @@ const GameModes = () => {
         <Icon name="account" size={28} color="#fff" />
         <Text style={styles.modeText}>Solo Mode</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.modeBox, { backgroundColor: '#2EC4B6' }]}>
-        <Icon name="account-group" size={28} color="#fff" />
-        <Text style={styles.modeText}>Multiplayer</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={styles.arrowBox}>
         <Icon name="chevron-right" size={28} color="#FF7A3C" />
       </TouchableOpacity>

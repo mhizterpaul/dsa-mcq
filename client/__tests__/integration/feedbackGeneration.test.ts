@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import rootReducer from '../../src/mediator/store/rootReducer';
+import { learningRootReducer } from '../../src/learning/store/store';
 import { fetchFeedbackForQuestion, addQuestion } from '../../src/learning/store/question.slice';
 import * as feedbackService from '../../src/learning/services/feedbackService';
 import { Question } from '../../src/learning/store/primitives/Question';
@@ -13,7 +13,11 @@ describe('Feedback Generation Integration Test', () => {
 
   beforeEach(() => {
     store = configureStore({
-      reducer: rootReducer,
+      reducer: learningRootReducer,
+      middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware({
+          serializableCheck: false,
+        }),
     });
   });
 
@@ -41,7 +45,7 @@ describe('Feedback Generation Integration Test', () => {
     await store.dispatch(fetchFeedbackForQuestion(questionId));
 
     const state = store.getState();
-    const updatedQuestion = state.learning.questions.entities[questionId];
+    const updatedQuestion = state.questions.entities[questionId];
 
     expect(updatedQuestion?.feedback).toEqual(mockFeedback);
   });

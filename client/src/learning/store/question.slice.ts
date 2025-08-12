@@ -1,7 +1,7 @@
 import { createSlice, createEntityAdapter, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { Question } from './primitives/Question';
 import { generateFeedback } from '../services/feedbackService';
-import { RootState } from '../../mediator/store/rootReducer';
+import { LearningRootState } from './store';
 
 const questionsAdapter = createEntityAdapter<Question>({
   selectId: (question) => question.id,
@@ -10,8 +10,8 @@ const questionsAdapter = createEntityAdapter<Question>({
 export const fetchFeedbackForQuestion = createAsyncThunk(
   'questions/fetchFeedback',
   async (questionId: string, { getState }) => {
-    const state = getState() as RootState;
-    const question = state.learning.questions.entities[questionId];
+    const state = getState() as LearningRootState;
+    const question = state.questions.entities[questionId];
 
     if (!question) {
       throw new Error(`Question with id ${questionId} not found.`);

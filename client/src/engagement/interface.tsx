@@ -5,7 +5,7 @@ import MotivationCard from './components/MotivationCard';
 import NotificationButton from './components/NotificationButton';
 import Leaderboard from './components/Leaderboard';
 import UserScore from './components/UserScore';
-import PromoBanner from './components/PromoBanner';
+import PromoBanner from '../mediator/components/PromoBanner';
 
 export interface IEngagementComponent {
   loadGamificationState(): void;
