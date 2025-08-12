@@ -10,6 +10,10 @@ const initialState: UserState = {
   currentUser: null,
 };
 
+const options = {
+  ttl: 1000 * 60 * 60, // 1 hour
+};
+
 export const loginUser = createAsyncThunk(
     'user/login',
     async ({ username, password }: any) => {
