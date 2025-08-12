@@ -1,9 +1,9 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../mediator/store/store';
-import { addAnomaly } from '../store/anomalies.slice';
-import { addDevOpsMetric } from '../store/devOpsMetrics.slice';
-import { addEngagementKPI } from '../store/engagementKPIs.slice';
-import { addInsight } from '../store/insights.slice';
+import { addAnomaly } from '../../analytics/store/anomalies.slice';
+import { addDevOpsMetric } from '../../analytics/store/devOpsMetrics.slice';
+import { addEngagementKPI } from '../../analytics/store/engagementKPIs.slice';
+import { addInsight } from '../../analytics/store/insights.slice';
 
 export const useAnalytics = () => {
   const dispatch = useDispatch();
