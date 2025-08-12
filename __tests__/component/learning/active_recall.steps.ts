@@ -1,6 +1,6 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore } from '@reduxjs/toolkit';
-import rootReducer from '../../../src/mediator/store/rootReducer';
+import { learningRootReducer } from '../../../src/learning/store/store';
 import {
   addUserQuestionData,
   answerCorrectly,
@@ -19,12 +19,12 @@ let questionId = 'test-question';
 const selectUserQuestionData = (userId: string, questionId: string) => {
   const state = store.getState();
   const id = `${userId}-${questionId}`;
-  return state.learning.userQuestionData.entities[id];
+  return state.userQuestionData.entities[id];
 };
 
 const setupStore = (initialState?: any) => {
   store = configureStore({
-    reducer: rootReducer,
+    reducer: learningRootReducer,
     preloadedState: initialState,
   });
 };

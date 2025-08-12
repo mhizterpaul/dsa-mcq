@@ -1,7 +1,7 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore } from '@reduxjs/toolkit';
 import path from 'path';
-import rootReducer from '../../../src/mediator/store/rootReducer';
+import { learningRootReducer } from '../../../src/learning/store/store';
 import { generateRecommendations } from '../../../src/learning/store/learningSession.slice';
 import { UserQuestionData } from '../../../src/learning/store/primitives/UserQuestionData';
 import { Category } from '../../../src/learning/store/primitives/Category';
@@ -13,8 +13,12 @@ let userId = 'test-user';
 
 const setupStore = (initialState?: any) => {
   store = configureStore({
-    reducer: rootReducer,
+    reducer: learningRootReducer,
     preloadedState: initialState,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        serializableCheck: false,
+      }),
   });
 };
 
@@ -33,20 +37,18 @@ const createInitialState = () => {
   const cat3 = new Category('C3', 'Category 3', 0.0);
 
   return {
-    learning: {
-      userQuestionData: {
-        ids: [`${userId}-Q1`, `${userId}-Q2`, `${userId}-Q3`, `${userId}-Q4`],
-        entities: {
-          [`${userId}-Q1`]: uqd1,
-          [`${userId}-Q2`]: uqd2,
-          [`${userId}-Q3`]: uqd3,
-          [`${userId}-Q4`]: uqd4,
-        },
+    userQuestionData: {
+      ids: [`${userId}-Q1`, `${userId}-Q2`, `${userId}-Q3`, `${userId}-Q4`],
+      entities: {
+        [`${userId}-Q1`]: uqd1,
+        [`${userId}-Q2`]: uqd2,
+        [`${userId}-Q3`]: uqd3,
+        [`${userId}-Q4`]: uqd4,
       },
-      categories: {
-        ids: ['C1', 'C2', 'C3'],
-        entities: { C1: cat1, C2: cat2, C3: cat3 },
-      },
+    },
+    categories: {
+      ids: ['C1', 'C2', 'C3'],
+      entities: { C1: cat1, C2: cat2, C3: cat3 },
     },
   };
 };
@@ -58,12 +60,24 @@ defineFeature(feature, (test) => {
   });
 
   test('Metadata state verification before recommendation', ({ given, then, and }) => {
+    given('a user is in a learning session', () => {
+      // Handled in beforeEach
+    });
+    and('questions Q1, Q2, Q3, Q4 are tagged with categories C1, C2, and C3 respectively', () => {
+      // Handled in beforeEach
+    });
+    and('the system maintains for the user:', (table) => {
+      // Handled in beforeEach
+    });
+    and('global category mastery states are:', (table) => {
+      // Handled in beforeEach
+    });
     given('the user has valid metadata for all questions and categories', () => {
       // beforeEach sets this up
     });
 
     then('each question and category mastery score is within the range 0.0 to 1.0', () => {
-      const state = store.getState().learning;
+      const state = store.getState();
       Object.values(state.userQuestionData.entities).forEach(uqd => {
         if (uqd) {
           expect(uqd.recallStrength).toBeGreaterThanOrEqual(0);
@@ -81,13 +95,25 @@ defineFeature(feature, (test) => {
     and(/^local and global states match mastery score thresholds:$/, (table) => {
       // This is more of a documentation step. The logic is implicitly tested by other scenarios.
       // We can add a simple check to ensure the test setup matches the thresholds.
-      const state = store.getState().learning;
+      const state = store.getState();
       const q1Mastery = state.userQuestionData.entities[`${userId}-Q1`]?.recallStrength;
       expect(q1Mastery).toBeLessThan(0.4); // STRUGGLING
     });
   });
 
   test('Generate top-k (k=3) question recommendations using exponential scoring', ({ given, when, then, and }) => {
+    given('a user is in a learning session', () => {
+      // Handled in beforeEach
+    });
+    and('questions Q1, Q2, Q3, Q4 are tagged with categories C1, C2, and C3 respectively', () => {
+      // Handled in beforeEach
+    });
+    and('the system maintains for the user:', (table) => {
+      // Handled in beforeEach
+    });
+    and('global category mastery states are:', (table) => {
+      // Handled in beforeEach
+    });
     given('k = 3', () => {
       // k is passed to the service function in the 'when' step
     });
@@ -97,7 +123,7 @@ defineFeature(feature, (test) => {
     });
 
     then(/^the system outputs a ranked list of top 3 questions:$/, (table) => {
-      const { recommendations } = store.getState().learning.learningSession;
+      const { recommendations } = store.getState().learningSession;
       expect(recommendations?.questions).toHaveLength(3);
       expect(recommendations?.questions[0].questionId).toBe('Q4');
       expect(recommendations?.questions[1].questionId).toBe('Q1');
@@ -105,13 +131,25 @@ defineFeature(feature, (test) => {
     });
 
     and('mastered questions like Q3 have exponentially low scores and are excluded or ranked last', () => {
-      const { recommendations } = store.getState().learning.learningSession;
+      const { recommendations } = store.getState().learningSession;
       const q3 = recommendations?.questions.find(q => q.questionId === 'Q3');
       expect(q3).toBeUndefined();
     });
   });
 
   test('Feedback output includes prioritized recommendation rationale', ({ given, when, then }) => {
+    given('a user is in a learning session', () => {
+      // Handled in beforeEach
+    });
+    and('questions Q1, Q2, Q3, Q4 are tagged with categories C1, C2, and C3 respectively', () => {
+      // Handled in beforeEach
+    });
+    and('the system maintains for the user:', (table) => {
+      // Handled in beforeEach
+    });
+    and('global category mastery states are:', (table) => {
+      // Handled in beforeEach
+    });
     given('the system has generated top-k recommendations', async () => {
       await store.dispatch(generateRecommendations());
     });
@@ -121,7 +159,7 @@ defineFeature(feature, (test) => {
     });
 
     then(/^the system outputs:$/, (table) => {
-      const { recommendations } = store.getState().learning.learningSession;
+      const { recommendations } = store.getState().learningSession;
       const catRecommendations = recommendations?.categories;
 
       expect(catRecommendations).toBeDefined();
@@ -136,10 +174,21 @@ defineFeature(feature, (test) => {
     });
   });
 
-  test('Recommendation scoring differs from linear scoring significantly', ({ given, when, then }) => {
+  test('Recommendation scoring differs from linear scoring significantly', ({ given, when, then, and }) => {
     let linearScore: number;
     let exponentialScore: number;
-
+    given('a user is in a learning session', () => {
+      // Handled in beforeEach
+    });
+    and('questions Q1, Q2, Q3, Q4 are tagged with categories C1, C2, and C3 respectively', () => {
+      // Handled in beforeEach
+    });
+    and('the system maintains for the user:', (table) => {
+      // Handled in beforeEach
+    });
+    and('global category mastery states are:', (table) => {
+      // Handled in beforeEach
+    });
     given('the system computes linear scores as (1 - MasteryScore)', () => {
         // This is a conceptual step for comparison
     });

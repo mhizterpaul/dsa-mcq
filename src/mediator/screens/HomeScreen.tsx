@@ -5,16 +5,20 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { Provider } from 'react-redux';
 import { UserComponent } from '../../user/interface';
 import { LearningComponent } from '../../learning/interface';
 import { EngagementComponent } from '../../engagement/interface';
 import BottomNav from '../components/BottomNav';
+import userStore from '../../user/store/store';
+import learningStore from '../../learning/store/store';
+import engagementStore from '../../engagement/store/store';
 
 const user = new UserComponent();
 const learning = new LearningComponent();
 const engagement = new EngagementComponent();
 
-const HomeScreen = ({ navigation }: any) => {
+const HomeScreenContent = ({ navigation }: any) => {
   const handleSelectCategory = (category: string) => {
     console.log('Selected category:', category);
     navigation.navigate('Quiz');
@@ -45,6 +49,18 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Bottom Navigation */}
       <BottomNav navigation={navigation} activeScreen="Home" />
     </SafeAreaView>
+  );
+};
+
+const HomeScreen = ({ navigation }: any) => {
+  return (
+    <Provider store={userStore}>
+      <Provider store={learningStore}>
+        <Provider store={engagementStore}>
+          <HomeScreenContent navigation={navigation} />
+        </Provider>
+      </Provider>
+    </Provider>
   );
 };
 

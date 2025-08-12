@@ -7,12 +7,14 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { Provider } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { EngagementComponent } from '../../engagement/interface';
+import engagementStore from '../../engagement/store/store';
 
 const engagement = new EngagementComponent();
 
-const LeaderboardScreen = ({ navigation }: any) => {
+const LeaderboardScreenContent = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Nav */}
@@ -47,7 +49,15 @@ const LeaderboardScreen = ({ navigation }: any) => {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </SafeAreaView>.
+  );
+};
+
+const LeaderboardScreen = ({ navigation }: any) => {
+  return (
+    <Provider store={engagementStore}>
+      <LeaderboardScreenContent navigation={navigation} />
+    </Provider>
   );
 };
 
