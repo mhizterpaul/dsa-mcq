@@ -3,9 +3,11 @@ import { LearningSession } from './primitives/LearningSession';
 import { learningService } from '../services/learningService';
 import { LearningRootState } from './store';
 import { UserQuestionData } from './primitives/UserQuestionData';
+
 import { setUserQuestionDataDb } from './userQuestionData.slice'; // Assuming this will be the DB version
 import { sqliteService } from '../../common/services/sqliteService';
 import { fetchBatchFeedback } from './question.slice'; // To be created in a later step
+
 
 // --- STATE AND INITIAL STATE ---
 interface LearningSessionState {
@@ -31,6 +33,7 @@ const stringifySession = (session: LearningSession) => ({
   is_dirty: 1,
 });
 
+
 const parseSession = (dbSession: any): LearningSession => {
   const session = new LearningSession(dbSession.id, dbSession.userId, JSON.parse(dbSession.allQuestionIds || '[]'));
   return Object.assign(session, {
@@ -43,13 +46,16 @@ const parseSession = (dbSession: any): LearningSession => {
 };
 
 
+
 // --- ASYNC THUNKS ---
 
 export const hydrateLearningSession = createAsyncThunk<LearningSession | null>(
   'learningSession/hydrate',
   async () => {
+
     const sessions = await sqliteService.getAll('learning_sessions');
     if (sessions.length > 0) return parseSession(sessions[sessions.length - 1]);
+
     return null;
   },
 );
@@ -57,7 +63,9 @@ export const hydrateLearningSession = createAsyncThunk<LearningSession | null>(
 export const saveSessionDb = createAsyncThunk(
     'learningSession/saveSessionDb',
     async (session: LearningSession) => {
+
         await sqliteService.create('learning_sessions', stringifySession(session));
+
         return session;
     }
 );
@@ -68,6 +76,7 @@ export const startNewSession = createAsyncThunk(
         const state = getState() as LearningRootState;
         const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
         const newSession = learningService.startNewSession(userId, allQuestionIds, userQuestionData, subsetSize);
+
         dispatch(saveSessionDb(newSession));
         return newSession;
     }
@@ -77,6 +86,7 @@ export const processAnswerAndUpdate = createAsyncThunk(
     'learningSession/processAnswer',
     async ({ userId, questionId, answer, isCorrect, quality, techniqueIds }: { userId: string, questionId: string, answer: string, isCorrect: boolean, quality: number, techniqueIds?: string[] }, { getState, dispatch }) => {
         const state = getState() as LearningRootState;
+
 
         // Update UserQuestionData
         dispatch(setUserQuestionDataDb({ userId, questionId, isCorrect, quality, techniqueIds }));
@@ -110,6 +120,54 @@ export const processAnswerAndUpdate = createAsyncThunk(
 export const endCurrentSession = createAsyncThunk(/* ... existing implementation ... */);
 export const generateRecommendations = createAsyncThunk(/* ... existing implementation ... */);
 
+        const uqd = state.userQuestionData.entities[`${userId}-${questionId}`];
+        if (uqd) {
+            const updatedUqd = learningService.processAnswer(uqd, isCorrect, quality, techniqueIds);
+            dispatch(setUserQuestionData(updatedUqd)); // This should also be a DB thunk
+        }
+        // We need to get the updated session from state to save it
+        const updatedSession = (getState() as LearningRootState).learningSession.session;
+        if (updatedSession) {
+            const sessionCopy = { ...updatedSession };
+            sessionCopy.answers[questionId] = { answer, isCorrect };
+            sessionCopy.currentQuestionIndex++;
+            dispatch(saveSessionDb(sessionCopy));
+        }
+        return { questionId, answer, isCorrect };
+    }
+);
+
+export const endCurrentSession = createAsyncThunk(
+    'learningSession/endCurrentSession',
+    async (_, { getState, dispatch }) => {
+        const state = getState() as LearningRootState;
+        const session = state.learningSession.session;
+        if (session) {
+            const summary = learningService.compileSessionSummary(session.answers);
+            const finalSession = { ...session, summary, endTime: Date.now() };
+            dispatch(saveSessionDb(finalSession));
+            return summary;
+        }
+        return { strengths: [], weaknesses: [] };
+    }
+);
+
+// ... (generateRecommendations thunk remains the same)
+export const generateRecommendations = createAsyncThunk(
+  'learningSession/generateRecommendations',
+  async (_, { getState }) => {
+    const state = getState() as LearningRootState;
+    const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
+    const categories = Object.values(state.categories.entities).filter(Boolean);
+    const questionRecommendations = learningService.getTopKQuestionRecommendations(userQuestionData, 3);
+    const categoryRecommendations = learningService.getCategoryRecommendations(categories);
+    return {
+      questions: questionRecommendations,
+      categories: categoryRecommendations,
+    };
+  }
+);
+
 
 // --- SLICE DEFINITION ---
 const learningSessionSlice = createSlice({
@@ -122,8 +180,10 @@ const learningSessionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+
       .addCase(hydrateLearningSession.fulfilled, (state, action) => {
         if (action.payload) state.session = action.payload;
+
       })
       .addCase(startNewSession.fulfilled, (state, action) => {
         state.session = action.payload;
@@ -148,7 +208,18 @@ const learningSessionSlice = createSlice({
               saveSessionDb(state.session);
           }
       })
-      /* ... other reducers ... */
+      // Recommendations reducers
+      .addCase(generateRecommendations.pending, (state) => {
+        state.loading = 'pending';
+      })
+      .addCase(generateRecommendations.fulfilled, (state, action) => {
+        state.loading = 'succeeded';
+        state.recommendations = action.payload;
+      })
+      .addCase(generateRecommendations.rejected, (state) => {
+        state.loading = 'failed';
+      });
+
   },
 });
 
