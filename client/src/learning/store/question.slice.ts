@@ -1,60 +1,63 @@
-import { createSlice, createEntityAdapter, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createEntityAdapter, PayloadAction, createAsyncThunk, Update } from '@reduxjs/toolkit';
 import { Question } from './primitives/Question';
-import { generateFeedback } from '../services/feedbackService';
+import { generateBatchFeedback, Feedback } from '../services/feedbackService';
 import { LearningRootState } from './store';
 
+// --- ENTITY ADAPTER ---
 const questionsAdapter = createEntityAdapter<Question>({
   selectId: (question) => question.id,
 });
 
-export const fetchFeedbackForQuestion = createAsyncThunk(
-  'questions/fetchFeedback',
-  async (questionId: string, { getState }) => {
-    const state = getState() as LearningRootState;
-    const question = state.questions.entities[questionId];
+// --- ASYNC THUNKS ---
 
-    if (!question) {
-      throw new Error(`Question with id ${questionId} not found.`);
+export const fetchBatchFeedback = createAsyncThunk<Record<string, Feedback>, string[]>(
+  'questions/fetchBatchFeedback',
+  async (questionIds, { getState }) => {
+    const state = getState() as LearningRootState;
+    const questionsToFetch: Question[] = [];
+
+    for (const id of questionIds) {
+      const question = state.questions.entities[id];
+      // Only fetch feedback if we don't have it or it's a placeholder/error
+      if (question && (!question.feedback || question.feedback.correct_approach.includes('Error'))) {
+        questionsToFetch.push(question);
+      }
     }
 
-    const feedback = await generateFeedback(question);
-    return { questionId, feedback };
+    if (questionsToFetch.length > 0) {
+      const feedbackMap = await generateBatchFeedback(questionsToFetch);
+      return feedbackMap;
+    }
+
+    return {};
   }
 );
 
+// --- SLICE DEFINITION ---
 const questionSlice = createSlice({
   name: 'questions',
   initialState: questionsAdapter.getInitialState(),
   reducers: {
-    addQuestion: (state, action: PayloadAction<{ id: string; text: string; options: string[]; correctOption: number; categories: string[]; difficulty: number; feedback: { correct_approach: string; incorrect_approach: string; } }>) => {
-      const { id, text, options, correctOption, categories, difficulty, feedback } = action.payload;
-      const newQuestion = new Question(id, text, options, correctOption, categories, difficulty, feedback);
-      questionsAdapter.addOne(state, { ...newQuestion });
-    },
-    addQuestions: (state, action: PayloadAction<{ id: string; text: string; options: string[]; correctOption: number; categories: string[]; difficulty: number; feedback: { correct_approach: string; incorrect_approach: string; } }[]>) => {
-        const newQuestions = action.payload.map(({ id, text, options, correctOption, categories, difficulty, feedback }) => {
-            const newQuestion = new Question(id, text, options, correctOption, categories, difficulty, feedback);
-            return { ...newQuestion };
-        });
-        questionsAdapter.addMany(state, newQuestions);
-    },
+    addQuestion: questionsAdapter.addOne,
+    addQuestions: questionsAdapter.addMany,
     updateQuestion: questionsAdapter.updateOne,
     removeQuestion: questionsAdapter.removeOne,
-    setQuestions: (state, action: PayloadAction<{ id: string; text: string; options: string[]; correctOption: number; categories: string[]; difficulty: number; feedback: { correct_approach: string; incorrect_approach: string; } }[]>) => {
-        const newQuestions = action.payload.map(({ id, text, options, correctOption, categories, difficulty, feedback }) => {
-            const newQuestion = new Question(id, text, options, correctOption, categories, difficulty, feedback);
-            return { ...newQuestion };
+    setQuestions: questionsAdapter.setAll,
+    // Reducer to update feedback for a single question if needed elsewhere
+    updateFeedback: (state, action: PayloadAction<{ questionId: string; feedback: Feedback }>) => {
+        questionsAdapter.updateOne(state, {
+            id: action.payload.questionId,
+            changes: { feedback: action.payload.feedback },
         });
-        questionsAdapter.setAll(state, newQuestions);
-    },
+    }
   },
   extraReducers: (builder) => {
-    builder.addCase(fetchFeedbackForQuestion.fulfilled, (state, action) => {
-      const { questionId, feedback } = action.payload;
-      questionsAdapter.updateOne(state, {
-        id: questionId,
+    builder.addCase(fetchBatchFeedback.fulfilled, (state, action: PayloadAction<Record<string, Feedback>>) => {
+      const updates: Update<Question>[] = Object.entries(action.payload).map(([id, feedback]) => ({
+        id,
         changes: { feedback },
-      });
+      }));
+      questionsAdapter.updateMany(state, updates);
     });
   },
 });
@@ -65,6 +68,7 @@ export const {
   updateQuestion,
   removeQuestion,
   setQuestions,
+  updateFeedback,
 } = questionSlice.actions;
 
 export default questionSlice.reducer;

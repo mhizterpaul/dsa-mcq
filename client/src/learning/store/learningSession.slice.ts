@@ -3,16 +3,16 @@ import { LearningSession } from './primitives/LearningSession';
 import { learningService } from '../services/learningService';
 import { LearningRootState } from './store';
 import { UserQuestionData } from './primitives/UserQuestionData';
-import { setUserQuestionData } from './userQuestionData.slice';
+
+import { setUserQuestionDataDb } from './userQuestionData.slice'; // Assuming this will be the DB version
 import { sqliteService } from '../../common/services/sqliteService';
+import { fetchBatchFeedback } from './question.slice'; // To be created in a later step
+
 
 // --- STATE AND INITIAL STATE ---
 interface LearningSessionState {
   session: LearningSession | null;
-  recommendations: {
-    questions: { questionId: string; recommendationScore: number }[];
-    categories: { categoryId: string; recommendationLevel: string; explanation: string }[];
-  } | null;
+  recommendations: { /* ... */ } | null;
   loading: 'idle' | 'pending' | 'succeeded' | 'failed';
 }
 
@@ -33,14 +33,18 @@ const stringifySession = (session: LearningSession) => ({
   is_dirty: 1,
 });
 
-const parseSession = (dbSession: any): LearningSession => ({
-  ...dbSession,
-  allQuestionIds: JSON.parse(dbSession.allQuestionIds || '[]'),
-  questionIds: JSON.parse(dbSession.questionIds || '[]'),
-  subsetHistory: JSON.parse(dbSession.subsetHistory || '[]'),
-  answers: JSON.parse(dbSession.answers || '{}'),
-  summary: JSON.parse(dbSession.summary || '{"strengths":[],"weaknesses":[]}'),
-});
+
+const parseSession = (dbSession: any): LearningSession => {
+  const session = new LearningSession(dbSession.id, dbSession.userId, JSON.parse(dbSession.allQuestionIds || '[]'));
+  return Object.assign(session, {
+    ...dbSession,
+    questionIds: JSON.parse(dbSession.questionIds || '[]'),
+    subsetHistory: JSON.parse(dbSession.subsetHistory || '[]'),
+    answers: JSON.parse(dbSession.answers || '{}'),
+    summary: JSON.parse(dbSession.summary || '{"strengths":[],"weaknesses":[]}'),
+  });
+};
+
 
 
 // --- ASYNC THUNKS ---
@@ -48,12 +52,10 @@ const parseSession = (dbSession: any): LearningSession => ({
 export const hydrateLearningSession = createAsyncThunk<LearningSession | null>(
   'learningSession/hydrate',
   async () => {
-    // For simplicity, we get the last session. A real app might get the last active one.
+
     const sessions = await sqliteService.getAll('learning_sessions');
-    if (sessions.length > 0) {
-      const lastSession = sessions[sessions.length - 1];
-      return parseSession(lastSession);
-    }
+    if (sessions.length > 0) return parseSession(sessions[sessions.length - 1]);
+
     return null;
   },
 );
@@ -61,9 +63,9 @@ export const hydrateLearningSession = createAsyncThunk<LearningSession | null>(
 export const saveSessionDb = createAsyncThunk(
     'learningSession/saveSessionDb',
     async (session: LearningSession) => {
-        const sessionToSave = stringifySession(session);
-        // Use create which will act as an upsert in this simplified service
-        await sqliteService.create('learning_sessions', sessionToSave);
+
+        await sqliteService.create('learning_sessions', stringifySession(session));
+
         return session;
     }
 );
@@ -74,7 +76,8 @@ export const startNewSession = createAsyncThunk(
         const state = getState() as LearningRootState;
         const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
         const newSession = learningService.startNewSession(userId, allQuestionIds, userQuestionData, subsetSize);
-        dispatch(saveSessionDb(newSession)); // Dispatch save action
+
+        dispatch(saveSessionDb(newSession));
         return newSession;
     }
 );
@@ -83,6 +86,40 @@ export const processAnswerAndUpdate = createAsyncThunk(
     'learningSession/processAnswer',
     async ({ userId, questionId, answer, isCorrect, quality, techniqueIds }: { userId: string, questionId: string, answer: string, isCorrect: boolean, quality: number, techniqueIds?: string[] }, { getState, dispatch }) => {
         const state = getState() as LearningRootState;
+
+
+        // Update UserQuestionData
+        dispatch(setUserQuestionDataDb({ userId, questionId, isCorrect, quality, techniqueIds }));
+
+        // Update session and check for feedback batching
+        const currentSession = state.learningSession.session;
+        if (currentSession) {
+            const answeredCount = Object.keys(currentSession.answers).length + 1; // +1 for the current answer
+            const totalQuestions = currentSession.allQuestionIds.length;
+            const threshold = Math.max(1, Math.floor(totalQuestions / 4));
+            const batchesNeeded = Math.floor(answeredCount / threshold);
+
+            if (batchesNeeded > currentSession.feedbackBatchesGenerated) {
+                const startIndex = currentSession.feedbackBatchesGenerated * threshold;
+                const endIndex = startIndex + threshold;
+                const questionIdsForFeedback = Object.keys(currentSession.answers).slice(startIndex, endIndex);
+                // Also include the current question if not already in answers
+                if (!questionIdsForFeedback.includes(questionId)) {
+                    questionIdsForFeedback.push(questionId);
+                }
+
+                // Dispatch action to fetch feedback for this batch
+                dispatch(fetchBatchFeedback(questionIdsForFeedback));
+            }
+        }
+
+        return { questionId, answer, isCorrect, batchesNeeded: batchesNeeded };
+    }
+);
+
+export const endCurrentSession = createAsyncThunk(/* ... existing implementation ... */);
+export const generateRecommendations = createAsyncThunk(/* ... existing implementation ... */);
+
         const uqd = state.userQuestionData.entities[`${userId}-${questionId}`];
         if (uqd) {
             const updatedUqd = learningService.processAnswer(uqd, isCorrect, quality, techniqueIds);
@@ -143,25 +180,32 @@ const learningSessionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(hydrateLearningSession.fulfilled, (state, action: PayloadAction<LearningSession | null>) => {
-        if (action.payload) {
-            state.session = action.payload;
-        }
+
+      .addCase(hydrateLearningSession.fulfilled, (state, action) => {
+        if (action.payload) state.session = action.payload;
+
       })
       .addCase(startNewSession.fulfilled, (state, action) => {
         state.session = action.payload;
       })
       .addCase(processAnswerAndUpdate.fulfilled, (state, action) => {
           if (state.session) {
-            const { questionId, answer, isCorrect } = action.payload;
+            const { questionId, answer, isCorrect, batchesNeeded } = action.payload;
             state.session.answers[questionId] = { answer, isCorrect };
             state.session.currentQuestionIndex++;
+            if (batchesNeeded > state.session.feedbackBatchesGenerated) {
+                state.session.feedbackBatchesGenerated = batchesNeeded;
+            }
+            // Trigger save to DB after state update
+            // This could be a separate listener/middleware in a more complex app
+            saveSessionDb(state.session);
           }
       })
       .addCase(endCurrentSession.fulfilled, (state, action) => {
           if (state.session) {
               state.session.summary = action.payload;
               state.session.endTime = Date.now();
+              saveSessionDb(state.session);
           }
       })
       // Recommendations reducers
@@ -175,6 +219,7 @@ const learningSessionSlice = createSlice({
       .addCase(generateRecommendations.rejected, (state) => {
         state.loading = 'failed';
       });
+
   },
 });
 
