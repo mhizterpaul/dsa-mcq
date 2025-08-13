@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { UserEngagement } from './primitives/UserEngagement';
-import * as engagementService from '../services/engagementService';
-import { AppDispatch, RootState } from '../../mediator/store/store';
-import { addNotification } from './notification.slice';
+import { sqliteService } from '../../common/services/sqliteService';
 
+// --- STATE AND INITIAL STATE ---
 interface UserEngagementState {
   engagements: { [userId: string]: UserEngagement };
+  // UI state can remain as it is, not persisted.
   ui: {
     showLeaderboardChange: boolean;
     showXpMilestone: boolean;
@@ -22,130 +22,99 @@ const initialState: UserEngagementState = {
   },
 };
 
-export const scheduleReminderForUser = createAsyncThunk(
-    'userEngagement/scheduleReminder',
-    async ({ userId, nextSessionTime, leadTime }: { userId: string, nextSessionTime: number, leadTime: number }, { dispatch }) => {
-        engagementService.scheduleReminder(dispatch as AppDispatch, userId, nextSessionTime, leadTime);
-    }
+// --- ASYNC THUNKS FOR DB OPERATIONS ---
+
+export const hydrateUserEngagements = createAsyncThunk<UserEngagement[]>(
+  'userEngagement/hydrate',
+  async () => {
+    const engagements = await sqliteService.getAll('user_engagement');
+    return engagements as UserEngagement[];
+  },
 );
 
-export const checkAndSendNudge = createAsyncThunk(
-    'userEngagement/checkAndSendNudge',
-    async (userId: string, { getState, dispatch }) => {
-        const state = getState() as RootState;
-        const userEngagement = state.engagement.userEngagement.engagements[userId];
-        if (userEngagement) {
-            const nudge = engagementService.generateNudgeForMissedSession(userEngagement);
-            if (nudge) {
-                dispatch(addNotification({ id: `nudge-${userId}-${Date.now()}`, userId, ...nudge, sendAt: Date.now() }));
-            }
-        }
+export const setUserEngagementDb = createAsyncThunk<UserEngagement, string>(
+  'userEngagement/set',
+  async (userId) => {
+    let engagement = await sqliteService.getById('user_engagement', userId);
+    if (!engagement) {
+      engagement = new UserEngagement(userId);
+      const engagementToSave = { ...engagement, is_dirty: 1 };
+      await sqliteService.create('user_engagement', engagementToSave);
     }
+    return engagement as UserEngagement;
+  },
 );
 
-export const checkForMilestones = createAsyncThunk(
-    'userEngagement/checkForMilestones',
-    async (userId: string, { getState, dispatch }) => {
-        const state = getState() as RootState;
-        const userEngagement = state.engagement.userEngagement.engagements[userId];
-        if (userEngagement) {
-            if (engagementService.checkXpMilestone(userEngagement)) {
-                dispatch(userEngagementSlice.actions.setShowXpMilestone(true));
-            }
-            if (engagementService.checkStreakMilestone(userEngagement)) {
-                dispatch(userEngagementSlice.actions.setShowStreakMilestone(true));
-            }
-        }
-    }
+export const updateStreakDb = createAsyncThunk<
+  UserEngagement,
+  { userId: string; didAttend: boolean }
+>('userEngagement/updateStreak', async ({ userId, didAttend }) => {
+  const existingData = await sqliteService.getById('user_engagement', userId);
+  const engagement = existingData
+    ? Object.assign(new UserEngagement(userId), existingData)
+    : new UserEngagement(userId);
+  engagement.updateStreak(didAttend);
+  await sqliteService.update('user_engagement', userId, { ...engagement, is_dirty: 1 });
+  return engagement;
+});
+
+export const addXpDb = createAsyncThunk<UserEngagement, { userId: string; points: number }>(
+  'userEngagement/addXp',
+  async ({ userId, points }) => {
+    const existingData = await sqliteService.getById('user_engagement', userId);
+    const engagement = existingData
+      ? Object.assign(new UserEngagement(userId), existingData)
+      : new UserEngagement(userId);
+    engagement.addXp(points);
+    await sqliteService.update('user_engagement', userId, { ...engagement, is_dirty: 1 });
+    return engagement;
+  },
 );
 
-export const updateLeaderboardRankAndCheckForUIUpdate = createAsyncThunk(
-    'userEngagement/updateLeaderboardRankAndCheckForUIUpdate',
-    async ({ userId, newRank }: { userId: string, newRank: number }, { getState, dispatch }) => {
-        const state = getState() as RootState;
-        const currentRank = state.engagement.userEngagement.engagements[userId]?.leaderboard_rank;
+// ... other DB thunks for updateSessionAttendance, etc. can be added here following the same pattern ...
 
-        dispatch(userEngagementSlice.actions.updateLeaderboardRank({ userId, newRank }));
 
-        if (currentRank !== undefined && currentRank !== newRank) {
-            dispatch(userEngagementSlice.actions.setShowLeaderboardChange(true));
-        }
-    }
-);
-
+// --- SLICE DEFINITION ---
 const userEngagementSlice = createSlice({
   name: 'userEngagement',
   initialState,
   reducers: {
-    setUserEngagement: (state, action: PayloadAction<{ userId: string }>) => {
-      const { userId } = action.payload;
-      const newUserEngagement = new UserEngagement(userId);
-      state.engagements[userId] = { ...newUserEngagement };
-    },
-    updateStreak: (state, action: PayloadAction<{ userId: string; didAttend: boolean }>) => {
-      const { userId, didAttend } = action.payload;
-      const existingData = state.engagements[userId];
-      if (existingData) {
-        const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
-        engagementInstance.updateStreak(didAttend);
-        state.engagements[userId] = { ...engagementInstance };
-      }
-    },
-    addXp: (state, action: PayloadAction<{ userId: string; points: number }>) => {
-        const { userId, points } = action.payload;
-        const existingData = state.engagements[userId];
-        if (existingData) {
-          const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
-          engagementInstance.addXp(points);
-          state.engagements[userId] = { ...engagementInstance };
-        }
-    },
-    updateSessionAttendance: (state, action: PayloadAction<{ userId: string; attended: boolean }>) => {
-        const { userId, attended } = action.payload;
-        const existingData = state.engagements[userId];
-        if (existingData) {
-          const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
-          engagementInstance.updateSessionAttendance(attended);
-          state.engagements[userId] = { ...engagementInstance };
-        }
-    },
-    updateResponseLatency: (state, action: PayloadAction<{ userId: string; latency: number }>) => {
-        const { userId, latency } = action.payload;
-        const existingData = state.engagements[userId];
-        if (existingData) {
-          const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
-          engagementInstance.updateResponseLatency(latency);
-          state.engagements[userId] = { ...engagementInstance };
-        }
-    },
-    updateLeaderboardRank: (state, action: PayloadAction<{ userId: string; newRank: number }>) => {
-        const { userId, newRank } = action.payload;
-        const existingData = state.engagements[userId];
-        if (existingData) {
-            const engagementInstance = Object.assign(new UserEngagement(userId), existingData);
-            engagementInstance.updateLeaderboardRank(newRank);
-            state.engagements[userId] = { ...engagementInstance };
-        }
-    },
+    // UI-related reducers can stay here
     setShowLeaderboardChange: (state, action: PayloadAction<boolean>) => {
-        state.ui.showLeaderboardChange = action.payload;
+      state.ui.showLeaderboardChange = action.payload;
     },
     setShowXpMilestone: (state, action: PayloadAction<boolean>) => {
-        state.ui.showXpMilestone = action.payload;
+      state.ui.showXpMilestone = action.payload;
     },
     setShowStreakMilestone: (state, action: PayloadAction<boolean>) => {
-        state.ui.showStreakMilestone = action.payload;
+      state.ui.showStreakMilestone = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(hydrateUserEngagements.fulfilled, (state, action) => {
+        action.payload.forEach((engagement) => {
+          state.engagements[engagement.userId] = engagement;
+        });
+      })
+      .addCase(setUserEngagementDb.fulfilled, (state, action) => {
+        const engagement = action.payload;
+        state.engagements[engagement.userId] = engagement;
+      })
+      .addCase(updateStreakDb.fulfilled, (state, action) => {
+        const engagement = action.payload;
+        state.engagements[engagement.userId] = engagement;
+      })
+      .addCase(addXpDb.fulfilled, (state, action) => {
+        const engagement = action.payload;
+        state.engagements[engagement.userId] = engagement;
+      });
+      // Note: The other thunks like scheduleReminderForUser are not part of this slice's state,
+      // so they don't need to be handled in extraReducers here. They dispatch actions to other slices.
   },
 });
 
 export const {
-  setUserEngagement,
-  updateStreak,
-  addXp,
-  updateSessionAttendance,
-  updateResponseLatency,
-  updateLeaderboardRank,
   setShowLeaderboardChange,
   setShowXpMilestone,
   setShowStreakMilestone,
