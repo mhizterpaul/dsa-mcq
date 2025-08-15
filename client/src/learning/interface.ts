@@ -46,8 +46,8 @@ export class LearningComponent implements ILearningComponent {
       return <GameModes />;
     }
 
-    renderFeaturedCategories(screen: string, onSelectCategory: (category: string) => void): React.ReactElement {
-      return <FeaturedCategories onSelectCategory={onSelectCategory} />;
+    renderFeaturedCategories(screen: string): React.ReactElement {
+      return <FeaturedCategories  />;
     }
 
     renderRecentQuizzes(screen: string): React.ReactElement {

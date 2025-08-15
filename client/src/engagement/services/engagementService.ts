@@ -1,6 +1,6 @@
 import { UserEngagement } from '../store/primitives/UserEngagement';
 import { addNotification } from '../store/notification.slice';
-import { AppDispatch } from '../../mediator/store/store';
+import { AppDispatch } from '../../mediator/store';
 
 export const scheduleReminder = (
   dispatch: AppDispatch,

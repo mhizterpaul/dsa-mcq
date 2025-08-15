@@ -6,7 +6,7 @@ import {
 import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-export default function ForgotPasswordScreen({ navigation }) {
+export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
 
   const isValidEmail = (val: string) =>

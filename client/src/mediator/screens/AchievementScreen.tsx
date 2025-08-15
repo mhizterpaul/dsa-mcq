@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native-ui-lib';
+import { View, Text } from 'react-native-ui-lib';
+import { ScrollView } from 'react-native';
 import { LearningComponent, EngagementComponent } from '..';
 
 const NEON = '#EFFF3C';
@@ -9,33 +10,20 @@ const learning = new LearningComponent();
 const engagement = new EngagementComponent();
 
 const AchievementScreen = ({ navigation }: any) => {
-  const performance = 0.75; // 75%
-
-  const handleSetTarget = () => {
-    console.log('Set target pressed');
-  };
-
-  const handleTakeQuiz = () => {
-    console.log('Take quiz pressed');
-  };
-
-  const handleNotifications = () => {
-    console.log('Notifications pressed');
-  };
 
   return (
     <View flex bg-dark10>
       <ScrollView contentContainerStyle={{paddingBottom: 32, alignItems: 'center'}}>
         <View row spread centerV paddingH-24 paddingT-18 marginB-10>
           <Text color={NEON} text50b>Achievement</Text>
-          {engagement.renderNotificationButton("AchievementScreen", handleNotifications)}
+          {engagement.renderNotificationButton("AchievementScreen")}
         </View>
 
-        {learning.renderQuizPerformanceIndicator("AchievementScreen", performance)}
-        {engagement.renderGoalSetter("AchievementScreen", handleSetTarget)}
+        {learning.renderQuizPerformanceIndicator("AchievementScreen")}
+        {engagement.renderGoalSetter("AchievementScreen")}
         {engagement.renderReminders("AchievementScreen")}
         {engagement.renderMotivationCard("AchievementScreen")}
-        {learning.renderStartQuizButton("AchievementScreen", handleTakeQuiz)}
+        {learning.renderStartQuizButton("AchievementScreen")}
       </ScrollView>
     </View>
   );

@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../mediator/store/store';
+import { RootState } from '../../mediator/store';
 import { addAnomaly } from 'store/anomalies.slice';
 import { addDevOpsMetric } from 'store/devOpsMetrics.slice';
 import { addEngagementKPI } from 'store/engagementKPIs.slice';

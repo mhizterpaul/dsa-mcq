@@ -1,10 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit';
-
-import userReducer from './user.slice';
+import SharedReducer from './sharedState.slice';
 
 const store = configureStore({
   reducer: {
-    user: userReducer,
+    shared: SharedReducer,
   },
 });
 

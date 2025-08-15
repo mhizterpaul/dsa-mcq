@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView, Button } from 'react-native-ui-lib';
+import { View, Text, Button } from 'react-native-ui-lib';
+import { ScrollView } from 'react-native';
 import { Provider } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { EngagementComponent } from '..';

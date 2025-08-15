@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../mediator/store/store';
+import  {UserRootState}  from '../store';
 import {
   setCurrentUser,
   updatePreference,
@@ -10,7 +10,7 @@ import {
 export const useUser = () => {
   const dispatch = useDispatch();
 
-  const userState = useSelector((state: RootState) => state.user);
+  const userState = useSelector((state: UserRootState) => state.user);
 
   return {
     userState,

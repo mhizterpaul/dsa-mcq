@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const FeaturedCategories = ({ onSelectCategory }: { onSelectCategory: (category: string) => void }) => {
+const FeaturedCategories = () => {
   return (
     <View>
         <Text text70b color_grey10 marginT-28 marginL-18 marginB-10>Featured Categories</Text>

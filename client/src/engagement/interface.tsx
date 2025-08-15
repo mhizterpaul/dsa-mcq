@@ -58,8 +58,8 @@ export class EngagementComponent implements IEngagementComponent {
         return <NotificationButton onPress={onPress} />;
     }
 
-    renderUserScore(screen: string, score: number): React.ReactElement {
-        return <UserScore score={score} />;
+    renderUserScore(screen: string): React.ReactElement {
+        return <UserScore />;
     }
 
     renderWeeklyKingOfQuiz(screen: string): React.ReactElement {

@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../mediator/store/store';
+import { RootState } from '../../mediator/store';
 import { addNotification, markAsRead } from '../store/notification.slice';
 import { setUserEngagement, updateStreak, addXp } from '../store/userEngagement.slice';
 
