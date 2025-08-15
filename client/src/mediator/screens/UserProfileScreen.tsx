@@ -12,7 +12,7 @@ import {
   Pressable,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import UserProfileSummary from "../components/UserProfileSummary";
+import UserProfileSummary from "../../user/components/UserProfileSummary";
 
 const { width } = Dimensions.get("window");
 

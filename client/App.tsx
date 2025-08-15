@@ -10,7 +10,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar, useColorScheme } from 'react-native';
 
-import HomeScreen from './src/mediator/screens/HomeScreen';
+import HomeScreen from './src/mediator/screens';
 import LeaderboardScreen from './src/mediator/screens/LeaderboardScreen';
 
 const Stack = createStackNavigator();
