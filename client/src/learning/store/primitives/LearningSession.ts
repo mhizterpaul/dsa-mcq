@@ -12,8 +12,9 @@ export class LearningSession {
   };
   startTime: number;
   endTime: number | null;
+  feedbackBatchesGenerated: number;
 
-  constructor(id: string, userId: string, allQuestionIds: string[]) {
+  constructor(id:string, userId: string, allQuestionIds: string[]) {
     this.id = id;
     this.userId = userId;
     this.allQuestionIds = allQuestionIds;
@@ -24,6 +25,7 @@ export class LearningSession {
     this.summary = { strengths: [], weaknesses: [] };
     this.startTime = Date.now();
     this.endTime = null;
+    this.feedbackBatchesGenerated = 0;
   }
 
   answerQuestion(questionId: string, answer: string, isCorrect: boolean) {

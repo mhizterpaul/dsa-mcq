@@ -1,71 +1,75 @@
 import { User } from '../store/primitives/User';
 
-// Mock AuthServer API
-const FAKE_JWT_TOKEN = 'fake-jwt-token';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export const login = async (username: string, password: string):Promise<{ user: User, token: string }> => {
-    console.log(`Attempting to log in user: ${username}`);
-    // In a real app, this would be an API call to the AuthServer.
-    // We'll simulate a successful login.
-    if (password === 'password') {
-        const user = new User('1', username, `${username}@example.com`);
-        return Promise.resolve({ user, token: FAKE_JWT_TOKEN });
-    } else {
-        return Promise.reject(new Error('Invalid credentials'));
-    }
+export const login = async (email: string, password: string): Promise<{ user: User; token: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Invalid credentials');
+  }
+
+  const { user, token } = await response.json();
+  return { user: new User(user.id, user.name, user.email), token };
 };
 
-export const register = async (username: string, email: string, password: string): Promise<{ user: User; token: string }> => {
-    console.log(`Attempting to register user: ${username}`);
-    // In a real app, this would be an API call to the AuthServer.
-    // We'll simulate a successful registration.
-    const user = new User(String(Math.random()), username, email);
-    return Promise.resolve({ user, token: FAKE_JWT_TOKEN });
+export const register = async (name: string, email: string, password: string): Promise<{ user: User; token: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Registration failed');
+  }
+
+  const { user, token } = await response.json();
+  return { user: new User(user.id, user.name, user.email), token };
 };
 
 export const logout = async (): Promise<void> => {
-    console.log('Logging out user');
-    // In a real app, this might involve invalidating a token on the server.
-    return Promise.resolve();
+  await fetch(`${API_BASE_URL}/auth/signout`, {
+    method: 'POST',
+  });
 };
 
-// Mock OAuth login
-export const loginWithOAuth = async (
-  provider: 'github' | 'gmail' | 'x',
-  oauthToken: string
-): Promise<{ user: User; token: string }> => {
-  console.log(`OAuth login with provider: ${provider}, token: ${oauthToken}`);
-  // Simulate successful OAuth login
-  const user = new User('2', `${provider}_user`, `${provider}_user@example.com`);
-  return Promise.resolve({ user, token: FAKE_JWT_TOKEN });
+export const loginWithOAuth = async (provider: 'github' | 'google' | 'x'): Promise<void> => {
+  window.location.href = `${API_BASE_URL}/auth/signin/${provider}`;
 };
 
-// Mock request verification code
 export const requestVerificationCode = async (email: string): Promise<void> => {
-  console.log(`Requesting verification code for: ${email}`);
-  // Simulate sending code
-  return Promise.resolve();
-};
+  const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
 
-// Mock verify code
-export const verifyCode = async (email: string, code: string): Promise<void> => {
-  console.log(`Verifying code ${code} for email: ${email}`);
-  // Simulate verification
-  if (code === '123456') {
-    return Promise.resolve();
-  } else {
-    return Promise.reject(new Error('Invalid verification code'));
+  if (!response.ok) {
+    throw new Error('Failed to request verification code');
   }
 };
 
-// Mock reset password
-export const resetPassword = async (email: string, newPassword: string): Promise<void> => {
-  console.log(`Resetting password for: ${email}`);
-  // Simulate password reset
-  if (newPassword.length >= 6) {
-    return Promise.resolve();
-  } else {
-    return Promise.reject(new Error('Password too short'));
+export const verifyCode = async (token: string): Promise<void> => {
+    // This function is no longer needed, as the reset link will take the user to a page
+    // that calls resetPassword directly.
+    console.warn("verifyCode is deprecated");
+};
+
+export const resetPassword = async (token: string, password: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to reset password');
   }
 };
  
