@@ -1,15 +1,9 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-} from 'react-native';
+import { View, ScrollView } from 'react-native-ui-lib';
 import { Provider } from 'react-redux';
-import { UserComponent } from '../../user/interface';
-import { LearningComponent } from '../../learning/interface';
-import { EngagementComponent } from '../../engagement/interface';
+import { UserComponent, LearningComponent, EngagementComponent } from '..';
 import BottomNav from '../components/BottomNav';
+import AdComponent from '../components/AdComponent';
 import userStore from '../../user/store/store';
 import learningStore from '../../learning/store/store';
 import engagementStore from '../../engagement/store/store';
@@ -25,30 +19,24 @@ const HomeScreenContent = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View flex bg-grey80>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Top: Profile & Score */}
-        <View style={styles.topRow}>
-          {user.renderUserProfileSummary()}
-          {engagement.renderUserScore(1200)}
+        <View row spread centerV marginT-10 marginH-18>
+          {user.renderUserProfileSummary("HomeScreen")}
+          {engagement.renderPill("HomeScreen", 1200)}
         </View>
 
-        {/* Game Modes */}
-        {learning.renderGameModes()}
-
-        {/* Featured Categories */}
-        {learning.renderFeaturedCategories(handleSelectCategory)}
-
-        {/* Promo Banner */}
-        {engagement.renderPromoBanner()}
-
-        {/* Recent Quiz */}
-        {learning.renderRecentQuizzes()}
+        <View>
+            {engagement.renderCard("HomeScreen_WeeklyKingOfQuiz")}
+            {learning.renderCategoryList("HomeScreen", handleSelectCategory)}
+            {engagement.renderCard("HomeScreen_DailyQuizBanner")}
+            <AdComponent />
+            {learning.renderRecentQuizList("HomeScreen")}
+        </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <BottomNav navigation={navigation} activeScreen="Home" />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -64,15 +52,5 @@ const HomeScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F8FF' },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    marginHorizontal: 18,
-  },
-});
 
 export default HomeScreen; 
