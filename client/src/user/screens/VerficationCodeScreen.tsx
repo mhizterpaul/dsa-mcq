@@ -1,30 +1,24 @@
-// src/screens/VerificationCodeScreen.tsx
 import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default function VerificationCodeScreen({ navigation }) {
   const [code, setCode] = useState(['', '', '', '', '', '']);
-  const inputs = useRef<TextInput[]>([]);
+  const inputs = useRef<TextField[]>([]);
 
   const handleChange = (text: string, index: number) => {
     const newCode = [...code];
     newCode[index] = text;
     setCode(newCode);
 
-    // move focus
     if (text && index < 5) {
       inputs.current[index + 1]?.focus();
     }
-    // move back if empty
     if (!text && index > 0) {
       inputs.current[index - 1]?.focus();
     }
@@ -37,30 +31,24 @@ export default function VerificationCodeScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Verification</Text>
-        <View style={{ width: 24 }} />
+      <View row spread centerV marginB-16>
+        <Button link iconSource={() => <Icon name="arrow-left" size={24} color="#333" />} onPress={() => navigation.goBack()} />
+        <Text text70b color_grey10>Verification</Text>
+        <View width={24} />
       </View>
 
-      {/* Progress bar */}
-      <View style={styles.progressBarBackground}>
+      <View height={6} bg-grey70 br10 marginB-24>
         <View style={[styles.progressBarFill, { width: '66%' }]} />
       </View>
 
-      {/* Title & instruction */}
-      <Text style={styles.title}>Enter verification code</Text>
-      <Text style={styles.instruction}>
+      <Text text60b marginB-8>Enter verification code</Text>
+      <Text text80 color_grey30 marginB-24>
         We’ve sent a 6-digit code to your email.
       </Text>
 
-      {/* 6 digit input */}
-      <View style={styles.codeRow}>
+      <View row spread marginB-30>
         {code.map((digit, index) => (
-          <TextInput
+          <TextField
             key={index}
             ref={(ref) => (inputs.current[index] = ref!)}
             style={styles.codeBox}
@@ -72,22 +60,18 @@ export default function VerificationCodeScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Verify Now button */}
-      <TouchableOpacity
-        style={[styles.verifyButton, !isComplete && styles.disabledButton]}
+      <Button
+        label="Verify Now"
         disabled={!isComplete}
         onPress={() => {
           // handle verification
-        }}>
-        <Text style={styles.verifyText}>Verify Now</Text>
-      </TouchableOpacity>
+        }}
+        marginB-20
+      />
 
-      {/* Resend code */}
-      <View style={styles.resendContainer}>
-        <Text style={styles.resendText}>Didn’t receive any code? </Text>
-        <TouchableOpacity onPress={() => { /* resend logic */ }}>
-          <Text style={styles.resendLink}>Resend Code</Text>
-        </TouchableOpacity>
+      <View row center>
+        <Text text80 color_grey30>Didn’t receive any code? </Text>
+        <Button link label="Resend Code" onPress={() => { /* resend logic */ }} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -95,28 +79,7 @@ export default function VerificationCodeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
-  progressBarBackground: {
-    height: 6,
-    backgroundColor: '#eee',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 24,
-  },
   progressBarFill: { height: 6, backgroundColor: '#00B5D8' },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 8, color: '#333' },
-  instruction: { fontSize: 14, color: '#555', marginBottom: 24 },
-  codeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
   codeBox: {
     width: 48,
     height: 56,
@@ -127,21 +90,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
     backgroundColor: '#F9F9F9',
     color: '#333',
-  },
-  verifyButton: {
-    backgroundColor: '#00B5D8',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  disabledButton: { backgroundColor: '#A0DDE8' },
-  verifyText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  resendContainer: { flexDirection: 'row', justifyContent: 'center' },
-  resendText: { fontSize: 14, color: '#555' },
-  resendLink: {
-    fontSize: 14,
-    color: '#00B5D8',
-    textDecorationLine: 'underline',
   },
 });

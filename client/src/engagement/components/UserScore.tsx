@@ -1,28 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const UserScore = ({ score }: { score: number }) => {
   return (
-    <View style={styles.scoreBox}>
+    <View row centerV bg-grey10 br12 paddingH-12 paddingV-6>
       <Icon name="diamond" size={18} color="#fff" />
-      <Text style={styles.scoreText}>{score}</Text>
+      <Text white text80b marginL-6>{score}</Text>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  scoreBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#22223B',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minWidth: 60,
-    justifyContent: 'center',
-  },
-  scoreText: { color: '#fff', fontWeight: 'bold', marginLeft: 6, fontSize: 15 },
-});
 
 export default UserScore;

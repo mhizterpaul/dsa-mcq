@@ -1,12 +1,6 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Pressable,
-} from 'react-native';
+import { StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Card } from 'react-native-ui-lib';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type MenuKey = 'coinHistory' | 'profileDetails' | 'weeklyGifts' | 'questions';
@@ -51,7 +45,7 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
       </TouchableOpacity>
 
       {visible && (
-        <View style={[styles.dropdown, { top: 28 + dropdownOffsetY, right: 0 }]}> 
+        <Card style={[styles.dropdown, { top: 28 + dropdownOffsetY, right: 0 }]}>
           {menuItems.map((item, idx) => (
             <TouchableOpacity
               key={item.key}
@@ -63,10 +57,10 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
               activeOpacity={0.8}
             >
               <Ionicons name={item.icon as any} size={16} color="#111" style={{ marginRight: 8 }} />
-              <Text style={styles.menuItemText}>{item.label}</Text>
+              <Text text70 color_grey10>{item.label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </Card>
       )}
     </View>
   );
@@ -85,8 +79,6 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     position: 'absolute',
-    top: 36,
-    right: 0,
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingVertical: 4,
@@ -108,7 +100,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#eee',
   },
-  menuItemText: { color: '#111', fontSize: 14, fontWeight: '600' },
 });
 
 export default UserProfileSummary;

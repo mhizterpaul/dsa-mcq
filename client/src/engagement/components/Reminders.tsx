@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  TextInput,
-} from 'react-native';
+import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const NEON = '#EFFF3C';
@@ -33,125 +27,51 @@ const Reminders = () => {
   };
 
   return (
-    <View style={styles.reminderSection}>
-      <Text style={styles.reminderTitle}>Reminders</Text>
+    <View style={{width: '90%'}} marginB-18>
+      <Text color={NEON} text70b marginB-8>Reminders</Text>
       {reminders.map((r, i) => (
-        <View style={styles.reminderRow} key={i}>
+        <View key={i} row centerV bg-grey20 br12 paddingV-12 paddingH-14 marginB-10>
           <Icon
             name={r.icon}
             size={20}
             color={NEON}
             style={{ marginRight: 12 }}
           />
-          <Text style={styles.reminderText}>{r.text}</Text>
+          <Text white text80>{r.text}</Text>
         </View>
       ))}
       {showAdd ? (
-        <View style={styles.addReminderBox}>
-          <TextInput
-            style={styles.input}
-            placeholder="Time (e.g. 8:00 PM)"
-            placeholderTextColor="#888"
+        <View row centerV marginT-8 bg-grey20 br12 padding-8>
+          <TextField
+            placeholder="Time"
             value={newTime}
             onChangeText={setNewTime}
+            style={{color: NEON}}
+            containerStyle={{flex: 1, marginRight: 8}}
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Label (e.g. Take a quiz)"
-            placeholderTextColor="#888"
+          <TextField
+            placeholder="Label"
             value={newLabel}
             onChangeText={setNewLabel}
+            style={{color: NEON}}
+            containerStyle={{flex: 1, marginRight: 8}}
           />
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={handleAddReminder}
-          >
-            <Icon name="check" size={20} color={DARK} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => setShowAdd(false)}
-          >
-            <Icon name="close" size={20} color={NEON} />
-          </TouchableOpacity>
+          <Button iconSource={() => <Icon name="check" size={20} color={DARK} />} onPress={handleAddReminder} bg-yellow30 br10 padding-6 marginR-6 />
+          <Button iconSource={() => <Icon name="close" size={20} color={NEON} />} onPress={() => setShowAdd(false)} link />
         </View>
       ) : (
-        <TouchableOpacity
-          style={styles.addBtn}
+        <Button
+          label="Add Reminder"
+          iconSource={() => <Icon name="plus-circle" size={22} color={NEON} />}
           onPress={() => setShowAdd(true)}
-        >
-          <Icon name="plus-circle" size={22} color={NEON} />
-          <Text style={styles.addBtnText}>Add Reminder</Text>
-        </TouchableOpacity>
+          link
+          color={NEON}
+          labelStyle={{fontWeight: 'bold'}}
+          style={{alignSelf: 'flex-start'}}
+        />
       )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-    reminderSection: {
-        width: '90%',
-        marginBottom: 18,
-      },
-      reminderTitle: {
-        color: NEON,
-        fontWeight: 'bold',
-        fontSize: 16,
-        marginBottom: 8,
-      },
-      reminderRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: GRAY,
-        borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        marginBottom: 10,
-      },
-      reminderText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '500',
-      },
-      addBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 6,
-        alignSelf: 'flex-start',
-      },
-      addBtnText: {
-        color: NEON,
-        fontWeight: 'bold',
-        fontSize: 15,
-        marginLeft: 6,
-      },
-      addReminderBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-        backgroundColor: GRAY,
-        borderRadius: 12,
-        padding: 8,
-      },
-      input: {
-        backgroundColor: DARK,
-        color: NEON,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        fontSize: 14,
-        marginRight: 8,
-        minWidth: 90,
-      },
-      saveBtn: {
-        backgroundColor: NEON,
-        borderRadius: 8,
-        padding: 6,
-        marginRight: 6,
-      },
-      cancelBtn: {
-        padding: 6,
-      },
-});
 
 export default Reminders;

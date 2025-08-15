@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import { View, Text, Button, Image, Avatar } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const avatars = [
@@ -32,65 +26,60 @@ const Leaderboard = () => {
 
   return (
     <View>
-      {/* Filter Tabs */}
-      <View style={styles.filterRow}>
+      <View row spread marginH-18 marginT-18 marginB-10>
         {['Today', 'Weekly', 'All time'].map((tab) => (
-          <TouchableOpacity
+          <Button
             key={tab}
-            style={[styles.filterTab, filter === tab && styles.activeTab]}
+            label={tab}
+            flex
+            outline={filter !== tab}
+            outlineColor="#F0F0F0"
+            backgroundColor={filter === tab ? '#FF7A3C' : '#fff'}
+            color={filter === tab ? '#fff' : '#B0B0B0'}
             onPress={() => setFilter(tab)}
-          >
-            <Text style={[styles.filterText, filter === tab && styles.activeTabText]}>{tab}</Text>
-          </TouchableOpacity>
+            marginH-4
+            br20
+          />
         ))}
       </View>
 
-      {/* Top 3 Players */}
-      <View style={styles.top3Row}>
-        {/* 2nd */}
-        <View style={styles.topPlayerCol}>
-          <Image source={{ uri: topPlayers[0].avatar }} style={styles.topAvatarSmall} />
-          <Text style={styles.topPlayerName}>{topPlayers[0].name}</Text>
-          <View style={styles.topScoreBox}>
+      <View row spread centerV marginT-18 marginB-18>
+        <View flex center>
+          <Avatar size={54} source={{ uri: topPlayers[0].avatar }} containerStyle={{borderWidth: 2, borderColor: '#F0F0F0'}} />
+          <Text text70b marginT-6>{topPlayers[0].name}</Text>
+          <View row centerV bg-grey70 br10 paddingH-10 paddingV-3 marginB-2>
             <Icon name="diamond" size={14} color="#B0B0B0" />
-            <Text style={styles.topScoreText}>{topPlayers[0].score}</Text>
+            <Text text80b color-grey30 marginL-4>{topPlayers[0].score}</Text>
           </View>
         </View>
-        {/* 1st */}
-        <View style={styles.topPlayerCol}>
-          <View style={styles.crownWrap}>
-            <Icon name="crown" size={24} color="#FFBE0B" style={styles.crownIcon} />
-          </View>
-          <Image source={{ uri: topPlayers[1].avatar }} style={styles.topAvatarMain} />
-          <Text style={styles.topPlayerName}>{topPlayers[1].name}</Text>
-          <View style={[styles.topScoreBox, { backgroundColor: '#FFBE0B' }] }>
+        <View flex center>
+          <Icon name="crown" size={24} color="#FFBE0B" style={{position: 'absolute', top: -28, zIndex: 2}} />
+          <Avatar size={70} source={{ uri: topPlayers[1].avatar }} containerStyle={{borderWidth: 3, borderColor: '#FFBE0B'}}/>
+          <Text text70b marginT-6>{topPlayers[1].name}</Text>
+          <View row centerV bg-yellow30 br10 paddingH-10 paddingV-3 marginB-2>
             <Icon name="diamond" size={14} color="#fff" />
-            <Text style={[styles.topScoreText, { color: '#fff' }]}>{topPlayers[1].score}</Text>
+            <Text text80b color-white marginL-4>{topPlayers[1].score}</Text>
           </View>
         </View>
-        {/* 3rd */}
-        <View style={styles.topPlayerCol}>
-          <Image source={{ uri: topPlayers[2].avatar }} style={styles.topAvatarSmall} />
-          <Text style={styles.topPlayerName}>{topPlayers[2].name}</Text>
-          <View style={styles.topScoreBox}>
+        <View flex center>
+          <Avatar size={54} source={{ uri: topPlayers[2].avatar }} containerStyle={{borderWidth: 2, borderColor: '#F0F0F0'}} />
+          <Text text70b marginT-6>{topPlayers[2].name}</Text>
+          <View row centerV bg-grey70 br10 paddingH-10 paddingV-3 marginB-2>
             <Icon name="diamond" size={14} color="#B0B0B0" />
-            <Text style={styles.topScoreText}>{topPlayers[2].score}</Text>
+            <Text text80b color-grey30 marginL-4>{topPlayers[2].score}</Text>
           </View>
         </View>
       </View>
 
-      {/* Ranked List */}
-      <View style={styles.rankedList}>
+      <View marginH-18 marginT-10 marginB-18>
         {rankedPlayers.map((p, i) => (
-          <View style={styles.rankedRow} key={p.name}>
-            <Text style={styles.rankNum}>{i + 4}</Text>
-            <View style={styles.rankedAvatarWrap}>
-              <Icon name="account-circle" size={32} color="#B0B0B0" />
-            </View>
-            <Text style={styles.rankedName}>{p.name}</Text>
-            <View style={styles.rankedScoreBox}>
+          <View key={p.name} row centerV bg-white br20 paddingV-10 paddingH-12 marginB-10 style={{elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 3}}>
+            <Text text70b color-grey30 style={{width: 22, textAlign: 'center'}}>{i + 4}</Text>
+            <Avatar size={32} source={{}} containerStyle={{marginH: 8}} />
+            <Text flex text70 color_grey10>{p.name}</Text>
+            <View row centerV bg-white br10 paddingH-8 paddingV-2>
               <Icon name="diamond" size={14} color="#FF69B4" />
-              <Text style={styles.rankedScore}>{p.score}</Text>
+              <Text text80b color-pink30 marginL-4>{p.score}</Text>
             </View>
           </View>
         ))}
@@ -98,155 +87,5 @@ const Leaderboard = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-    filterRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginHorizontal: 18,
-        marginTop: 18,
-        marginBottom: 10,
-      },
-      filterTab: {
-        flex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        paddingVertical: 8,
-        marginHorizontal: 4,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#F0F0F0',
-      },
-      activeTab: {
-        backgroundColor: '#FF7A3C',
-        borderColor: '#FF7A3C',
-      },
-      filterText: {
-        color: '#B0B0B0',
-        fontWeight: 'bold',
-        fontSize: 13,
-      },
-      activeTabText: {
-        color: '#fff',
-      },
-      top3Row: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'flex-end',
-        marginTop: 18,
-        marginBottom: 18,
-      },
-      topPlayerCol: {
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        flex: 1,
-      },
-      crownWrap: {
-        position: 'absolute',
-        top: -28,
-        left: '50%',
-        marginLeft: -12,
-        zIndex: 2,
-      },
-      crownIcon: {
-        shadowColor: '#FFBE0B',
-        shadowOpacity: 0.5,
-        shadowRadius: 6,
-        elevation: 2,
-      },
-      topAvatarMain: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        borderWidth: 3,
-        borderColor: '#FFBE0B',
-        marginBottom: 6,
-        backgroundColor: '#eee',
-      },
-      topAvatarSmall: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        borderWidth: 2,
-        borderColor: '#F0F0F0',
-        marginBottom: 6,
-        backgroundColor: '#eee',
-      },
-      topPlayerName: {
-        fontWeight: 'bold',
-        fontSize: 14,
-        color: '#222',
-        marginBottom: 4,
-      },
-      topScoreBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F0F0F0',
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        marginBottom: 2,
-      },
-      topScoreText: {
-        color: '#B0B0B0',
-        fontWeight: 'bold',
-        fontSize: 13,
-        marginLeft: 4,
-      },
-      rankedList: {
-        marginHorizontal: 18,
-        marginTop: 10,
-        marginBottom: 18,
-      },
-      rankedRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        marginBottom: 10,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 3,
-        elevation: 1,
-      },
-      rankNum: {
-        fontWeight: 'bold',
-        fontSize: 15,
-        color: '#B0B0B0',
-        width: 22,
-        textAlign: 'center',
-      },
-      rankedAvatarWrap: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#F0F0F0',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginHorizontal: 8,
-      },
-      rankedName: {
-        flex: 1,
-        fontWeight: '600',
-        fontSize: 14,
-        color: '#222',
-      },
-      rankedScoreBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-      },
-      rankedScore: {
-        color: '#FF69B4',
-        fontWeight: 'bold',
-        fontSize: 13,
-        marginLeft: 4,
-      },
-});
 
 export default Leaderboard;
