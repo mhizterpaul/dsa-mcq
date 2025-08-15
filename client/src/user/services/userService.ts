@@ -68,3 +68,4 @@ export const resetPassword = async (email: string, newPassword: string): Promise
     return Promise.reject(new Error('Password too short'));
   }
 };
+ 
