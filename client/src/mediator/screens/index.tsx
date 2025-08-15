@@ -23,15 +23,15 @@ const HomeScreenContent = ({ navigation }: any) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View row spread centerV marginT-10 marginH-18>
           {user.renderUserProfileSummary("HomeScreen")}
-          {engagement.renderPill("HomeScreen", 1200)}
+          {engagement.renderUserScore("HomeScreen", 1200)}
         </View>
 
         <View>
-            {engagement.renderCard("HomeScreen_WeeklyKingOfQuiz")}
-            {learning.renderCategoryList("HomeScreen", handleSelectCategory)}
-            {engagement.renderCard("HomeScreen_DailyQuizBanner")}
+            {engagement.renderWeeklyKingOfQuiz("HomeScreen")}
+            {learning.renderFeaturedCategories("HomeScreen", handleSelectCategory)}
+            {engagement.renderDailyQuizBanner("HomeScreen")}
             <AdComponent />
-            {learning.renderRecentQuizList("HomeScreen")}
+            {learning.renderRecentQuizzes("HomeScreen")}
         </View>
       </ScrollView>
 

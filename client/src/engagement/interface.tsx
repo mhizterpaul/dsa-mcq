@@ -7,17 +7,22 @@ import Leaderboard from './components/Leaderboard';
 import UserScore from './components/UserScore';
 import WeeklyKingOfQuiz from './components/WeeklyKingOfQuiz';
 import DailyQuizBanner from './components/DailyQuizBanner';
+import AchievementsView from './components/AchievementsView';
+import LeaderboardView from './components/LeaderboardView';
 
 export interface IEngagementComponent {
   loadGamificationState(): void;
   scheduleReminders(): void;
+  renderLeaderboard(screen: string): React.ReactElement;
+  renderAchievements(screen: string): React.ReactElement;
   renderLeaderboardView(screen: string): React.ReactElement;
-  renderAchievements(screen: string): void;
-  renderGoalSetterView(screen: string, onSetTarget: () => void): React.ReactElement;
-  renderReminderList(screen: string): React.ReactElement;
-  renderCard(screen: string): React.ReactElement;
-  renderButton(screen: string, onPress: () => void): React.ReactElement;
-  renderPill(screen: string, score: number): React.ReactElement;
+  renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement;
+  renderReminders(screen: string): React.ReactElement;
+  renderMotivationCard(screen: string): React.ReactElement;
+  renderNotificationButton(screen: string, onPress: () => void): React.ReactElement;
+  renderUserScore(screen: string, score: number): React.ReactElement;
+  renderWeeklyKingOfQuiz(screen: string): React.ReactElement;
+  renderDailyQuizBanner(screen: string): React.ReactElement;
 }
 
 export class EngagementComponent implements IEngagementComponent {
@@ -29,37 +34,43 @@ export class EngagementComponent implements IEngagementComponent {
         console.log("Scheduling reminders...");
     }
 
-    renderLeaderboardView(screen: string): React.ReactElement {
+    renderLeaderboard(screen: string): React.ReactElement {
         return <Leaderboard />;
     }
 
-    renderAchievements(screen: string) {
-        console.log("Rendering achievements...");
+    renderAchievements(screen: string): React.ReactElement {
+        return <AchievementsView />;
     }
 
-    renderGoalSetterView(screen: string, onSetTarget: () => void): React.ReactElement {
+    renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement {
         return <GoalSetter onSetTarget={onSetTarget} />;
     }
 
-    renderReminderList(screen: string): React.ReactElement {
+    renderReminders(screen: string): React.ReactElement {
         return <Reminders />;
     }
 
-    renderCard(screen: string): React.ReactElement {
-        if (screen === "HomeScreen_WeeklyKingOfQuiz") {
-            return <WeeklyKingOfQuiz />;
-        }
-        if (screen === "HomeScreen_DailyQuizBanner") {
-            return <DailyQuizBanner />;
-        }
+    renderMotivationCard(screen: string): React.ReactElement {
         return <MotivationCard />;
     }
 
-    renderButton(screen: string, onPress: () => void): React.ReactElement {
+    renderNotificationButton(screen: string, onPress: () => void): React.ReactElement {
         return <NotificationButton onPress={onPress} />;
     }
 
-    renderPill(screen: string, score: number): React.ReactElement {
+    renderUserScore(screen: string, score: number): React.ReactElement {
         return <UserScore score={score} />;
+    }
+
+    renderWeeklyKingOfQuiz(screen: string): React.ReactElement {
+        return <WeeklyKingOfQuiz />;
+    }
+
+    renderDailyQuizBanner(screen: string): React.ReactElement {
+        return <DailyQuizBanner />;
+    }
+
+    renderLeaderboardView(screen: string): React.ReactElement {
+        return <LeaderboardView />;
     }
 }
