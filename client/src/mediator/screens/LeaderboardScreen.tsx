@@ -18,7 +18,7 @@ const LeaderboardScreenContent = ({ navigation }: any) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {engagement.renderLeaderboard()}
+        {engagement.renderLeaderboard("LeaderboardScreen")}
       </ScrollView>
 
       <BottomNav navigation={navigation} activeScreen="Leaderboard" />

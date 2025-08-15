@@ -28,14 +28,14 @@ const AchievementScreen = ({ navigation }: any) => {
       <ScrollView contentContainerStyle={{paddingBottom: 32, alignItems: 'center'}}>
         <View row spread centerV paddingH-24 paddingT-18 marginB-10>
           <Text color={NEON} text50b>Achievement</Text>
-          {engagement.renderButton("AchievementScreen", handleNotifications)}
+          {engagement.renderNotificationButton("AchievementScreen", handleNotifications)}
         </View>
 
-        {learning.renderCircularProgressIndicator("AchievementScreen", performance)}
-        {engagement.renderGoalSetterView("AchievementScreen", handleSetTarget)}
-        {engagement.renderReminderList("AchievementScreen")}
-        {engagement.renderCard("AchievementScreen")}
-        {learning.renderButton("AchievementScreen", handleTakeQuiz)}
+        {learning.renderQuizPerformanceIndicator("AchievementScreen", performance)}
+        {engagement.renderGoalSetter("AchievementScreen", handleSetTarget)}
+        {engagement.renderReminders("AchievementScreen")}
+        {engagement.renderMotivationCard("AchievementScreen")}
+        {learning.renderStartQuizButton("AchievementScreen", handleTakeQuiz)}
       </ScrollView>
     </View>
   );

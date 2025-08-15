@@ -5,16 +5,19 @@ import Quiz from './components/Quiz';
 import GameModes from './components/GameModes';
 import FeaturedCategories from './components/FeaturedCategories';
 import RecentQuizzes from './components/RecentQuizzes';
+import QuizView from './components/QuizView';
+import SessionSummary from './components/SessionSummary';
 
 export interface ILearningComponent {
   loadUserProgress(): void;
-  renderQuizView(screen: string, onNext: () => void): React.ReactElement;
-  renderSummary(screen: string): void;
-  renderCircularProgressIndicator(screen: string, performance: number): React.ReactElement;
-  renderButton(screen: string, onPress: () => void): React.ReactElement;
-  renderGameModeList(screen: string): React.ReactElement;
-  renderCategoryList(screen: string, onSelectCategory: (category: string) => void): React.ReactElement;
-  renderRecentQuizList(screen: string): React.ReactElement;
+  renderQuiz(screen: string, onNext: () => void): React.ReactElement;
+  renderSummary(screen: string): React.ReactElement;
+  renderQuizPerformanceIndicator(screen: string, performance: number): React.ReactElement;
+  renderStartQuizButton(screen: string, onPress: () => void): React.ReactElement;
+  renderGameModes(screen: string): React.ReactElement;
+  renderFeaturedCategories(screen: string, onSelectCategory: (category: string) => void): React.ReactElement;
+  renderRecentQuizzes(screen: string): React.ReactElement;
+  renderQuizView(screen: string): React.ReactElement;
 }
 
 export class LearningComponent implements ILearningComponent {
@@ -23,31 +26,35 @@ export class LearningComponent implements ILearningComponent {
       console.log("Loading user progress...");
     }
 
-    renderQuizView(screen: string, onNext: () => void): React.ReactElement {
+    renderQuiz(screen: string, onNext: () => void): React.ReactElement {
       return <Quiz onNext={onNext} />;
     }
 
-    renderSummary(screen: string) {
-      console.log("Rendering summary...");
+    renderSummary(screen: string): React.ReactElement {
+      return <SessionSummary />;
     }
 
-    renderCircularProgressIndicator(screen: string, performance: number): React.ReactElement {
+    renderQuizPerformanceIndicator(screen: string, performance: number): React.ReactElement {
       return <QuizPerformanceIndicator performance={performance} />;
     }
 
-    renderButton(screen: string, onPress: () => void): React.ReactElement {
+    renderStartQuizButton(screen: string, onPress: () => void): React.ReactElement {
       return <StartQuizButton onPress={onPress} />;
     }
 
-    renderGameModeList(screen: string): React.ReactElement {
+    renderGameModes(screen: string): React.ReactElement {
       return <GameModes />;
     }
 
-    renderCategoryList(screen: string, onSelectCategory: (category: string) => void): React.ReactElement {
+    renderFeaturedCategories(screen: string, onSelectCategory: (category: string) => void): React.ReactElement {
       return <FeaturedCategories onSelectCategory={onSelectCategory} />;
     }
 
-    renderRecentQuizList(screen: string): React.ReactElement {
+    renderRecentQuizzes(screen: string): React.ReactElement {
       return <RecentQuizzes />;
+    }
+
+    renderQuizView(screen: string): React.ReactElement {
+        return <QuizView />;
     }
   }
