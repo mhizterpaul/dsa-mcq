@@ -6,7 +6,7 @@ import { addAchievement, setUserEngagementDb } from '../store/userEngagement.sli
 import { Achievement } from '../store/primitives/UserEngagement';
 import { UserEngagement } from '../store/primitives/UserEngagement';
 
-const AchievementsView = ({ userId }: { userId: string }) => {
+const AchievementsView = () => {
   const achievements = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.achievements);
   const dispatch = useDispatch();
 

@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
 import { setUserEngagementDb } from '../store/userEngagement.slice';
 
-const UserScore = ({ userId }: { userId: string }) => {
+const UserScore = () => {
   const score = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.xp_progress);
     const dispatch = useDispatch();
 

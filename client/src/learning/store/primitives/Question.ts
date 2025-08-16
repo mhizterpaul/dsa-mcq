@@ -1,6 +1,5 @@
 export class Question {
   id: string;
-  text: string;
   options: string[];
   correctOption: number;
   categories: string[];
@@ -12,7 +11,6 @@ export class Question {
 
   constructor(
     id: string,
-    text: string,
     options: string[],
     correctOption: number,
     categories: string[],
@@ -20,7 +18,6 @@ export class Question {
     feedback: { correct_approach: string; incorrect_approach: string }
   ) {
     this.id = id;
-    this.text = text;
     this.options = options;
     this.correctOption = correctOption;
     this.categories = categories;
