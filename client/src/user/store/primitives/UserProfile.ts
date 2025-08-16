@@ -52,7 +52,8 @@ export type AchievementBadge =
   | 'Explorer' // tried all categories
   | 'Champion' // top 1% globally
   | 'Helper' // gave feedback/help to others
-  | 'Comeback Kid'; // big improvement since last play
+  | 'Comeback Kid' // big improvement since last play
+  | null;
 
 // User settings
 export class UserSettings {
@@ -75,8 +76,10 @@ export class UserProfile {
   bookmarks: QuestionResponse[];
   goals: UserGoal[];
   totalXP: number;
+  correctAnswers: number; // total correct answers
+  completedQuizzes: number; // total quizzes completed
   globalRanking: number; // rank/level derived from XP
-  achievements: AchievementBadge[];
+  highestAchievement: AchievementBadge;
   settings: UserSettings;
 
   constructor(userId: string) {
@@ -84,8 +87,10 @@ export class UserProfile {
     this.bookmarks = [];
     this.goals = [];
     this.totalXP = 0;
+    this.correctAnswers = 0;
+    this.completedQuizzes = 0;
     this.globalRanking = NaN;
-    this.achievements = [];
+    this.highestAchievement = null;
     this.settings = new UserSettings();
   }
 }

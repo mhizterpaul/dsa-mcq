@@ -1,32 +1,35 @@
 import React from 'react';
-import { View, Text } from 'react-native-ui-lib';
-import { ScrollView } from 'react-native';
-import { LearningComponent, EngagementComponent } from '..';
+import { View, Text, Button } from 'react-native-ui-lib';
+import { Provider } from 'react-redux';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { EngagementComponent } from '..';
+import engagementStore from '../../engagement/store/store';
+import BottomNav from '../components/BottomNav';
 
-const NEON = '#EFFF3C';
-const DARK = '#181A1B';
-
-const learning = new LearningComponent();
 const engagement = new EngagementComponent();
 
-const AchievementScreen = ({ navigation }: any) => {
-
+const LeaderboardScreenContent = ({ navigation }: any) => {
   return (
-    <View flex bg-dark10>
-      <ScrollView contentContainerStyle={{paddingBottom: 32, alignItems: 'center'}}>
-        <View row spread centerV paddingH-24 paddingT-18 marginB-10>
-          <Text color={NEON} text50b>Achievement</Text>
-          {engagement.renderNotificationButton("AchievementScreen")}
-        </View>
+    <View flex bg-grey80>
+      <View row spread centerV paddingH-18 paddingT-10 paddingB-8 bg-white style={{borderBottomWidth: 1, borderBottomColor: '#F0F0F0'}}>
+        <Button link iconSource={() => <Icon name="chevron-left" size={28} color="#222" />} onPress={() => navigation.goBack()} />
+        <Text text70b color_grey10>Leaderboard</Text>
+        <View width={28} />
+      </View>
 
-        {learning.renderQuizPerformanceIndicator("AchievementScreen")}
-        {engagement.renderGoalSetter("AchievementScreen")}
-        {engagement.renderReminders("AchievementScreen")}
-        {engagement.renderMotivationCard("AchievementScreen")}
-        {learning.renderStartQuizButton("AchievementScreen")}
-      </ScrollView>
+        {engagement.renderAchievementScreen("LeaderboardScreen")}
+
+      <BottomNav navigation={navigation} activeScreen="Leaderboard" />
     </View>
   );
 };
 
-export default AchievementScreen; 
+const LeaderboardScreen = ({ navigation }: any) => {
+  return (
+    <Provider store={engagementStore}>
+      <LeaderboardScreenContent navigation={navigation} />
+    </Provider>
+  );
+};
+
+export default LeaderboardScreen; 

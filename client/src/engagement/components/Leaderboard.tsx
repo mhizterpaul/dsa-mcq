@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, Avatar } from 'react-native-ui-lib';
+import { ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
@@ -32,7 +33,7 @@ const Leaderboard = () => {
   }, []);
 
   return (
-    <View>
+         <ScrollView showsVerticalScrollIndicator={false}>
       <View row spread marginH-18 marginT-18 marginB-10>
         {['Today', 'Weekly', 'All time'].map((tab) => (
           <Button
@@ -93,7 +94,7 @@ const Leaderboard = () => {
           </View>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 

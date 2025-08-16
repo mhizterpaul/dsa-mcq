@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, Button, ListItem } from 'react-native-ui-lib';
+import { ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { UserRootState } from '../store';
 import { setUserProfile } from '../store/userProfile.slice';
@@ -38,7 +39,8 @@ const BookmarkList = () => {
 
   return (
     <View>
-        <Text text60b marginB-20>Bookmarks</Text>
+        <Text text80H grey40 marginB-20 uppercase>Bookmarks ({questions.length})</Text>
+        <ScrollView contentContainerStyle={{padding: 20}}>
         {profile.bookmarks.map((bookmark, index) => (
             <ListItem key={bookmark.questionId} height={77.5} onPress={() => {}}>
                 <ListItem.Part left>
@@ -54,7 +56,17 @@ const BookmarkList = () => {
                 </ListItem.Part>
             </ListItem>
         ))}
+        
+      </ScrollView>
+          <Button
+        label="Result Screen"
+        iconSource={() => <Feather name="bar-chart-2" size={20} color="black" />}
+        backgroundColor="#eee"
+        color="black"
+        style={{padding: 20, borderTopWidth: 1, borderTopColor: '#ddd'}}
+      />
     </View>
+    
   );
 };
 

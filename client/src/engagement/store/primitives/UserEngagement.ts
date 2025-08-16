@@ -22,6 +22,9 @@ export class UserEngagement {
   achievements: Achievement[];
   motivation: string;
   reminders: Reminder[];
+  preferredPlayTime: string; // "HH:mm"
+  xp_milestone: string;
+  streak_milestone: string;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -29,11 +32,15 @@ export class UserEngagement {
     this.streak_length = 0;
     this.response_latency = 0;
     this.xp_progress = 0;
+
     this.leaderboard_rank = 0;
     this.last_session_timestamp = null;
     this.achievements = [];
     this.motivation = '';
     this.reminders = [];
+    this.preferredPlayTime = ''; // Default to noon
+    this.xp_milestone = '';
+    this.streak_milestone = '';
   }
 
   updateStreak(didAttend: boolean) {

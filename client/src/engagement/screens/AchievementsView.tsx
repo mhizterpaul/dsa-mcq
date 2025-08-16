@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
 import { addAchievement, setUserEngagementDb } from '../store/userEngagement.slice';
 import { Achievement } from '../store/primitives/UserEngagement';
-import { UserEngagement } from '../store/primitives/UserEngagement';
 
 const AchievementsView = () => {
   const achievements = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.achievements);

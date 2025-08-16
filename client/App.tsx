@@ -11,7 +11,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar, useColorScheme } from 'react-native';
 
 import HomeScreen from './src/mediator/screens';
-import LeaderboardScreen from './src/mediator/screens/LeaderboardScreen';
+import LeaderboardScreen from './src/mediator/screens/AchievementScreen';
 
 const Stack = createStackNavigator();
 

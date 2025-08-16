@@ -62,6 +62,14 @@ const GoalSetter = () => {
           ))}
         </View>
       )}
+      <Button
+        label="Continue"
+        labelStyle={{color: 'black', fontWeight: 'bold'}}
+        iconSource={() => <Feather name="arrow-right" size={20} color="black" />}
+        iconOnRight
+        backgroundColor="#ADFF2F"
+        style={{borderRadius: 15, padding: 15, width: '100%', position: 'absolute', bottom: 40, alignSelf: 'center'}}
+      />
     </View>
   );
 };

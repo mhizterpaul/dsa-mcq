@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { View, Text, Button } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
-import { EngagementRootState } from '../store/store';
-import { setDailyQuiz } from '../store/globalEngagement.slice';
-import { DailyQuiz } from '../store/primitives/globalEngagement';
+import { EngagementRootState } from '../../engagement/store/store';
+import { setDailyQuiz } from '../../engagement/store/globalEngagement.slice';
+import { DailyQuiz } from '../../engagement/store/primitives/globalEngagement';
 
 const DailyQuizBanner = () => {
   const dailyQuiz = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.dailyQuiz);

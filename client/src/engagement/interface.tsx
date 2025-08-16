@@ -6,8 +6,8 @@ import NotificationButton from './components/NotificationButton';
 import Leaderboard from './components/Leaderboard';
 import UserScore from './components/UserScore';
 import WeeklyKingOfQuiz from './components/WeeklyKingOfQuiz';
-import DailyQuizBanner from './components/DailyQuizBanner';
-import AchievementsView from './components/AchievementsView';
+import DailyQuizBanner from '../learning/components/DailyQuizBanner';
+import AchievementsView from './screens/AchievementsView';
 import LeaderboardView from './components/LeaderboardView';
 
 export interface IEngagementComponent {
