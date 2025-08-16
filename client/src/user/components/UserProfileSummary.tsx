@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { View, Text, TouchableOpacity, Card } from 'react-native-ui-lib';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -6,22 +6,15 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 type MenuKey = 'coinHistory' | 'profileDetails' | 'weeklyGifts' | 'questions';
 
 export type UserProfileSummaryProps = {
-  visible: boolean;
-  onOpen: () => void;
-  onClose?: () => void;
-  onSelectMenuItem?: (key: MenuKey) => void;
   containerStyle?: object;
   dropdownOffsetY?: number;
 };
 
 const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
-  visible,
-  onOpen,
-  onClose,
-  onSelectMenuItem,
   containerStyle,
   dropdownOffsetY = 8,
 }) => {
+  const [visible, setVisible] = useState(false);
 
   const menuItems: { key: MenuKey; label: string; icon: string }[] = useMemo(
     () => [
@@ -32,6 +25,14 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
     ],
     []
   );
+
+  const onOpen = () => setVisible(true);
+  const onClose = () => setVisible(false);
+
+  const onSelectMenuItem = (key: MenuKey) => {
+    console.log('Selected menu item:', key);
+    onClose();
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -49,10 +50,7 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
           {menuItems.map((item, idx) => (
             <TouchableOpacity
               key={item.key}
-              onPress={() => {
-                onSelectMenuItem?.(item.key);
-                onClose?.();
-              }}
+              onPress={() => onSelectMenuItem(item.key)}
               style={[styles.menuItem, idx < menuItems.length - 1 && styles.menuItemDivider]}
               activeOpacity={0.8}
             >

@@ -2,8 +2,12 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { View, Text, Card } from 'react-native-ui-lib';
 import Feather from 'react-native-vector-icons/Feather';
+import { useSelector } from 'react-redux';
+import { UserRootState } from '../store';
 
-const LiveHealthierBanner = () => {
+const ThinkSmarterBanner = () => {
+  const performanceHistory = useSelector((state: UserRootState) => state.user.currentUser?.performanceHistory);
+
   return (
     <Card marginB-40 style={styles.banner}>
       <View centerH>
@@ -12,15 +16,27 @@ const LiveHealthierBanner = () => {
           </View>
           <Text text60BO black marginT-20>Think Smarter</Text>
           <View row centerV marginT-20 height={50} style={styles.graph}>
-          {Array.from({ length: 15 }).map((_, i) => (
+          {(performanceHistory && performanceHistory.length > 0) ? (
+            performanceHistory.map((score, i) => (
               <View
-              key={i}
-              style={[
+                key={i}
+                style={[
                   styles.graphBar,
-                  { height: Math.random() * 40 + 10 },
-              ]}
+                  { height: score },
+                ]}
               />
-          ))}
+            ))
+          ) : (
+            Array.from({ length: 15 }).map((_, i) => (
+                <View
+                key={i}
+                style={[
+                    styles.graphBar,
+                    { height: Math.random() * 40 + 10 },
+                ]}
+                />
+            ))
+          )}
           </View>
       </View>
     </Card>
@@ -56,4 +72,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LiveHealthierBanner;
+export default ThinkSmarterBanner;

@@ -1,23 +1,23 @@
 import React from 'react';
-import { ListItem, Text } from 'react-native-ui-lib';
-import Feather from 'react-native-vector-icons/Feather';
+import { FlatList } from 'react-native';
+import { useSelector } from 'react-redux';
+import { UserRootState } from '../store';
+import BookmarkListItem from './BookmarkListItem';
 
-const QuestionListItem = ({ question, index }: { question: {id: string, text: string}, index: number }) => {
+const BookmarkList = () => {
+  const bookmarkedQuestions = useSelector((state: UserRootState) => state.user.currentUser?.bookmarkedQuestions);
+
+  if (!bookmarkedQuestions) {
+    return null;
+  }
+
   return (
-    <ListItem key={question.id} height={77.5} onPress={() => {}}>
-      <ListItem.Part left>
-          <Text text70 grey10 marginR-15>{index + 1}</Text>
-      </ListItem.Part>
-      <ListItem.Part middle column>
-        <ListItem.Part middle>
-          <Text text70 grey10>{question.text}</Text>
-        </ListItem.Part>
-      </ListItem.Part>
-      <ListItem.Part right>
-          <Feather name="more-vertical" size={20} color="#888" />
-      </ListItem.Part>
-    </ListItem>
+    <FlatList
+      data={bookmarkedQuestions}
+      renderItem={({ item, index }) => <BookmarkListItem questionId={item} index={index} />}
+      keyExtractor={(item) => item}
+    />
   );
 };
 
-export default QuestionListItem;
+export default BookmarkList;

@@ -61,23 +61,36 @@ export const removeNotificationDb = createAsyncThunk<string, string>(
 // --- SLICE DEFINITION ---
 const notificationSlice = createSlice({
   name: 'notifications',
-  initialState: notificationsAdapter.getInitialState(),
-  reducers: {},
+  initialState: notificationsAdapter.getInitialState({
+    hasNewNotifications: false,
+  }),
+  reducers: {
+    setHasNewNotifications: (state, action: PayloadAction<boolean>) => {
+      state.hasNewNotifications = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(hydrateNotifications.fulfilled, (state, action: PayloadAction<Notification[]>) => {
         notificationsAdapter.setAll(state, action.payload);
+        state.hasNewNotifications = action.payload.some(n => !n.isRead);
       })
       .addCase(addNotificationDb.fulfilled, (state, action: PayloadAction<Notification>) => {
         notificationsAdapter.addOne(state, action.payload);
+        state.hasNewNotifications = true;
       })
       .addCase(markAsReadDb.fulfilled, (state, action: PayloadAction<Update<Notification>>) => {
         notificationsAdapter.updateOne(state, action.payload);
+        const notifications = Object.values(state.entities);
+        state.hasNewNotifications = notifications.some(n => !n.isRead);
       })
       .addCase(removeNotificationDb.fulfilled, (state, action: PayloadAction<string>) => {
         notificationsAdapter.removeOne(state, action.payload);
+        const notifications = Object.values(state.entities);
+        state.hasNewNotifications = notifications.some(n => !n.isRead);
       });
   },
 });
 
+export const { setHasNewNotifications } = notificationSlice.actions;
 export default notificationSlice.reducer;
