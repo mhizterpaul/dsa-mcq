@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { learningRootReducer } from '../../src/learning/store/store';
+import { learningRootReducer } from '../../src/learning/store';
 import { fetchFeedbackForQuestion, addQuestion } from '../../src/learning/store/question.slice';
 import * as feedbackService from '../../src/learning/services/feedbackService';
 import { Question } from '../../src/learning/store/primitives/Question';

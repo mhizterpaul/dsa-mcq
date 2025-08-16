@@ -1,7 +1,7 @@
 import { createSlice, createEntityAdapter, PayloadAction, createAsyncThunk, Update } from '@reduxjs/toolkit';
 import { Question } from './primitives/Question';
 import { generateBatchFeedback, Feedback } from '../services/feedbackService';
-import { LearningRootState } from './store';
+import { LearningRootState } from '.';
 
 // --- ENTITY ADAPTER ---
 const questionsAdapter = createEntityAdapter<Question>({

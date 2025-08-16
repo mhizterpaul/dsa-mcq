@@ -24,7 +24,7 @@ const engagementRootReducer = combineReducers({
 
 // Analytics Component Reducers
 import devOpsMetricsReducer from '../../analytics/store/devOpsMetrics.slice';
-import engagementKPIsReducer from '../../analytics/store/engagementKPIs.slice';
+import engagementKPIsReducer from '../../engagement/store/engagementKPIs.slice';
 import anomaliesReducer from '../../analytics/store/anomalies.slice';
 import insightsReducer from '../../analytics/store/insights.slice';
 

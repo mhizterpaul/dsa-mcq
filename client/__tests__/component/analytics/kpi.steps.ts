@@ -1,6 +1,6 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore, AnyAction } from '@reduxjs/toolkit';
-import { analyticsRootReducer } from '../../../src/analytics/store/store';
+import { analyticsRootReducer } from '../../../src/analytics/store';
 import {
   runDevOpsMetricAggregation,
   runEngagementKPIComputation,

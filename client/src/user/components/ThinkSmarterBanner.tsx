@@ -10,7 +10,7 @@ const LiveHealthierBanner = () => {
           <View style={styles.bannerIconWrapper}>
               <Feather name="shield" size={24} color="black" />
           </View>
-          <Text text60BO black marginT-20>Live healthier</Text>
+          <Text text60BO black marginT-20>Think Smarter</Text>
           <View row centerV marginT-20 height={50} style={styles.graph}>
           {Array.from({ length: 15 }).map((_, i) => (
               <View

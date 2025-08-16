@@ -24,7 +24,7 @@ const analyticsData = [
   },
 ];
 
-const UserAnalytics = () => {
+const UserInsight = () => {
   return (
     <View flex bg-grey80 padding-page>
       <Text text40b marginB-20>Your Analytics</Text>
@@ -63,4 +63,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserAnalytics;
+export default UserInsight;

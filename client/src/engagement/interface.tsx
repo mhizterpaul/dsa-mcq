@@ -1,5 +1,5 @@
 import React from 'react';
-import GoalSetter from './components/GoalSetter';
+import GoalSetter from '../user/components/GoalSetter';
 import Reminders from './components/Reminders';
 import MotivationCard from './components/MotivationCard';
 import NotificationButton from './components/NotificationButton';

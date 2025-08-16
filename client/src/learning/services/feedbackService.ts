@@ -46,7 +46,7 @@ const buildBatchPrompt = (questions: Question[]): string => {
   `;
 };
 
-export const generateBatchFeedback = async (questions: Question[]): Promise<Record<string, Feedback>> => {
+const generateBatchFeedback = async (questions: Question[]): Promise<Record<string, Feedback>> => {
   if (!GEMINI_API_KEY || questions.length === 0) {
     return {};
   }
@@ -94,7 +94,7 @@ const buildSinglePrompt = (question: Question): string => {
   `;
 };
 
-export const generateFeedback = async (question: Question): Promise<Feedback> => {
+const generateFeedback = async (question: Question): Promise<Feedback> => {
   if (!GEMINI_API_KEY) {
     return {
       correct_approach: 'API key not configured.',

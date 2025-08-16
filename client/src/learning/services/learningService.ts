@@ -189,7 +189,7 @@ const getCategoryRecommendations = (
   });
 };
 
-export const learningService = {
+const learningService = {
     updateSM2Data,
     getTopKQuestionRecommendations,
     getTopKQuestionsForSession,

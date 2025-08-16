@@ -1,7 +1,7 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 
 import devOpsMetricsReducer from './devOpsMetrics.slice';
-import engagementKPIsReducer from './engagementKPIs.slice';
+import engagementKPIsReducer from '../../engagement/store/engagementKPIs.slice';
 import anomaliesReducer from './anomalies.slice';
 import insightsReducer from './insights.slice';
 

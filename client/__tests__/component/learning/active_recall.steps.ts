@@ -1,6 +1,6 @@
 import { loadFeature, defineFeature } from 'jest-cucumber';
 import { configureStore } from '@reduxjs/toolkit';
-import { learningRootReducer } from '../../../src/learning/store/store';
+import { learningRootReducer } from '../../../src/learning/store';
 import {
   addUserQuestionData,
   answerCorrectly,

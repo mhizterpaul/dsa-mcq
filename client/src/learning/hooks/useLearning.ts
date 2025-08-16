@@ -1,5 +1,4 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../mediator/store';
 import { addCategory } from '../store/category.slice';
 import { addQuestion } from '../store/question.slice';
 import { startSession } from '../store/learningSession.slice';

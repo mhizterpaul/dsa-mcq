@@ -3,7 +3,7 @@ import { sqliteService } from '../services/sqliteService';
 import { syncService } from '../services/syncService';
 
 // Import all stores and hydrate actions
-import learningStore from '../../learning/store/store';
+import learningStore from '../../learning/store';
 import { hydrateCategories } from '../../learning/store/category.slice';
 import { hydrateLearningSession } from '../../learning/store/learningSession.slice';
 import { hydrateUserQuestionData } from '../../learning/store/userQuestionData.slice';

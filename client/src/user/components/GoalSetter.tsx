@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Button } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Feather from 'react-native-vector-icons/Feather';
 
 const NEON = '#EFFF3C';
 const DARK = '#181A1B';
@@ -24,5 +25,21 @@ const GoalSetter = ({ onSetTarget }: { onSetTarget: () => void }) => {
     </View>
   );
 };
+
+const GoalOption = ({ icon, label }: { icon: string, label: string }) => {
+  return (
+    <Button
+      marginB-15
+      style={{borderRadius: 15, padding: 15, width: '100%'}}
+      backgroundColor="#222"
+    >
+      <View row centerV>
+          <Feather name={icon} size={20} color="white" />
+          <Text white marginL-15>{label}</Text>
+      </View>
+    </Button>
+  );
+};
+
 
 export default GoalSetter;

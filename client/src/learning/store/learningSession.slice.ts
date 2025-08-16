@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { LearningSession } from './primitives/LearningSession';
 import { learningService } from '../services/learningService';
-import { LearningRootState } from './store';
+import { LearningRootState } from '.';
 import { UserQuestionData } from './primitives/UserQuestionData';
 
 import { setUserQuestionDataDb } from './userQuestionData.slice'; // Assuming this will be the DB version

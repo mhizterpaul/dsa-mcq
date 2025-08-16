@@ -7,7 +7,7 @@ import {
 } from '@reduxjs/toolkit';
 import { Category } from './primitives/Category';
 import { sqliteService } from '../../common/services/sqliteService';
-import { LearningRootState } from './store';
+import { LearningRootState } from '.';
 
 // --- ENTITY ADAPTER ---
 const categoriesAdapter = createEntityAdapter<Category>({

@@ -2,7 +2,7 @@ import { UserEngagement } from '../store/primitives/UserEngagement';
 import { addNotification } from '../store/notification.slice';
 import { AppDispatch } from '../../mediator/store';
 
-export const scheduleReminder = (
+const scheduleReminder = (
   dispatch: AppDispatch,
   userId: string,
   nextSessionTime: number,
@@ -26,7 +26,7 @@ export const scheduleReminder = (
   }
 };
 
-export const generateNudgeForMissedSession = (
+const generateNudgeForMissedSession = (
     userEngagement: UserEngagement,
 ): { message: string; type: 'nudge' } | null => {
     const twentyFourHours = 24 * 60 * 60 * 1000;
@@ -41,14 +41,14 @@ export const generateNudgeForMissedSession = (
     return null;
 }
 
-export const checkXpMilestone = (
+const checkXpMilestone = (
   userEngagement: UserEngagement,
   levelThreshold: number = 1000,
 ): boolean => {
   return levelThreshold - userEngagement.xp_progress <= 50;
 };
 
-export const checkStreakMilestone = (
+const checkStreakMilestone = (
   userEngagement: UserEngagement,
 ): boolean => {
   const milestones = [7, 30, 100];

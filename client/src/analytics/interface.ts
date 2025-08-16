@@ -1,11 +1,8 @@
-import React from 'react';
-import UserAnalytics from './components/UserAnalytics';
+
 
 export interface IAnalyticsComponent {
   loadTelemetryData(): void;
-  computeKpis(): void;
-  renderDashboard(): void;
-  renderUserAnalytics(screen: string): React.ReactElement;
+  computeTelemetry(): void;
 }
 
 export class AnalyticsComponent implements IAnalyticsComponent {
@@ -13,15 +10,8 @@ export class AnalyticsComponent implements IAnalyticsComponent {
         console.log("Loading telemetry data...");
     }
 
-    computeKpis() {
+    computeTelemetry() {
         console.log("Computing KPIs...");
     }
 
-    renderDashboard() {
-        console.log("Rendering dashboard...");
-    }
-
-    renderUserAnalytics(screen: string): React.ReactElement {
-        return <UserAnalytics />;
-    }
 }

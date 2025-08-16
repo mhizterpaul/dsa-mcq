@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { User } from './primitives/User';
-import * as userService from '../services/userService';
 
 interface UserState {
   currentUser: User | null;
@@ -19,13 +18,88 @@ const initialState: UserState = {
 //
 
 // Email/password login
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+const login = async (email: string, password: string): Promise<{ user: User; token: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Invalid credentials');
+  }
+
+  const { user, token } = await response.json();
+  return { user: new User(user.id, user.name, user.email), token };
+};
+
+const register = async (name: string, email: string, password: string): Promise<{ user: User; token: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Registration failed');
+  }
+
+  const { user, token } = await response.json();
+  return { user: new User(user.id, user.name, user.email), token };
+};
+
+const logout = async (): Promise<void> => {
+  await fetch(`${API_BASE_URL}/auth/signout`, {
+    method: 'POST',
+  });
+};
+
+const loginWithOAuth = async (provider: 'github' | 'google' | 'x'): Promise<void> => {
+  window.location.href = `${API_BASE_URL}/auth/signin/${provider}`;
+};
+
+const requestVerificationCode = async (email: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to request verification code');
+  }
+};
+
+const verifyCode = async (token: string): Promise<void> => {
+    // This function is no longer needed, as the reset link will take the user to a page
+    // that calls resetPassword directly.
+    console.warn("verifyCode is deprecated");
+};
+
+const resetPassword = async (token: string, password: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to reset password');
+  }
+};
+ 
+
 export const loginUser = createAsyncThunk<
   { user: User; token: string },
   { username: string; password: string },
   { rejectValue: string }
 >('user/login', async ({ username, password }, { rejectWithValue }) => {
   try {
-    return await userService.login(username, password);
+    return await login(username, password);
   } catch (err: any) {
     return rejectWithValue(err.message || 'Login failed');
   }
@@ -38,7 +112,7 @@ export const loginWithOAuth = createAsyncThunk<
   { rejectValue: string }
 >('user/loginWithOAuth', async ({ provider, oauthToken }, { rejectWithValue }) => {
   try {
-    return await userService.loginWithOAuth(provider, oauthToken);
+    return await loginWithOAuth(provider, oauthToken);
   } catch (err: any) {
     return rejectWithValue(err.message || 'OAuth login failed');
   }
@@ -51,7 +125,7 @@ export const registerUser = createAsyncThunk<
   { rejectValue: string }
 >('user/register', async ({ username, email, password }, { rejectWithValue }) => {
   try {
-    return await userService.register(username, email, password);
+    return await register(username, email, password);
   } catch (err: any) {
     return rejectWithValue(err.message || 'Registration failed');
   }
@@ -62,7 +136,7 @@ export const requestVerificationCode = createAsyncThunk<void, { email: string },
   'user/requestVerificationCode',
   async ({ email }, { rejectWithValue }) => {
     try {
-      await userService.requestVerificationCode(email);
+      await requestVerificationCode(email);
     } catch (err: any) {
       return rejectWithValue(err.message || 'Failed to send verification code');
     }
@@ -74,7 +148,7 @@ export const verifyCode = createAsyncThunk<void, { email: string; code: string }
   'user/verifyCode',
   async ({ email, code }, { rejectWithValue }) => {
     try {
-      await userService.verifyCode(email, code);
+      await verifyCode(email, code);
     } catch (err: any) {
       return rejectWithValue(err.message || 'Code verification failed');
     }
@@ -86,7 +160,7 @@ export const resetPassword = createAsyncThunk<void, { email: string; newPassword
   'user/resetPassword',
   async ({ email, newPassword }, { rejectWithValue }) => {
     try {
-      await userService.resetPassword(email, newPassword);
+      await resetPassword(email, newPassword);
     } catch (err: any) {
       return rejectWithValue(err.message || 'Password reset failed');
     }
