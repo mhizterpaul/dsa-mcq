@@ -3,20 +3,16 @@ import { StyleSheet } from "react-native";
 import { View, Text, TextField, Button, Dialog } from "react-native-ui-lib";
 import { BlurView } from "@react-native-community/blur";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useDispatch } from "react-redux";
-import { resetPassword } from "../store/user.slice";
 
 const ResetPasswordForm = () => {
-    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [successModal, setSuccessModal] = useState(false);
-    const dispatch = useDispatch();
 
     const handleResetPassword = () => {
-      if (!email || !password || !confirmPassword) {
-        setError("Please fill in all fields.");
+      if (!password || !confirmPassword) {
+        setError("Please fill in both fields.");
         return;
       }
       if (password !== confirmPassword) {
@@ -29,7 +25,6 @@ const ResetPasswordForm = () => {
       }
 
       setError("");
-      dispatch(resetPassword({ email, newPassword: password }));
       setSuccessModal(true);
     };
 
@@ -43,12 +38,6 @@ const ResetPasswordForm = () => {
 
             <Text text50b marginV-20>Reset Password</Text>
 
-            <TextField
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            error={error}
-            />
             <TextField
             secureTextEntry
             placeholder="New Password"

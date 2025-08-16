@@ -3,31 +3,31 @@ import { View, Text, Avatar, Button } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
-import { setKingOfQuiz } from '../store/kingOfQuiz.slice';
-import { KingOfQuiz } from '../store/primitives/KingOfQuiz';
+import { setWeeklyKingOfQuiz } from '../store/globalEngagement.slice';
+import { KingOfQuiz } from '../store/primitives/globalEngagement';
 
 const WeeklyKingOfQuiz = () => {
-  const king = useSelector((state: EngagementRootState) => state.kingOfQuiz.king);
+  const king = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.weeklyKingOfQuiz);
   const dispatch = useDispatch();
 
-  const handleSetKing = () => {
+  const handleAddDummyData = () => {
     const dummyKing: KingOfQuiz = {
       name: 'Moktum Talukdar',
       avatar: 'https://randomuser.me/api/portraits/men/35.jpg',
       score: 12000,
     };
-    dispatch(setKingOfQuiz(dummyKing));
+    dispatch(setWeeklyKingOfQuiz(dummyKing));
   };
 
   useEffect(() => {
-    handleSetKing();
+    handleAddDummyData();
   }, []);
 
   if (!king) {
     return (
         <View center>
             <Text>Loading...</Text>
-            <Button label="Set Dummy King" onPress={handleSetKing} />
+            <Button label="Add Dummy Data" onPress={handleAddDummyData} />
         </View>
     )
   }

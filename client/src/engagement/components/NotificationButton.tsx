@@ -3,18 +3,23 @@ import { Button, View } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
-import { setHasNewNotifications } from '../store/notification.slice';
+import { markAsReadDb } from '../store/notification.slice';
 
 const NEON = '#EFFF3C';
 const GRAY = '#2A2C2E';
 
 const NotificationButton = () => {
   const dispatch = useDispatch();
-  const hasNewNotifications = useSelector((state: EngagementRootState) => state.notifications.hasNewNotifications);
+  const notifications = useSelector((state: EngagementRootState) => Object.values(state.notifications.entities));
+  const hasNewNotifications = notifications.some(n => !n.isRead);
 
   const handlePress = () => {
     console.log('Opening notifications');
-    dispatch(setHasNewNotifications(false));
+    notifications.forEach(n => {
+        if (!n.isRead) {
+            dispatch(markAsReadDb(n.id));
+        }
+    });
   };
 
   return (

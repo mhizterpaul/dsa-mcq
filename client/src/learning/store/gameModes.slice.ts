@@ -1,11 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-interface GameMode {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-}
+import { GameMode } from './primitives/GameMode';
 
 interface GameModesState {
     modes: GameMode[];

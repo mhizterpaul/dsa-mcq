@@ -1,4 +1,5 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { Mediator } from '../../mediator/interface';
 
 import categoryReducer from './category.slice';
 import questionReducer from './question.slice';

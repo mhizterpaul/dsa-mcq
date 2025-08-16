@@ -3,15 +3,19 @@ import { View, Text, Button, RadioButton, RadioGroup } from 'react-native-ui-lib
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { LearningRootState } from '../store';
-import { startQuiz, nextQuestion, answerQuestion } from '../store/quiz.slice';
+import { startQuiz, nextQuestion, answerQuestion, addQuiz } from '../store/quiz.slice';
 import { addQuestion, setQuestions } from '../store/question.slice';
 import { Question } from '../store/primitives/Question';
+import { Quiz as QuizPrimitive } from '../store/primitives/Quiz';
 
 const Quiz = () => {
   const dispatch = useDispatch();
-  const { questions, currentQuestionIndex, isActive } = useSelector((state: LearningRootState) => state.quiz);
+  const { quizzes, activeQuizId, currentQuestionIndex } = useSelector((state: LearningRootState) => state.quiz);
   const allQuestions = useSelector((state: LearningRootState) => state.questions.entities);
-  const currentQuestion = allQuestions[questions[currentQuestionIndex]];
+
+  const activeQuiz = activeQuizId ? quizzes[activeQuizId] : null;
+  const currentQuestionId = activeQuiz ? activeQuiz.questions[currentQuestionIndex] : null;
+  const currentQuestion = currentQuestionId ? allQuestions[currentQuestionId] : null;
 
   const [selected, setSelected] = useState(0);
 
@@ -21,16 +25,25 @@ const Quiz = () => {
       new Question('q2', 'What is the capital of France?', ['London', 'Berlin', 'Paris', 'Madrid'], 2),
     ];
     dispatch(setQuestions(dummyQuestions));
-    dispatch(startQuiz(dummyQuestions.map(q => q.id)));
+    const dummyQuiz: QuizPrimitive = {
+        id: 'quiz1',
+        title: 'Aptitude Test',
+        questions: dummyQuestions.map(q => q.id),
+        timeLimit: 120,
+    };
+    dispatch(addQuiz(dummyQuiz));
+    dispatch(startQuiz(dummyQuiz.id));
   };
 
   const handleNext = () => {
-    const isCorrect = selected === currentQuestion.correctOption;
-    dispatch(answerQuestion({ questionId: currentQuestion.id, isCorrect }));
-    dispatch(nextQuestion());
+    if (currentQuestion) {
+        const isCorrect = selected === currentQuestion.correctOption;
+        dispatch(answerQuestion({ questionId: currentQuestion.id, isCorrect }));
+        dispatch(nextQuestion());
+    }
   };
 
-  if (!isActive || !currentQuestion) {
+  if (!activeQuiz || !currentQuestion) {
     return (
       <View center>
         <Button label="Start Quiz" onPress={handleStartQuiz} />
@@ -41,21 +54,21 @@ const Quiz = () => {
   return (
     <View flex bg-white br24 style={{elevation: 2, shadowColor: '#A259FF', shadowOpacity: 0.08, shadowRadius: 12}}>
       <View row spread centerV paddingH-18 paddingT-10>
-        <Text text70b color_grey10 flex center>Aptitude Test</Text>
+        <Text text70b color_grey10 flex center>{activeQuiz.title}</Text>
         <View row centerV>
             <Icon name="clock-outline" size={20} color="#A259FF" />
-            <Text text70b color-purple30 marginL-4>2:00</Text>
+            <Text text70b color-purple30 marginL-4>{activeQuiz.timeLimit}</Text>
         </View>
       </View>
       <View height={2} bg-purple70 marginT-10 marginH-0 style={{opacity: 0.2}}/>
 
       <View height={7} bg-purple70 br10 marginH-18 marginT-10>
-        <View style={{width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`, height: 7, backgroundColor: '#A259FF', borderRadius: 4}} />
+        <View style={{width: `${((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100}%`, height: 7, backgroundColor: '#A259FF', borderRadius: 4}} />
       </View>
 
       <View flex paddingH-18 paddingT-24>
         <Text text80b color-purple30 marginB-10>
-          Questions {currentQuestionIndex + 1} of {questions.length}
+          Questions {currentQuestionIndex + 1} of {activeQuiz.questions.length}
         </Text>
         <Text text60b color_grey10 marginB-10>
           {currentQuestion.text}

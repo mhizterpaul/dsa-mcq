@@ -3,22 +3,32 @@ import { View, Text, Button } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
-import { setRandomMessage } from '../store/motivation.slice';
+import { setMotivation, setUserEngagementDb } from '../store/userEngagement.slice';
 
 const NEON = '#EFFF3C';
 const DARK = '#181A1B';
 
-const MotivationCard = () => {
-  const dispatch = useDispatch();
-  const message = useSelector((state: EngagementRootState) => state.motivation.currentMessage);
+const motivationalMessages = [
+    'Keep going! Every quiz makes you better!',
+    "Don't give up! You're making great progress!",
+    'Believe in yourself! You can do it!',
+    'The more you learn, the more you earn!',
+];
 
-  useEffect(() => {
-    dispatch(setRandomMessage());
-  }, []);
+const MotivationCard = ({ userId }: { userId: string }) => {
+  const dispatch = useDispatch();
+  const motivation = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.motivation);
 
   const handleNewMessage = () => {
-    dispatch(setRandomMessage());
+    const randomIndex = Math.floor(Math.random() * motivationalMessages.length);
+    const newMessage = motivationalMessages[randomIndex];
+    dispatch(setMotivation({ userId, motivation: newMessage }));
   };
+
+  useEffect(() => {
+    dispatch(setUserEngagementDb(userId));
+    handleNewMessage();
+  }, []);
 
   return (
     <View bg-yellow30 br20 padding-18 marginB-18 style={{width: '90%', elevation: 2, shadowColor: NEON, shadowOpacity: 0.12, shadowRadius: 8}}>
@@ -30,7 +40,7 @@ const MotivationCard = () => {
                 style={{marginRight: 12}}
             />
             <Text text70b color_grey10 flex>
-                {message}
+                {motivation}
             </Text>
         </View>
         <Button label="New Message" onPress={handleNewMessage} size={Button.sizes.small} bg-yellow50 br12 marginT-10 />

@@ -3,13 +3,13 @@ import { View, Text, Button, Avatar } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
-import { setLeaderboard } from '../store/leaderboard.slice';
-import { Player } from '../store/primitives/Player';
+import { setLeaderboard } from '../store/globalEngagement.slice';
+import { Player } from '../store/primitives/globalEngagement';
 
 const Leaderboard = () => {
   const [filter, setFilter] = useState('Today');
   const dispatch = useDispatch();
-  const players = useSelector((state: EngagementRootState) => Object.values(state.leaderboard.entities));
+  const players = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.leaderboard);
 
   const topPlayers = players.slice(0, 3);
   const rankedPlayers = players.slice(3);

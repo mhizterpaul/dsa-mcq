@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { UserRootState } from '../store';
 
 const ProgressBar = () => {
-  const goals = useSelector((state: UserRootState) => state.user.currentUser?.goals);
+  const goals = useSelector((state: UserRootState) => state.profile.profile?.goals);
 
   if (!goals || goals.length === 0) {
     return (

@@ -1,28 +1,28 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Ad } from './primitives/Ad';
 
 interface AdState {
-  title: string;
-  buttonText: string;
-  icon: string;
+  ads: { [id: string]: Ad };
+  activeAdId: string | null;
 }
 
 const initialState: AdState = {
-  title: 'SPIN AND GET\nMORE REWARDS',
-  buttonText: 'Spin Now',
-  icon: 'cash-multiple',
+  ads: {},
+  activeAdId: null,
 };
 
 const adSlice = createSlice({
   name: 'ad',
   initialState,
   reducers: {
-    setAd: (state, action: PayloadAction<AdState>) => {
-        state.title = action.payload.title;
-        state.buttonText = action.payload.buttonText;
-        state.icon = action.payload.icon;
+    addAd: (state, action: PayloadAction<Ad>) => {
+        state.ads[action.payload.id] = action.payload;
+    },
+    setActiveAd: (state, action: PayloadAction<string>) => {
+        state.activeAdId = action.payload;
     },
   },
 });
 
-export const { setAd } = adSlice.actions;
+export const { addAd, setActiveAd } = adSlice.actions;
 export default adSlice.reducer;

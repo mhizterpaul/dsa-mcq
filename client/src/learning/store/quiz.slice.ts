@@ -1,28 +1,31 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Quiz } from './primitives/Quiz';
 
 interface QuizState {
-  questions: string[];
+  quizzes: { [id: string]: Quiz };
+  activeQuizId: string | null;
   currentQuestionIndex: number;
   score: number;
-  isActive: boolean;
 }
 
 const initialState: QuizState = {
-  questions: [],
+  quizzes: {},
+  activeQuizId: null,
   currentQuestionIndex: 0,
   score: 0,
-  isActive: false,
 };
 
 const quizSlice = createSlice({
   name: 'quiz',
   initialState,
   reducers: {
-    startQuiz: (state, action: PayloadAction<string[]>) => {
-      state.questions = action.payload;
+    addQuiz: (state, action: PayloadAction<Quiz>) => {
+      state.quizzes[action.payload.id] = action.payload;
+    },
+    startQuiz: (state, action: PayloadAction<string>) => {
+      state.activeQuizId = action.payload;
       state.currentQuestionIndex = 0;
       state.score = 0;
-      state.isActive = true;
     },
     answerQuestion: (state, action: PayloadAction<{ questionId: string; isCorrect: boolean }>) => {
       if (action.payload.isCorrect) {
@@ -30,14 +33,17 @@ const quizSlice = createSlice({
       }
     },
     nextQuestion: (state) => {
-      if (state.currentQuestionIndex < state.questions.length - 1) {
-        state.currentQuestionIndex++;
-      } else {
-        state.isActive = false;
-      }
+        if (state.activeQuizId) {
+            const quiz = state.quizzes[state.activeQuizId];
+            if (state.currentQuestionIndex < quiz.questions.length - 1) {
+                state.currentQuestionIndex++;
+            } else {
+                state.activeQuizId = null;
+            }
+        }
     },
   },
 });
 
-export const { startQuiz, answerQuestion, nextQuestion } = quizSlice.actions;
+export const { addQuiz, startQuiz, answerQuestion, nextQuestion } = quizSlice.actions;
 export default quizSlice.reducer;

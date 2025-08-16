@@ -193,37 +193,6 @@ const userSlice = createSlice({
     logout: (state) => {
       state.currentUser = null;
     },
-    addBookmark: (state, action: PayloadAction<string>) => {
-      if (state.currentUser) {
-        state.currentUser.addBookmark(action.payload);
-      }
-    },
-    removeBookmark: (state, action: PayloadAction<string>) => {
-      if (state.currentUser) {
-        state.currentUser.removeBookmark(action.payload);
-      }
-    },
-    addGoal: (state, action: PayloadAction<{ id: string; text: string }>) => {
-      if (state.currentUser) {
-        const { id, text } = action.payload;
-        state.currentUser.addGoal({ id, text, completed: false });
-      }
-    },
-    toggleGoal: (state, action: PayloadAction<string>) => {
-      if (state.currentUser) {
-        state.currentUser.toggleGoal(action.payload);
-      }
-    },
-    addPerformanceData: (state, action: PayloadAction<number>) => {
-      if (state.currentUser) {
-        state.currentUser.addPerformanceData(action.payload);
-      }
-    },
-    addInsight: (state, action: PayloadAction<{ category: string; performance: number; level: string; personality: string }>) => {
-      if (state.currentUser) {
-        state.currentUser.addInsight(action.payload);
-      }
-    },
   },
   extraReducers: (builder) => {
     const setLoading = (state: UserState) => {
@@ -280,5 +249,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { setCurrentUser, updatePreference, updateMasteryLevel, logout, addBookmark, removeBookmark, addGoal, toggleGoal, addPerformanceData, addInsight } = userSlice.actions;
+export const { setCurrentUser, updatePreference, updateMasteryLevel, logout } = userSlice.actions;
 export default userSlice.reducer;

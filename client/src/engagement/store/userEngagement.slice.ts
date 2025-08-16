@@ -74,6 +74,8 @@ export const addXpDb = createAsyncThunk<UserEngagement, { userId: string; points
 // ... other DB thunks for updateSessionAttendance, etc. can be added here following the same pattern ...
 
 
+import { Achievement, Reminder } from './primitives/UserEngagement';
+
 // --- SLICE DEFINITION ---
 const userEngagementSlice = createSlice({
   name: 'userEngagement',
@@ -88,6 +90,24 @@ const userEngagementSlice = createSlice({
     },
     setShowStreakMilestone: (state, action: PayloadAction<boolean>) => {
       state.ui.showStreakMilestone = action.payload;
+    },
+    addAchievement: (state, action: PayloadAction<{ userId: string, achievement: Achievement }>) => {
+        const { userId, achievement } = action.payload;
+        if (state.engagements[userId]) {
+            state.engagements[userId].achievements.push(achievement);
+        }
+    },
+    setMotivation: (state, action: PayloadAction<{ userId: string, motivation: string }>) => {
+        const { userId, motivation } = action.payload;
+        if (state.engagements[userId]) {
+            state.engagements[userId].motivation = motivation;
+        }
+    },
+    addReminder: (state, action: PayloadAction<{ userId: string, reminder: Reminder }>) => {
+        const { userId, reminder } = action.payload;
+        if (state.engagements[userId]) {
+            state.engagements[userId].reminders.push(reminder);
+        }
     },
   },
   extraReducers: (builder) => {
@@ -118,6 +138,9 @@ export const {
   setShowLeaderboardChange,
   setShowXpMilestone,
   setShowStreakMilestone,
+  addAchievement,
+  setMotivation,
+  addReminder,
 } = userEngagementSlice.actions;
 
 export default userEngagementSlice.reducer;

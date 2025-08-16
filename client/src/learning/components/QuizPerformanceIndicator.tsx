@@ -11,8 +11,10 @@ const CIRCLE_SIZE = 160;
 const ARC_THICKNESS = 18;
 
 const QuizPerformanceIndicator = () => {
-  const { score, questions } = useSelector((state: LearningRootState) => state.quiz);
-  const performance = questions.length > 0 ? score / questions.length : 0;
+  const { score, activeQuizId, quizzes } = useSelector((state: LearningRootState) => state.quiz);
+  const activeQuiz = activeQuizId ? quizzes[activeQuizId] : null;
+  const totalQuestions = activeQuiz ? activeQuiz.questions.length : 0;
+  const performance = totalQuestions > 0 ? score / totalQuestions : 0;
 
   return (
     <View center marginT-10 marginB-18>

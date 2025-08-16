@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
-import { addReminder } from '../store/reminders.slice';
-import { Reminder } from '../store/primitives/Reminder';
+import { addReminder, setUserEngagementDb } from '../store/userEngagement.slice';
+import { Reminder } from '../store/primitives/UserEngagement';
 
 const NEON = '#EFFF3C';
 const DARK = '#181A1B';
 
-const Reminders = () => {
-  const reminders = useSelector((state: EngagementRootState) => Object.values(state.reminders.entities));
+const Reminders = ({ userId }: { userId: string }) => {
+  const reminders = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.reminders);
   const dispatch = useDispatch();
 
   const [showAdd, setShowAdd] = useState(false);
@@ -21,27 +21,31 @@ const Reminders = () => {
     if (!newTime || !newLabel) return;
     const newReminder: Reminder = {
       id: `rem_${Date.now()}`,
-      icon: 'alarm-plus',
-      text: `${newLabel} at ${newTime}`,
+      text: newLabel,
+      time: newTime,
     };
-    dispatch(addReminder(newReminder));
+    dispatch(addReminder({ userId, reminder: newReminder }));
     setShowAdd(false);
     setNewTime('');
     setNewLabel('');
   };
 
+  useEffect(() => {
+    dispatch(setUserEngagementDb(userId));
+  }, []);
+
   return (
     <View style={{width: '90%'}} marginB-18>
       <Text color={NEON} text70b marginB-8>Reminders</Text>
-      {reminders.map((r) => (
+      {reminders && reminders.map((r) => (
         <View key={r.id} row centerV bg-grey20 br12 paddingV-12 paddingH-14 marginB-10>
           <Icon
-            name={r.icon}
+            name="alarm"
             size={20}
             color={NEON}
             style={{ marginRight: 12 }}
           />
-          <Text white text80>{r.text}</Text>
+          <Text white text80>{r.text} at {r.time}</Text>
         </View>
       ))}
       {showAdd ? (

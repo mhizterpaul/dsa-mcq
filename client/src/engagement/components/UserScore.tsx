@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
+import { setUserEngagementDb } from '../store/userEngagement.slice';
 
 const UserScore = ({ userId }: { userId: string }) => {
   const score = useSelector((state: EngagementRootState) => state.userEngagement.engagements[userId]?.xp_progress);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        dispatch(setUserEngagementDb(userId));
+    }, []);
 
   return (
     <View row centerV bg-grey10 br12 paddingH-12 paddingV-6>
