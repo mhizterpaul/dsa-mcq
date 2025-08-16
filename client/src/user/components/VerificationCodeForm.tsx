@@ -6,10 +6,14 @@ import {
 } from 'react-native';
 import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch } from 'react-redux';
+import { verifyCode, requestVerificationCode } from '../store/user.slice';
 
-const VerificationCodeForm = ({ navigation }) => {
+const VerificationCodeForm = () => {
+    const [email, setEmail] = useState('');
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const inputs = useRef<TextField[]>([]);
+    const dispatch = useDispatch();
 
     const handleChange = (text: string, index: number) => {
       const newCode = [...code];
@@ -26,13 +30,23 @@ const VerificationCodeForm = ({ navigation }) => {
 
     const isComplete = code.every((digit) => digit.trim().length === 1);
 
+    const handleVerify = () => {
+        if (isComplete) {
+            dispatch(verifyCode({ email, code: code.join('') }));
+        }
+    }
+
+    const handleResend = () => {
+        dispatch(requestVerificationCode({ email }));
+    }
+
     return (
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         <View row spread centerV marginB-16>
-          <Button link iconSource={() => <Icon name="arrow-left" size={24} color="#333" />} onPress={() => navigation.goBack()} />
+          <Button link iconSource={() => <Icon name="arrow-left" size={24} color="#333" />} />
           <Text text70b color_grey10>Verification</Text>
           <View width={24} />
         </View>
@@ -45,6 +59,12 @@ const VerificationCodeForm = ({ navigation }) => {
         <Text text80 color_grey30 marginB-24>
           We’ve sent a 6-digit code to your email.
         </Text>
+
+        <TextField
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+        />
 
         <View row spread marginB-30>
           {code.map((digit, index) => (
@@ -63,15 +83,13 @@ const VerificationCodeForm = ({ navigation }) => {
         <Button
           label="Verify Now"
           disabled={!isComplete}
-          onPress={() => {
-            // handle verification
-          }}
+          onPress={handleVerify}
           marginB-20
         />
 
         <View row center>
           <Text text80 color_grey30>Didn’t receive any code? </Text>
-          <Button link label="Resend Code" onPress={() => { /* resend logic */ }} />
+          <Button link label="Resend Code" onPress={handleResend} />
         </View>
       </KeyboardAvoidingView>
     );

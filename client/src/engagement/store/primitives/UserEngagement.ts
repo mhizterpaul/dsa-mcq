@@ -1,3 +1,16 @@
+export interface Achievement {
+    id: string;
+    name: string;
+    description: string;
+    achieved: boolean;
+}
+
+export interface Reminder {
+    id: string;
+    text: string;
+    time: string;
+}
+
 export class UserEngagement {
   userId: string;
   session_attendance: number;
@@ -6,6 +19,9 @@ export class UserEngagement {
   xp_progress: number;
   leaderboard_rank: number;
   last_session_timestamp: number | null;
+  achievements: Achievement[];
+  motivation: string;
+  reminders: Reminder[];
 
   constructor(userId: string) {
     this.userId = userId;
@@ -15,6 +31,9 @@ export class UserEngagement {
     this.xp_progress = 0;
     this.leaderboard_rank = 0;
     this.last_session_timestamp = null;
+    this.achievements = [];
+    this.motivation = '';
+    this.reminders = [];
   }
 
   updateStreak(didAttend: boolean) {

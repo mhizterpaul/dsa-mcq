@@ -1,11 +1,18 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { Mediator } from '../../mediator/interface';
 
 import userReducer from './user.slice';
+import userProfileReducer from './userProfile.slice';
+import userInsightReducer from './userInsight.slice';
+
+const rootReducer = combineReducers({
+    user: userReducer,
+    profile: userProfileReducer,
+    insight: userInsightReducer,
+});
 
 const store = configureStore({
-  reducer: {
-    user: userReducer,
-  },
+  reducer: rootReducer,
 });
 
 export type UserRootState = ReturnType<typeof store.getState>;

@@ -40,13 +40,19 @@ import userReducer from '../../user/store/user.slice';
 
 // Mediator Component Reducer
 import sharedStateReducer from '../../mediator/store/sharedState.slice';
+import adReducer from './ad.slice';
+
+const mediatorRootReducer = combineReducers({
+    sharedState: sharedStateReducer,
+    ad: adReducer,
+});
 
 const rootReducer = combineReducers({
   learning: learningRootReducer,
   engagement: engagementRootReducer,
   user: userReducer,
   analytics: analyticsRootReducer,
-  mediator: sharedStateReducer,
+  mediator: mediatorRootReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

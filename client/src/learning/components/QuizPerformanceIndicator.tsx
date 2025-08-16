@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { View, Text } from 'react-native-ui-lib';
+import { useSelector } from 'react-redux';
+import { LearningRootState } from '../store';
 
 const NEON = '#EFFF3C';
 const DARK = '#181A1B';
@@ -8,7 +10,12 @@ const GRAY = '#2A2C2E';
 const CIRCLE_SIZE = 160;
 const ARC_THICKNESS = 18;
 
-const QuizPerformanceIndicator = ({ performance }: { performance: number }) => {
+const QuizPerformanceIndicator = () => {
+  const { score, activeQuizId, quizzes } = useSelector((state: LearningRootState) => state.quiz);
+  const activeQuiz = activeQuizId ? quizzes[activeQuizId] : null;
+  const totalQuestions = activeQuiz ? activeQuiz.questions.length : 0;
+  const performance = totalQuestions > 0 ? score / totalQuestions : 0;
+
   return (
     <View center marginT-10 marginB-18>
       <View width={CIRCLE_SIZE} height={CIRCLE_SIZE} br100 bg-grey20 center style={{position: 'relative'}}>

@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
-import { View, Text, Card } from 'react-native-ui-lib';
+import { View, Text, Card, Button } from 'react-native-ui-lib';
 import Feather from 'react-native-vector-icons/Feather';
+import { useSelector, useDispatch } from 'react-redux';
+import { UserRootState } from '../store';
+import { setUserInsight } from '../store/userInsight.slice';
+import { UserInsight } from '../store/primitives/UserInsight';
 
-const LiveHealthierBanner = () => {
+const ThinkSmarterBanner = () => {
+    const insight = useSelector((state: UserRootState) => state.insight.insight);
+    const dispatch = useDispatch();
+
+    const handleAddDummyData = () => {
+        const dummyInsight = new UserInsight('user1');
+        dummyInsight.totalQuizzesAttempted = 10;
+        dispatch(setUserInsight(dummyInsight));
+    };
+
+    useEffect(() => {
+        handleAddDummyData();
+    }, []);
+
   return (
     <Card marginB-40 style={styles.banner}>
       <View centerH>
@@ -12,15 +29,9 @@ const LiveHealthierBanner = () => {
           </View>
           <Text text60BO black marginT-20>Think Smarter</Text>
           <View row centerV marginT-20 height={50} style={styles.graph}>
-          {Array.from({ length: 15 }).map((_, i) => (
-              <View
-              key={i}
-              style={[
-                  styles.graphBar,
-                  { height: Math.random() * 40 + 10 },
-              ]}
-              />
-          ))}
+          {insight && (
+            <Text text70b>Total Quizzes Attempted: {insight.totalQuizzesAttempted}</Text>
+          )}
           </View>
       </View>
     </Card>
@@ -56,4 +67,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LiveHealthierBanner;
+export default ThinkSmarterBanner;

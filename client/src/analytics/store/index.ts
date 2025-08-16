@@ -1,4 +1,5 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { Mediator } from '../../mediator/interface';
 
 import devOpsMetricsReducer from './devOpsMetrics.slice';
 import engagementKPIsReducer from '../../engagement/store/engagementKPIs.slice';
