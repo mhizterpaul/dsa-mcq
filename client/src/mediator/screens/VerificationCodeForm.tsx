@@ -7,7 +7,7 @@ import {
 import { View, Text, Button, TextField } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
-import { verifyCode, requestVerificationCode } from '../store/user.slice';
+import { verifyCode, requestVerificationCode } from '../../user/store/user.slice';
 
 const VerificationCodeForm = () => {
     const [email, setEmail] = useState('');
