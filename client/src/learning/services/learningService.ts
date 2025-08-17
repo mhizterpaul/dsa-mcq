@@ -71,6 +71,18 @@ import { UserQuestionData } from '../store/primitives/UserQuestionData';
 import { LearningSession } from '../store/primitives/LearningSession';
 import { Category } from '../store/primitives/Category';
 
+// This should be in a shared types package
+export interface Question {
+    id: number;
+    question: string;
+    category: string;
+    tags: string[];
+    options: {
+        text: string;
+        isCorrect: boolean;
+    }[];
+}
+
 interface QuestionRecommendation {
   questionId: string;
   recommendationScore: number;
@@ -189,7 +201,33 @@ const getCategoryRecommendations = (
   });
 };
 
+export const API_BASE_URL = 'http://localhost:3000/api';
+
+const getFeaturedCategories = async (): Promise<Category[]> => {
+    const response = await fetch(`${API_BASE_URL}/learning/featured-categories`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch featured categories');
+    }
+    return await response.json();
+};
+
+const getQuestionsByIds = async (ids: number[]): Promise<Question[]> => {
+    const response = await fetch(`${API_BASE_URL}/learning/questions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch questions by IDs');
+    }
+    return await response.json();
+};
+
 const learningService = {
+    getFeaturedCategories,
+    getQuestionsByIds,
     updateSM2Data,
     getTopKQuestionRecommendations,
     getTopKQuestionsForSession,

@@ -54,10 +54,14 @@ export class DevOpsMetric {
   id: string;
   type: DevOpsMetricType;
   payload: DevOpsMetricPayload;
+  createdAt: number;
+  updatedAt: number;
 
   constructor(type: DevOpsMetricType, payload: Omit<DevOpsMetricPayload, "timestamp">) {
     this.id = crypto.randomUUID();
     this.type = type;
     this.payload = { ...payload, timestamp: Date.now() } as DevOpsMetricPayload;
+    this.createdAt = this.payload.timestamp;
+    this.updatedAt = this.payload.timestamp;
   }
 }

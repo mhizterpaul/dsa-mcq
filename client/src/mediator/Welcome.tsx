@@ -1,8 +1,31 @@
 import React from 'react';
 import { View, Text, Button, Image } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useOAuth } from '../../common/hooks/useOAuth';
 
-const Welcome = () => {
+type RootStackParamList = {
+    Auth: undefined;
+    // other screens
+};
+
+type WelcomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Auth'>;
+
+interface WelcomeProps {
+    navigation: WelcomeScreenNavigationProp;
+}
+
+const Welcome: React.FC<WelcomeProps> = ({ navigation }) => {
+    const { signIn } = useOAuth();
+
+    const handleLogin = () => {
+        navigation.navigate('Auth');
+    };
+
+    const handleRegister = () => {
+        navigation.navigate('Auth');
+    };
+
     return (
         <View flex centerH paddingH-20 paddingT-20 bg-white>
           <Image
@@ -29,8 +52,8 @@ const Welcome = () => {
           </Text>
 
           <View row marginB-20>
-            <Button label="Login" flex marginH-4 />
-            <Button label="Register" flex marginH-4 bg-cyan80 />
+            <Button label="Login" flex marginH-4 onPress={handleLogin} />
+            <Button label="Register" flex marginH-4 bg-cyan80 onPress={handleRegister} />
           </View>
 
           <View row centerV marginB-16 width="80%">
@@ -40,9 +63,9 @@ const Welcome = () => {
           </View>
 
           <View row spread width="50%">
-            <Icon name="google" size={30} color="#DB4437" />
-            <Icon name="facebook" size={30} color="#1877F2" />
-            <Icon name="apple" size={30} color="#000" />
+            <Icon name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
+            <Icon name="github" size={30} color="#000" onPress={() => signIn('github')} />
+            <Icon name="twitter" size={30} color="#000" onPress={() => signIn('twitter')} />
           </View>
         </View>
       );

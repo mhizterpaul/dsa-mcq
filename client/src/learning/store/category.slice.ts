@@ -7,7 +7,8 @@ import {
 } from '@reduxjs/toolkit';
 import { Category } from './primitives/Category';
 import { sqliteService } from '../../common/services/sqliteService';
-import { LearningRootState } from '.';
+import { syncService } from '../../common/services/syncService';
+import { AppDispatch } from '../../mediator/store';
 
 // --- ENTITY ADAPTER ---
 const categoriesAdapter = createEntityAdapter<Category>({
@@ -19,11 +20,15 @@ const categoriesAdapter = createEntityAdapter<Category>({
 /**
  * Hydrates the categories state from the SQLite database.
  */
-export const hydrateCategories = createAsyncThunk<Category[]>(
+export const hydrateCategories = createAsyncThunk<Category[], void, { dispatch: AppDispatch }>(
   'categories/hydrate',
-  async () => {
+  async (_, thunkAPI) => {
     const categories = await sqliteService.getAll('categories');
-    return categories as Category[];
+
+    await syncService.performSync(thunkAPI.dispatch);
+
+    const syncedCategories = await sqliteService.getAll('categories');
+    return syncedCategories as Category[];
   },
 );
 
@@ -35,7 +40,7 @@ export const addCategoryDb = createAsyncThunk<
   { name: string; id: string; masteryScore?: number }
 >('categories/addCategoryDb', async ({ id, name, masteryScore }) => {
   const newCategory = new Category(id, name, masteryScore);
-  const categoryToSave = { ...newCategory, is_dirty: 1 };
+  const categoryToSave = { ...newCategory, updatedAt: Date.now(), is_dirty: 1 };
   await sqliteService.create('categories', categoryToSave);
   return newCategory;
 });

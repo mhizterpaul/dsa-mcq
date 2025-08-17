@@ -23,7 +23,8 @@ export class Anomaly {
   metricId?: string; // optional if anomaly not tied to a single metric
   type: AnomalyType;
   severity: AnomalySeverity;
-  timestamp: number;
+  timestamp: number; // Serves as createdAt
+  updatedAt: number;
   deviation?: number;   // statistical deviation, optional
   evidence: AnomalyEvidence[];
 
@@ -40,6 +41,7 @@ export class Anomaly {
     this.type = params.type;
     this.severity = params.severity;
     this.timestamp = Date.now();
+    this.updatedAt = Date.now();
     this.deviation = params.deviation;
     this.evidence = params.evidence;
   }

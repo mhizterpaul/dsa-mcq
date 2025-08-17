@@ -48,6 +48,8 @@ class SQLiteService {
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT,
         masteryScore REAL,
+        createdAt INTEGER,
+        updatedAt INTEGER,
         is_dirty INTEGER DEFAULT 0
       );`,
       `CREATE TABLE IF NOT EXISTS learning_sessions (
@@ -61,6 +63,8 @@ class SQLiteService {
         summary TEXT,
         startTime INTEGER,
         endTime INTEGER,
+        createdAt INTEGER,
+        updatedAt INTEGER,
         is_dirty INTEGER DEFAULT 0
       );`,
       `CREATE TABLE IF NOT EXISTS user_question_data (
@@ -73,6 +77,8 @@ class SQLiteService {
         lastAttemptTimestamp INTEGER,
         techniqueTransferScores TEXT,
         sm2 TEXT,
+        createdAt INTEGER,
+        updatedAt INTEGER,
         is_dirty INTEGER DEFAULT 0
       );`,
       `CREATE TABLE IF NOT EXISTS notifications (
@@ -82,6 +88,7 @@ class SQLiteService {
         type TEXT,
         isRead INTEGER,
         createdAt INTEGER,
+        updatedAt INTEGER,
         sendAt INTEGER,
         is_dirty INTEGER DEFAULT 0
       );`,
@@ -93,6 +100,27 @@ class SQLiteService {
         xp_progress REAL,
         leaderboard_rank INTEGER,
         last_session_timestamp INTEGER,
+        createdAt INTEGER,
+        updatedAt INTEGER,
+        is_dirty INTEGER DEFAULT 0
+      );`,
+      `CREATE TABLE IF NOT EXISTS anomalies (
+        id TEXT PRIMARY KEY NOT NULL,
+        metricId TEXT,
+        type TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        updatedAt INTEGER,
+        deviation REAL,
+        evidence TEXT,
+        is_dirty INTEGER DEFAULT 0
+      );`,
+      `CREATE TABLE IF NOT EXISTS devops_metrics (
+        id TEXT PRIMARY KEY NOT NULL,
+        type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        createdAt INTEGER,
+        updatedAt INTEGER,
         is_dirty INTEGER DEFAULT 0
       );`,
     ];

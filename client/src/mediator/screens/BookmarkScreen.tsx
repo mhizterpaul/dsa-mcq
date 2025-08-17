@@ -1,21 +1,40 @@
 import React from 'react';
-import { View, Text, Button } from 'react-native-ui-lib';
-import { ScrollView } from 'react-native';
-import Feather from 'react-native-vector-icons/Feather';
-import { UserComponent } from '..';
+import { View, StyleSheet } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const user = new UserComponent();
+import { UserComponent } from '../../user/interface';
+import BackButton from '../components/BackButton';
+import BottomNav from '../components/BottomNav';
 
+type RootStackParamList = { Home: undefined; };
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-const BookmarkScreen = () => {
-  return (
-    <View flex bg-white>
-      {//add navigation
-      //use the user component render method on index.ts
-      //ensure to include bottom navigation
-      }
-    </View>
-  );
+interface ScreenProps {
+    navigation: NavigationProp;
+}
+
+const BookmarkScreen: React.FC<ScreenProps> = ({ navigation }) => {
+    const userComponent = new UserComponent();
+
+    return (
+        <View style={styles.container}>
+            <BackButton navigation={navigation} />
+            <View style={styles.content}>
+                {userComponent.renderBookmarkList('bookmark')}
+            </View>
+            <BottomNav navigation={navigation} />
+        </View>
+    );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    content: {
+        flex: 1,
+    },
+});
 
 export default BookmarkScreen;

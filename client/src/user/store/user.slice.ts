@@ -19,9 +19,22 @@ const initialState: UserState = {
 
 // Email/password login
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// TODO: This should be loaded from environment variables
+const API_BASE_URL = 'http://localhost:3000/api';
 
-const login = async (email: string, password: string): Promise<{ user: User; token: string }> => {
+// This response type should be shared with the server.
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+  };
+}
+
+
+const login = async (email: string, password:string): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -32,11 +45,10 @@ const login = async (email: string, password: string): Promise<{ user: User; tok
     throw new Error('Invalid credentials');
   }
 
-  const { user, token } = await response.json();
-  return { user: new User(user.id, user.name, user.email), token };
+  return await response.json();
 };
 
-const register = async (name: string, email: string, password: string): Promise<{ user: User; token: string }> => {
+const register = async (name: string, email: string, password: string): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -56,10 +68,6 @@ const logout = async (): Promise<void> => {
   await fetch(`${API_BASE_URL}/auth/signout`, {
     method: 'POST',
   });
-};
-
-const loginWithOAuth = async (provider: 'github' | 'google' | 'x'): Promise<void> => {
-  window.location.href = `${API_BASE_URL}/auth/signin/${provider}`;
 };
 
 const requestVerificationCode = async (email: string): Promise<void> => {
@@ -94,7 +102,7 @@ const resetPassword = async (token: string, password: string): Promise<void> => 
  
 
 export const loginUser = createAsyncThunk<
-  { user: User; token: string },
+  AuthResponse,
   { username: string; password: string },
   { rejectValue: string }
 >('user/login', async ({ username, password }, { rejectWithValue }) => {
@@ -105,14 +113,24 @@ export const loginUser = createAsyncThunk<
   }
 });
 
-// OAuth login: provider + token
-export const loginWithOAuth = createAsyncThunk<
-  { user: User; token: string },
-  { provider: 'github' | 'gmail' | 'x'; oauthToken: string },
+// OAuth login with provider token
+export const loginWithProviderToken = createAsyncThunk<
+  AuthResponse,
+  { provider: string; token: string },
   { rejectValue: string }
->('user/loginWithOAuth', async ({ provider, oauthToken }, { rejectWithValue }) => {
+>('user/loginWithProviderToken', async ({ provider, token }, { rejectWithValue }) => {
   try {
-    return await loginWithOAuth(provider, oauthToken);
+    const response = await fetch(`${API_BASE_URL}/auth/provider-signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, token }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'OAuth login failed');
+    }
+    const data: AuthResponse = await response.json();
+    return data;
   } catch (err: any) {
     return rejectWithValue(err.message || 'OAuth login failed');
   }
@@ -120,7 +138,7 @@ export const loginWithOAuth = createAsyncThunk<
 
 // Register user
 export const registerUser = createAsyncThunk<
-  { user: User; token: string },
+  AuthResponse,
   { username: string; email: string; password: string },
   { rejectValue: string }
 >('user/register', async ({ username, email, password }, { rejectWithValue }) => {
@@ -211,24 +229,28 @@ const userSlice = createSlice({
     // Login (email/password)
     builder.addCase(loginUser.pending, setLoading);
     builder.addCase(loginUser.fulfilled, (state, action) => {
-      setSuccess(state);
-      state.currentUser = action.payload.user;
+        setSuccess(state);
+        const { user } = action.payload;
+        state.currentUser = new User(user.id, user.name, user.email);
     });
     builder.addCase(loginUser.rejected, setError);
 
-    // Login (OAuth)
-    builder.addCase(loginWithOAuth.pending, setLoading);
-    builder.addCase(loginWithOAuth.fulfilled, (state, action) => {
-      setSuccess(state);
-      state.currentUser = action.payload.user;
+    // Login (OAuth with provider token)
+    builder.addCase(loginWithProviderToken.pending, setLoading);
+    builder.addCase(loginWithProviderToken.fulfilled, (state, action) => {
+        setSuccess(state);
+        const { user } = action.payload;
+        state.currentUser = new User(user.id, user.name, user.email);
+        // In a real app, you would also store the session token from action.payload.token
     });
-    builder.addCase(loginWithOAuth.rejected, setError);
+    builder.addCase(loginWithProviderToken.rejected, setError);
 
     // Register
     builder.addCase(registerUser.pending, setLoading);
     builder.addCase(registerUser.fulfilled, (state, action) => {
-      setSuccess(state);
-      state.currentUser = action.payload.user;
+        setSuccess(state);
+        const { user } = action.payload;
+        state.currentUser = new User(user.id, user.name, user.email);
     });
     builder.addCase(registerUser.rejected, setError);
 
