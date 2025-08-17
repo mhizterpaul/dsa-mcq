@@ -1,20 +1,55 @@
 import React from 'react';
-import { View, Button } from 'react-native-ui-lib';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { LearningComponent } from '..';
+import { View, StyleSheet } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 
-const learning = new LearningComponent();
+import { LearningComponent } from '../../learning/interface';
+import learningService from '../../learning/services/learningService';
+import BackButton from '../components/BackButton';
+import BottomNav from '../components/BottomNav';
 
-const QuizScreen = ({ navigation }: any) => {
-
-  return (
-    <View flex bg-grey80>
-        <View row spread centerV paddingH-18 paddingT-10 paddingB-8 bg-white>
-            <Button link iconSource={() => <Icon name="chevron-left" size={28} color="#222" />} onPress={() => navigation.goBack()} />
-        </View>
-        {learning.renderQuizScreen()}
-    </View>
-  );
+type RootStackParamList = {
+    Home: undefined;
+    Quiz: { sessionQuestionIds: string[] };
+    SessionSummary: { results: { strengths: string[]; weaknesses: string[] } };
 };
 
-export default QuizScreen; 
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Quiz'>;
+type QuizScreenRouteProp = RouteProp<RootStackParamList, 'Quiz'>;
+
+interface ScreenProps {
+    navigation: NavigationProp;
+    route: QuizScreenRouteProp;
+}
+
+const QuizScreen: React.FC<ScreenProps> = ({ navigation, route }) => {
+    const { sessionQuestionIds } = route.params;
+    const learningComponent = new LearningComponent();
+
+    const handleQuizComplete = (answers: { [questionId: string]: { answer: string; isCorrect: boolean } }) => {
+        const results = learningService.compileSessionSummary(answers);
+        navigation.replace('SessionSummary', { results });
+    };
+
+    return (
+        <View style={styles.container}>
+            <BackButton navigation={navigation} />
+            <View style={styles.content}>
+                {learningComponent.renderQuiz('quiz', sessionQuestionIds, navigation, handleQuizComplete)}
+            </View>
+            {/* No BottomNav on Quiz Screen as per instructions */}
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    content: {
+        flex: 1,
+    },
+});
+
+export default QuizScreen;

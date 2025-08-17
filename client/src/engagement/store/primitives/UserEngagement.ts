@@ -3,16 +3,24 @@ export interface Achievement {
     name: string;
     description: string;
     achieved: boolean;
+    unlockCriteria: string;
+    imagePath: string;
+    createdAt: number;
+    updatedAt: number;
 }
 
 export interface Reminder {
     id: string;
     text: string;
     time: string;
+    createdAt: number;
+    updatedAt: number;
 }
 
 export class UserEngagement {
   userId: string;
+  createdAt: number;
+  updatedAt: number;
   session_attendance: number;
   streak_length: number;
   response_latency: number;
@@ -28,6 +36,8 @@ export class UserEngagement {
 
   constructor(userId: string) {
     this.userId = userId;
+    this.createdAt = Date.now();
+    this.updatedAt = Date.now();
     this.session_attendance = 0;
     this.streak_length = 0;
     this.response_latency = 0;
@@ -50,10 +60,12 @@ export class UserEngagement {
       this.streak_length = 0;
     }
     this.last_session_timestamp = Date.now();
+    this.updatedAt = Date.now();
   }
 
   addXp(points: number) {
     this.xp_progress += points;
+    this.updatedAt = Date.now();
   }
 
   updateSessionAttendance(attended: boolean) {
@@ -63,14 +75,17 @@ export class UserEngagement {
     } else {
         this.session_attendance = Math.max(0, this.session_attendance - 0.1);
     }
+    this.updatedAt = Date.now();
   }
 
   updateResponseLatency(latency: number) {
     // Simple average for now.
     this.response_latency = (this.response_latency + latency) / 2;
+    this.updatedAt = Date.now();
   }
 
   updateLeaderboardRank(newRank: number) {
     this.leaderboard_rank = newRank;
+    this.updatedAt = Date.now();
   }
 }

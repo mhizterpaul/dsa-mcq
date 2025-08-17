@@ -18,9 +18,9 @@ const BottomNav = () => {
         <Icon name="bookmark" size={24} color={activeScreen === 'Bookmark' ? '#FF7A3C' : '#B0B0B0'} />
         <Text text90 color={activeScreen === 'Bookmark' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Bookmark</Text>
       </TouchableOpacity>
-      <TouchableOpacity flex center onPress={() => navigation.navigate('Leaderboard')}>
-        <Icon name="trophy" size={24} color={activeScreen === 'Leaderboard' ? '#FF7A3C' : '#B0B0B0'} />
-        <Text text90 color={activeScreen === 'Leaderboard' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Leaderboard</Text>
+      <TouchableOpacity flex center onPress={() => navigation.navigate('Achievement')}>
+        <Icon name="seal" size={24} color={activeScreen === 'Achievement' ? '#FF7A3C' : '#B0B0B0'} />
+        <Text text90 color={activeScreen === 'Achievement' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Achievement</Text>
       </TouchableOpacity>
       <TouchableOpacity flex center onPress={() => navigation.navigate('Profile')}>
         <Icon name="account-circle" size={24} color={activeScreen === 'Profile' ? '#FF7A3C' : '#B0B0B0'} />

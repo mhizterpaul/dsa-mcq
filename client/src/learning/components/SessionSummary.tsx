@@ -1,37 +1,70 @@
 import React from 'react';
-import { View, Text } from 'react-native-ui-lib';
-import { useSelector } from 'react-redux';
-import { LearningRootState } from '../store';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import QuizPerformanceIndicator from './QuizPerformanceIndicator';
+import Feedback from './Feedback';
 
-const SessionSummary = () => {
-  const summary = useSelector((state: LearningRootState) => state.learningSession.session?.summary);
+interface SessionSummaryProps {
+    results: {
+        strengths: string[];
+        weaknesses: string[];
+    };
+}
 
-  if (!summary) {
+const SessionSummary: React.FC<SessionSummaryProps> = ({ results }) => {
+
+    // Dummy data for now, as we don't have feedback generation yet
+    const feedback = {
+        correctApproach: "You showed strong performance in several areas.",
+        incorrectApproach: "There are a few areas to focus on for improvement."
+    };
+
     return (
-      <View flex center>
-        <Text text50b marginB-20>Session Summary</Text>
-        <Text>No session summary available.</Text>
-      </View>
+        <ScrollView style={styles.container}>
+            <Text style={styles.title}>Session Summary</Text>
+            <QuizPerformanceIndicator />
+            <Feedback
+                correctApproach={feedback.correctApproach}
+                incorrectApproach={feedback.incorrectApproach}
+            />
+            <View style={styles.resultsContainer}>
+                <Text style={styles.subtitle}>Strengths (Correctly Answered)</Text>
+                {results.strengths.map((strength, index) => (
+                    <Text key={index} style={styles.resultItem}>- Question ID: {strength}</Text>
+                ))}
+            </View>
+            <View style={styles.resultsContainer}>
+                <Text style={styles.subtitle}>Areas for Improvement (Incorrectly Answered)</Text>
+                {results.weaknesses.map((weakness, index) => (
+                    <Text key={index} style={styles.resultItem}>- Question ID: {weakness}</Text>
+                ))}
+            </View>
+        </ScrollView>
     );
-  }
-
-  return (
-    <View flex padding-page>
-      <Text text40b marginB-20>Session Summary</Text>
-      <View>
-        <Text text60b>Strengths:</Text>
-        {summary.strengths.map((strength, index) => (
-          <Text key={index}>{strength}</Text>
-        ))}
-      </View>
-      <View marginT-20>
-        <Text text60b>Weaknesses:</Text>
-        {summary.weaknesses.map((weakness, index) => (
-          <Text key={index}>{weakness}</Text>
-        ))}
-      </View>
-    </View>
-  );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 10,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    resultsContainer: {
+        marginTop: 20,
+    },
+    subtitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    resultItem: {
+        fontSize: 16,
+        marginLeft: 10,
+    }
+});
 
 export default SessionSummary;

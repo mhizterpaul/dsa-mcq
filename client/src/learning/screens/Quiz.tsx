@@ -1,102 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, RadioButton, RadioGroup } from 'react-native-ui-lib';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { UserQuestionData } from '../store/primitives/UserQuestionData';
+import { updateUserQuestionData } from '../store/userQuestionData.slice';
+
 import { LearningRootState } from '../store';
-import { startQuiz, nextQuestion, answerQuestion, addQuiz } from '../store/quiz.slice';
-import { addQuestion, setQuestions } from '../store/question.slice';
-import { Question } from '../store/primitives/Question';
-import { Quiz as QuizPrimitive } from '../store/primitives/Quiz';
+import learningService, { Question } from '../services/learningService';
+import ProgressBar from '../components/ProgressBar';
+import QuestionCard from '../components/QuestionCard';
 
-const Quiz = () => {
-  const dispatch = useDispatch();
-  const { quizzes, activeQuizId, currentQuestionIndex } = useSelector((state: LearningRootState) => state.quiz);
-  const allQuestions = useSelector((state: LearningRootState) => state.questions.entities);
+// Assume these are passed in when the quiz is started
+interface QuizProps {
+    sessionQuestionIds: string[];
+    onQuizComplete: (answers: { [questionId: string]: { answer: string; isCorrect: boolean } }) => void;
+    navigation: any; // Add proper navigation type
+}
 
-  const activeQuiz = activeQuizId ? quizzes[activeQuizId] : null;
-  const currentQuestionId = activeQuiz ? activeQuiz.questions[currentQuestionIndex] : null;
-  const currentQuestion = currentQuestionId ? allQuestions[currentQuestionId] : null;
+const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigation }) => {
+    const dispatch = useDispatch();
+    const userQuestionData = useSelector((state: LearningRootState) => state.userQuestionData.entities);
+    const { currentUser } = useSelector((state: LearningRootState) => state.user);
 
-  const [selected, setSelected] = useState(0);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [currentAnswer, setCurrentAnswer] = useState<string | null>(null);
+    const [sessionAnswers, setSessionAnswers] = useState<{ [questionId: string]: { answer: string; isCorrect: boolean } }>({});
+    const [timeLeft, setTimeLeft] = useState(45);
 
-  const handleStartQuiz = () => {
-    const dummyQuestions: Question[] = [
-      new Question('q1', 'If a car travels 200 miles in 4 hours, what is its average speed?', ['40 Mph', '50 Mph', '60 Mph', '70 Mph'], 1),
-      new Question('q2', 'What is the capital of France?', ['London', 'Berlin', 'Paris', 'Madrid'], 2),
-    ];
-    dispatch(setQuestions(dummyQuestions));
-    const dummyQuiz: QuizPrimitive = {
-        id: 'quiz1',
-        title: 'Aptitude Test',
-        questions: dummyQuestions.map(q => q.id),
-        timeLimit: 120,
+    // Fetch question data when the component mounts or the session changes
+    useEffect(() => {
+        const fetchQuestions = async () => {
+            if (sessionQuestionIds.length > 0) {
+                // For now, fetch all questions for the session at once.
+                // A more advanced implementation would fetch subsets.
+                const fetchedQuestions = await learningService.getQuestionsByIds(sessionQuestionIds.map(id => parseInt(id, 10)));
+                setQuestions(fetchedQuestions);
+            }
+        };
+        fetchQuestions();
+    }, [sessionQuestionIds]);
+
+    // Timer logic
+    useEffect(() => {
+        if (timeLeft === 0) {
+            handleNext();
+            return;
+        }
+        const intervalId = setInterval(() => {
+            setTimeLeft(timeLeft - 1);
+        }, 1000);
+        return () => clearInterval(intervalId);
+    }, [timeLeft]);
+
+    const handleNext = useCallback(() => {
+        const question = questions[currentQuestionIndex];
+        if (!question || !currentUser) return;
+
+        const correctAnswer = question.options.find(o => o.isCorrect)?.text;
+        const isCorrect = currentAnswer === correctAnswer;
+        const quality = currentAnswer === null ? 0 : (isCorrect ? 5 : 1);
+
+        const uqd = userQuestionData[question.id] || new UserQuestionData(currentUser.id, String(question.id));
+        const updatedUqd = learningService.processAnswer(uqd, isCorrect, quality);
+        dispatch(updateUserQuestionData({ id: updatedUqd.questionId, changes: updatedUqd }));
+
+        const newAnswers = { ...sessionAnswers, [question.id]: { answer: currentAnswer || '', isCorrect } };
+        setSessionAnswers(newAnswers);
+
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
+            setTimeLeft(45); // Reset timer
+            setCurrentAnswer(null);
+        } else {
+            onQuizComplete(newAnswers);
+        }
+    }, [currentQuestionIndex, questions, onQuizComplete, currentAnswer, currentUser, userQuestionData, dispatch, sessionAnswers]);
+
+    const handleQuit = () => {
+        // Navigate back to home
+        navigation.navigate('Home');
     };
-    dispatch(addQuiz(dummyQuiz));
-    dispatch(startQuiz(dummyQuiz.id));
-  };
 
-  const handleNext = () => {
-    if (currentQuestion) {
-        const isCorrect = selected === currentQuestion.correctOption;
-        dispatch(answerQuestion({ questionId: currentQuestion.id, isCorrect }));
-        dispatch(nextQuestion());
+    if (questions.length === 0) {
+        return (
+            <View style={styles.container}>
+                <Text>Loading questions...</Text>
+            </View>
+        );
     }
-  };
 
-  if (!activeQuiz || !currentQuestion) {
+    const currentQuestion = questions[currentQuestionIndex];
+
     return (
-      <View center>
-        <Button label="Start Quiz" onPress={handleStartQuiz} />
-      </View>
-    );
-  }
-
-  return (
-    <View flex bg-white br24 style={{elevation: 2, shadowColor: '#A259FF', shadowOpacity: 0.08, shadowRadius: 12}}>
-      <View row spread centerV paddingH-18 paddingT-10>
-        <Text text70b color_grey10 flex center>{activeQuiz.title}</Text>
-        <View row centerV>
-            <Icon name="clock-outline" size={20} color="#A259FF" />
-            <Text text70b color-purple30 marginL-4>{activeQuiz.timeLimit}</Text>
+        <View style={styles.container}>
+            {/* Header would be rendered by the mediator wrapper */}
+            <Text style={styles.timer}>{timeLeft}s</Text>
+            <ProgressBar current={currentQuestionIndex + 1} total={questions.length} />
+            <QuestionCard
+                question={currentQuestion}
+                onSelectAnswer={setCurrentAnswer}
+            />
+            <View style={styles.footer}>
+                <Button label="Quit" onPress={handleQuit} backgroundColor="red" />
+                <Button label="Next" onPress={handleNext} />
+            </View>
         </View>
-      </View>
-      <View height={2} bg-purple70 marginT-10 marginH-0 style={{opacity: 0.2}}/>
-
-      <View height={7} bg-purple70 br10 marginH-18 marginT-10>
-        <View style={{width: `${((currentQuestionIndex + 1) / activeQuiz.questions.length) * 100}%`, height: 7, backgroundColor: '#A259FF', borderRadius: 4}} />
-      </View>
-
-      <View flex paddingH-18 paddingT-24>
-        <Text text80b color-purple30 marginB-10>
-          Questions {currentQuestionIndex + 1} of {activeQuiz.questions.length}
-        </Text>
-        <Text text60b color_grey10 marginB-10>
-          {currentQuestion.text}
-        </Text>
-
-        <RadioGroup initialValue={currentQuestion.options[selected]} onValueChange={(value) => setSelected(currentQuestion.options.indexOf(value))}>
-            {currentQuestion.options.map((option, index) => (
-                <View key={index} row spread centerV bg-white br12 style={{borderWidth: 1.5, borderColor: selected === index ? '#A259FF' : '#E0E0E0', paddingVertical: 14, paddingHorizontal: 16, marginBottom: 14}}>
-                    <Text text70 color={selected === index ? '#A259FF' : '#222'}>{option}</Text>
-                    <RadioButton value={option} color={selected === index ? '#A259FF' : '#E0E0E0'}/>
-                </View>
-            ))}
-        </RadioGroup>
-      </View>
-
-      <Button
-        label="Next"
-        iconSource={() => <Icon name="arrow-right" size={20} color="#fff" />}
-        iconOnRight
-        onPress={handleNext}
-        bg-grey10
-        br12
-        marginH-18
-        marginB-24
-        marginT-8
-      />
-    </View>
-  );
+    );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 10,
+    },
+    timer: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: 10,
+    },
+});
 
 export default Quiz;

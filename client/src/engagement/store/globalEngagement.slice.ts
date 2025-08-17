@@ -1,5 +1,17 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { GlobalEngagement, DailyQuiz, Player, KingOfQuiz } from './primitives/globalEngagement';
+import { API_BASE_URL } from '../../learning/services/learningService'; // Re-using this constant
+
+export const fetchLeaderboard = createAsyncThunk<Player[]>(
+    'globalEngagement/fetchLeaderboard',
+    async () => {
+        const response = await fetch(`${API_BASE_URL}/engagement/leaderboard`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch leaderboard');
+        }
+        return await response.json();
+    }
+);
 
 interface GlobalEngagementState {
   engagement: GlobalEngagement;
@@ -22,6 +34,11 @@ const globalEngagementSlice = createSlice({
     setWeeklyKingOfQuiz: (state, action: PayloadAction<KingOfQuiz>) => {
       state.engagement.weeklyKingOfQuiz = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchLeaderboard.fulfilled, (state, action: PayloadAction<Player[]>) => {
+        state.engagement.leaderboard = action.payload;
+    });
   },
 });
 

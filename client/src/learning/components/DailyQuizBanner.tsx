@@ -5,8 +5,16 @@ import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../../engagement/store/store';
 import { setDailyQuiz } from '../../engagement/store/globalEngagement.slice';
 import { DailyQuiz } from '../../engagement/store/primitives/globalEngagement';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const DailyQuizBanner = () => {
+type RootStackParamList = { DailyQuiz: undefined; };
+type NavigationProp = StackNavigationProp<RootStackParamList, 'DailyQuiz'>;
+
+interface DailyQuizBannerProps {
+    navigation: NavigationProp;
+}
+
+const DailyQuizBanner: React.FC<DailyQuizBannerProps> = ({ navigation }) => {
   const dailyQuiz = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.dailyQuiz);
   const dispatch = useDispatch();
 
@@ -24,7 +32,7 @@ const DailyQuizBanner = () => {
   }, []);
 
   const handleJoinQuiz = () => {
-    console.log('Joining quiz:', dailyQuiz?.quizId);
+    navigation.navigate('DailyQuiz');
   };
 
   return (

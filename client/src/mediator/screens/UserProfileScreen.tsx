@@ -1,18 +1,40 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Dimensions,
-  Pressable,
-} from "react-native";
-import { View, Text, Button, Image, Avatar } from 'react-native-ui-lib';
-import Ionicons from "react-native-vector-icons/Ionicons";
-import UserProfileSummary from "../../user/components/UserProfileSummary";
-import AdComponent from "../components/AdComponent";
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const { width } = Dimensions.get("window");
+import { UserComponent } from '../../user/interface';
+import BackButton from '../components/BackButton';
+import BottomNav from '../components/BottomNav';
 
-export default function UserProfileScreen() {
-  // include both back button and bottom navigation
-  //userComponent.renderUserProfile( Adcomponent);
+type RootStackParamList = { Home: undefined; };
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+
+interface ScreenProps {
+    navigation: NavigationProp;
 }
+
+const UserProfileScreen: React.FC<ScreenProps> = ({ navigation }) => {
+    const userComponent = new UserComponent();
+
+    return (
+        <View style={styles.container}>
+            <BackButton navigation={navigation} />
+            <View style={styles.content}>
+                {userComponent.renderUserProfile('profile')}
+            </View>
+            <BottomNav navigation={navigation} />
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    content: {
+        flex: 1,
+    },
+});
+
+export default UserProfileScreen;

@@ -5,30 +5,29 @@
  * @format
  */
 
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
+import Mediator from './src/mediator/Mediator';
+import { metricsService } from './src/analytics/services/metricsService';
 
-import HomeScreen from './src/mediator/screens';
-import LeaderboardScreen from './src/mediator/screens/AchievementScreen';
+interface AppProps {
+  startTime: number;
+}
 
-const Stack = createStackNavigator();
-
-function App() {
+function App({ startTime }: AppProps) {
   const isDarkMode = useColorScheme() === 'dark';
 
+  useEffect(() => {
+    const endTime = performance.now();
+    const startupTime = endTime - startTime;
+    metricsService.logStartupTime(startupTime);
+  }, [startTime]);
+
   return (
-    <NavigationContainer>
+    <>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <Stack.Navigator
-        initialRouteName="Home"
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+      <Mediator />
+    </>
   );
 }
 

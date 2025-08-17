@@ -1,9 +1,12 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { UserEngagement } from './primitives/UserEngagement';
+import { UserEngagement, Achievement } from './primitives/UserEngagement';
 import { sqliteService } from '../../common/services/sqliteService';
+import { syncService } from '../../common/services/syncService';
+import { API_BASE_URL } from '../../learning/services/learningService';
 
 // --- STATE AND INITIAL STATE ---
 interface UserEngagementState {
+  allAchievements: Achievement[];
   engagements: { [userId: string]: UserEngagement };
   // UI state can remain as it is, not persisted.
   ui: {
@@ -14,6 +17,7 @@ interface UserEngagementState {
 }
 
 const initialState: UserEngagementState = {
+  allAchievements: [],
   engagements: {},
   ui: {
     showLeaderboardChange: false,
@@ -24,11 +28,17 @@ const initialState: UserEngagementState = {
 
 // --- ASYNC THUNKS FOR DB OPERATIONS ---
 
-export const hydrateUserEngagements = createAsyncThunk<UserEngagement[]>(
+export const hydrateUserEngagements = createAsyncThunk<UserEngagement[], void, { dispatch: AppDispatch }>(
   'userEngagement/hydrate',
-  async () => {
+  async (_, thunkAPI) => {
     const engagements = await sqliteService.getAll('user_engagement');
-    return engagements as UserEngagement[];
+
+    // After hydrating from local DB, perform a two-way sync
+    await syncService.performSync(thunkAPI.dispatch);
+
+    // Re-fetch from local DB to get the synced data
+    const syncedEngagements = await sqliteService.getAll('user_engagement');
+    return syncedEngagements as UserEngagement[];
   },
 );
 
@@ -73,8 +83,30 @@ export const addXpDb = createAsyncThunk<UserEngagement, { userId: string; points
 
 // ... other DB thunks for updateSessionAttendance, etc. can be added here following the same pattern ...
 
+export const fetchAllAchievements = createAsyncThunk<Achievement[]>(
+    'userEngagement/fetchAllAchievements',
+    async () => {
+        const response = await fetch(`${API_BASE_URL}/engagement/achievements`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch achievements');
+        }
+        return await response.json();
+    }
+);
 
-import { Achievement, Reminder } from './primitives/UserEngagement';
+export const fetchUserEngagement = createAsyncThunk<UserEngagement, string>(
+    'userEngagement/fetchUserEngagement',
+    async (userId) => {
+        const response = await fetch(`${API_BASE_URL}/engagement/user-engagement/${userId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch user engagement');
+        }
+        return await response.json();
+    }
+);
+
+
+import { Reminder } from './primitives/UserEngagement';
 
 // --- SLICE DEFINITION ---
 const userEngagementSlice = createSlice({
@@ -112,6 +144,13 @@ const userEngagementSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchAllAchievements.fulfilled, (state, action) => {
+        state.allAchievements = action.payload;
+      })
+      .addCase(fetchUserEngagement.fulfilled, (state, action) => {
+        const engagement = action.payload;
+        state.engagements[engagement.userId] = engagement;
+      })
       .addCase(hydrateUserEngagements.fulfilled, (state, action) => {
         action.payload.forEach((engagement) => {
           state.engagements[engagement.userId] = engagement;

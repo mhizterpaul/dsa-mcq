@@ -1,35 +1,73 @@
 import React from 'react';
-import { View, Text, Button } from 'react-native-ui-lib';
-import { Provider } from 'react-redux';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { EngagementComponent } from '..';
-import engagementStore from '../../engagement/store/store';
+import { View, StyleSheet, Text } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+
+import { EngagementComponent } from '../../engagement/interface';
+import { UserComponent } from '../../user/interface';
+import BackButton from '../components/BackButton';
 import BottomNav from '../components/BottomNav';
+import BadgeDetails from '../../engagement/components/BadgeDetails';
 
-const engagement = new EngagementComponent();
+type RootStackParamList = {
+    Home: undefined;
+    Achievement: { badgeId?: string };
+};
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Achievement'>;
+type ScreenRouteProp = RouteProp<RootStackParamList, 'Achievement'>;
 
-const LeaderboardScreenContent = ({ navigation }: any) => {
-  return (
-    <View flex bg-grey80>
-      <View row spread centerV paddingH-18 paddingT-10 paddingB-8 bg-white style={{borderBottomWidth: 1, borderBottomColor: '#F0F0F0'}}>
-        <Button link iconSource={() => <Icon name="chevron-left" size={28} color="#222" />} onPress={() => navigation.goBack()} />
-        <Text text70b color_grey10>Leaderboard</Text>
-        <View width={28} />
-      </View>
+interface ScreenProps {
+    navigation: NavigationProp;
+    route: ScreenRouteProp;
+}
 
-        {engagement.renderAchievementScreen("LeaderboardScreen")}
+const AchievementScreen: React.FC<ScreenProps> = ({ navigation, route }) => {
+    const engagementComponent = new EngagementComponent();
+    const userComponent = new UserComponent();
+    const badgeId = route.params?.badgeId;
 
-      <BottomNav navigation={navigation} activeScreen="Leaderboard" />
-    </View>
-  );
+    // This is a placeholder. In a real app, you'd fetch this from the store.
+    const getBadgeData = (id: string) => ({
+        id: id,
+        name: 'Fitness God',
+        description: 'Achieve the highest rank in fitness quizzes.',
+        achieved: true,
+        unlockCriteria: 'Reach level 100 in Fitness.',
+        imagePath: 'client/src/engagement/components/mockup/original-6b0784cb19d1d688a7a939d8d3dd637f.jpg',
+    });
+
+    const badgeImageMapping = {
+        '1': require('../../engagement/components/mockup/original-6b0784cb19d1d688a7a939d8d3dd637f.jpg'),
+    };
+
+    return (
+        <View style={styles.container}>
+            <View style={styles.header}>
+                <BackButton navigation={navigation} />
+                <Text style={styles.headerTitle}>Achievements</Text>
+                {userComponent.renderUserSettingsComponent()}
+            </View>
+            <View style={styles.content}>
+                {badgeId ? (
+                    <BadgeDetails
+                        badge={getBadgeData(badgeId)}
+                        imageSource={badgeImageMapping[badgeId]}
+                    />
+                ) : (
+                    engagementComponent.renderAchievements('achievements', navigation)
+                )}
+            </View>
+            <BottomNav navigation={navigation} />
+        </View>
+    );
 };
 
-const LeaderboardScreen = ({ navigation }: any) => {
-  return (
-    <Provider store={engagementStore}>
-      <LeaderboardScreenContent navigation={navigation} />
-    </Provider>
-  );
-};
+// ... styles from before
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#fff' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingTop: 40, paddingBottom: 10 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    content: { flex: 1 },
+});
 
-export default LeaderboardScreen; 
+export default AchievementScreen;

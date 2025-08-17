@@ -9,12 +9,20 @@ import WeeklyKingOfQuiz from './components/WeeklyKingOfQuiz';
 import DailyQuizBanner from '../learning/components/DailyQuizBanner';
 import AchievementsView from './screens/AchievementsView';
 import LeaderboardView from './components/LeaderboardView';
+import engagementService from './services/engagementService';
+import { setWeeklyKingOfQuiz } from './store/globalEngagement.slice';
+import { AppDispatch } from '../mediator/store';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type RootStackParamList = { DailyQuiz: undefined; };
+type NavigationProp = StackNavigationProp<RootStackParamList, 'DailyQuiz'>;
 
 export interface IEngagementComponent {
+  hydrate(dispatch: AppDispatch): Promise<void>;
   loadGamificationState(): void;
   scheduleReminders(): void;
   renderLeaderboard(screen: string): React.ReactElement;
-  renderAchievements(screen: string): React.ReactElement;
+  renderAchievements(screen: string, navigation: any): React.ReactElement;
   renderLeaderboardView(screen: string): React.ReactElement;
   renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement;
   renderReminders(screen: string): React.ReactElement;
@@ -22,10 +30,19 @@ export interface IEngagementComponent {
   renderNotificationButton(screen: string, onPress: () => void): React.ReactElement;
   renderUserScore(screen: string, score: number): React.ReactElement;
   renderWeeklyKingOfQuiz(screen: string): React.ReactElement;
-  renderDailyQuizBanner(screen: string): React.ReactElement;
+  renderDailyQuizBanner(screen: string, navigation: NavigationProp): React.ReactElement;
 }
 
 export class EngagementComponent implements IEngagementComponent {
+    async hydrate(dispatch: AppDispatch) {
+        try {
+            const weeklyKing = await engagementService.getWeeklyKing();
+            dispatch(setWeeklyKingOfQuiz(weeklyKing));
+        } catch (error) {
+            console.error('Failed to hydrate engagement component:', error);
+        }
+    }
+
     loadGamificationState() {
         console.log("Loading gamification state...");
     }
@@ -38,8 +55,8 @@ export class EngagementComponent implements IEngagementComponent {
         return <Leaderboard />;
     }
 
-    renderAchievements(screen: string): React.ReactElement {
-        return <AchievementsView />;
+    renderAchievements(screen: string, navigation: any): React.ReactElement {
+        return <AchievementsView navigation={navigation} />;
     }
 
     renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement {
@@ -66,8 +83,8 @@ export class EngagementComponent implements IEngagementComponent {
         return <WeeklyKingOfQuiz />;
     }
 
-    renderDailyQuizBanner(screen: string): React.ReactElement {
-        return <DailyQuizBanner />;
+    renderDailyQuizBanner(screen: string, navigation: NavigationProp): React.ReactElement {
+        return <DailyQuizBanner navigation={navigation} />;
     }
 
     renderLeaderboardView(screen: string): React.ReactElement {

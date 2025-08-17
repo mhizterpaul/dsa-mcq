@@ -9,6 +9,8 @@ export interface Player {
     name: string;
     score: number;
     avatar: string;
+    level: number;
+    highestBadgeIcon: string;
 }
 
 export interface KingOfQuiz {
