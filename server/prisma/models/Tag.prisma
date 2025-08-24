@@ -1,0 +1,17 @@
+model Tag {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  questions TagOnQuestion[]
+}
+
+model TagOnQuestion {
+  questionId String
+  tagId      String
+  question   Question @relation(fields: [questionId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([questionId, tagId])
+  @@index([tagId])       // ✅ speeds up queries by tag
+  @@index([questionId])  // ✅ speeds up back-refs
+}
+

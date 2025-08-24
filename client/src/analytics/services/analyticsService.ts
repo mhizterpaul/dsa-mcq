@@ -64,16 +64,6 @@ class AnalyticsService {
         // This requires quiz session data (e.g., completion time).
     }
 
-
-    public runAllChecks() {
-        // This would be called periodically by the mediator
-        console.log("Running all anomaly checks...");
-        this.checkAuthenticity();
-        this.checkResourceDeficiency();
-        this.checkSecurityBreach();
-        this.checkApiAbnormality();
-        this.checkGameplayFraud();
-    }
 }
 
 export const analyticsService = new AnalyticsService();

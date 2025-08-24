@@ -11,7 +11,7 @@ export const hydrateDevOpsMetrics = createAsyncThunk<DevOpsMetric[]>(
     }
 );
 
-const devopsMetricsAdapter = createEntityAdapter<DevOpsMetric>({
+const devopsMetricsAdapter = createEntityAdapter<DevOpsMetric, String>({
   selectId: (metric) => metric.id,
 });
 

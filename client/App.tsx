@@ -7,7 +7,7 @@
 
 import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
-import Mediator from './src/mediator/Mediator';
+import Mediator from './src/mediator';
 import { metricsService } from './src/analytics/services/metricsService';
 
 interface AppProps {

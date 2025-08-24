@@ -11,7 +11,7 @@ export const hydrateAnomalies = createAsyncThunk<Anomaly[]>(
     }
 );
 
-const anomaliesAdapter = createEntityAdapter<Anomaly>({
+const anomaliesAdapter = createEntityAdapter<Anomaly, string>({
   selectId: (anomaly) => anomaly.id,
 });
 

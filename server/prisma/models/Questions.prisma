@@ -1,0 +1,22 @@
+model Question {
+  id          String       @id @default(uuid())
+  title       String
+  body        String
+  difficulty  Difficulty
+  categoryId  String
+  category    Category     @relation(fields: [categoryId], references: [id])
+  tags        TagOnQuestion[]
+  tagsText    String[]     @db.Text[]  // ✅ denormalized tag list
+  createdAt   DateTime     @default(now())
+
+  @@index([difficulty])
+  @@index([categoryId])
+  @@index([tagsText], type: Gin) // ✅ fast array queries in Postgres
+}
+
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
