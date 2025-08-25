@@ -97,3 +97,12 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Media {
+  id          String   @id @default(cuid())
+  provider    String
+  providerId  String
+  url         String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

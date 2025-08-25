@@ -17,11 +17,11 @@ interface OutboxEntry {
 
 const OUTBOX_PATH = path.resolve(__dirname, '../outbox.json');
 
-class MailService {
+export class MailService {
   private transporter: nodemailer.Transporter;
   private outbox: OutboxEntry[] = [];
 
-  constructor() {
+  private constructor() {
     // These are test credentials. In a production environment, these should be
     // replaced with actual credentials from a secure source.
     this.transporter = nodemailer.createTransport({
@@ -33,7 +33,12 @@ class MailService {
         pass: 'testpass',
       },
     });
-    this.loadOutbox();
+  }
+
+  static async create(): Promise<MailService> {
+    const mailService = new MailService();
+    await mailService.loadOutbox();
+    return mailService;
   }
 
   private async loadOutbox() {

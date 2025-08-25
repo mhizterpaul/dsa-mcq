@@ -1,17 +1,22 @@
-import { mailService } from '../../services/mailService';
+import { MailService } from '../../services/mailService';
 import nodemailer from 'nodemailer';
+import fs from 'fs/promises';
 
 jest.mock('nodemailer');
+jest.mock('fs/promises');
 
 describe('MailService', () => {
+  let mailService: MailService;
   let sendMailMock: jest.Mock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     sendMailMock = jest.fn();
     (nodemailer.createTransport as jest.Mock).mockReturnValue({
       sendMail: sendMailMock,
     });
+    (fs.readFile as jest.Mock).mockResolvedValue('[]');
+    mailService = await MailService.create();
   });
 
   it('should send an email successfully', async () => {
