@@ -16,7 +16,5 @@ yarn-error.log
 # development
 .env
 .env.local
-mcq_dataset.csv
-*/**/mcq_dataset.csv
-*.csv
+#*.csv
 .vscode/
