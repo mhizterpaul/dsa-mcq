@@ -1,62 +1,15 @@
 import NextAuth from 'next-auth';
-import { Pool } from 'pg';
-import { KyselyAuth } from '@auth/kysely-adapter';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { PrismaClient } from '@prisma/client';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { Kysely, PostgresDialect } from 'kysely';
 import bcrypt from 'bcryptjs';
 import cache from '../../../services/cacheService';
 
-interface Database {
-  users: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: Date | null;
-    image: string | null;
-    password?: string | null;
-  };
-  accounts: {
-    id: string;
-    userId: string;
-    type: string;
-    provider: string;
-    providerAccountId: string;
-    refresh_token: string | null;
-    access_token: string | null;
-    expires_at: number | null;
-    token_type: string | null;
-    scope: string | null;
-    id_token: string | null;
-    session_state: string | null;
-  };
-  sessions: {
-    id: string;
-    sessionToken: string;
-    userId: string;
-    expires: Date;
-  };
-  verification_token: {
-    identifier: string;
-    token: string;
-    expires: Date;
-  };
-}
-
-const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({
-      host: process.env.POSTGRES_HOST,
-      user: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DATABASE,
-      ssl: process.env.POSTGRES_SSL === 'true',
-    }),
-  }),
-});
+const prisma = new PrismaClient();
 
 export default NextAuth({
-  adapter: KyselyAuth(db),
+  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -73,11 +26,9 @@ export default NextAuth({
           return null;
         }
 
-        const user = await db
-          .selectFrom('users')
-          .where('email', '=', credentials.email)
-          .selectAll()
-          .executeTakeFirst();
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
 
         if (user && user.password && (await bcrypt.compare(credentials.password, user.password))) {
           return { id: user.id, name: user.name, email: user.email, image: user.image };
