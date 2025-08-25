@@ -1,19 +1,18 @@
 model Question {
-  id          String       @id @default(uuid())
+  id          String       @id
   title       String
   body        String
   difficulty  Difficulty
   categoryId  String
   category    Category     @relation(fields: [categoryId], references: [id])
   tags        TagOnQuestion[]
-  tagsText    String[]     @db.Text[]  // ✅ denormalized tag list
+  tagsText    String[]
   createdAt   DateTime     @default(now())
 
   @@index([difficulty])
   @@index([categoryId])
-  @@index([tagsText], type: Gin) // ✅ fast array queries in Postgres
+  @@index([tagsText], type: Gin)
 }
-
 
 enum Difficulty {
   EASY
