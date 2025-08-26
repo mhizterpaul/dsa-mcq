@@ -16,5 +16,5 @@ yarn-error.log
 # development
 .env
 .env.local
-#*.csv
+*.csv
 .vscode/
