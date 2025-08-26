@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "prisma:pre-build": "node scripts/concat-prisma-schema.js",
+    "prisma:pre-build": "npx prisma-schema-import",
     "prisma:generate": "npm run prisma:pre-build && prisma generate",
     "prisma:migrate": "npm run prisma:pre-build && prisma migrate dev",
     "seed": "npm run prisma:pre-build && prisma db seed"
