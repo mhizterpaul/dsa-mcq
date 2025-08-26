@@ -1,6 +1,8 @@
+import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
-import fs from 'fs/promises';
-import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface MailOptions {
   to: string;
@@ -8,20 +10,12 @@ interface MailOptions {
   html: string;
 }
 
-interface OutboxEntry {
-  mailOptions: MailOptions;
-  retries: number;
-  lastRetry: Date;
-  error: string;
-}
-
-const OUTBOX_PATH = path.resolve(__dirname, '../outbox.json');
-
 export class MailService {
   private transporter: nodemailer.Transporter;
-  private outbox: OutboxEntry[] = [];
+  private prisma: PrismaClient;
 
-  private constructor() {
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
     // These are test credentials. In a production environment, these should be
     // replaced with actual credentials from a secure source.
     this.transporter = nodemailer.createTransport({
@@ -35,67 +29,51 @@ export class MailService {
     });
   }
 
-  static async create(): Promise<MailService> {
-    const mailService = new MailService();
-    await mailService.loadOutbox();
-    return mailService;
-  }
-
-  private async loadOutbox() {
-    try {
-      const data = await fs.readFile(OUTBOX_PATH, 'utf-8');
-      this.outbox = JSON.parse(data);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        this.outbox = [];
-      } else {
-        console.error('Error loading outbox:', error);
-      }
-    }
-  }
-
-  private async saveOutbox() {
-    await fs.writeFile(OUTBOX_PATH, JSON.stringify(this.outbox, null, 2));
-  }
-
   async sendMail(mailOptions: MailOptions) {
     try {
       await this.transporter.sendMail(mailOptions);
     } catch (error: any) {
-      await this.addToOutbox({
-        mailOptions,
+      await this.addToOutbox(mailOptions, error);
+    }
+  }
+
+  private async addToOutbox(mailOptions: MailOptions, error: any) {
+    await this.prisma.outbox.create({
+      data: {
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
         retries: 0,
         lastRetry: new Date(),
         error: error.message,
-      });
-    }
-  }
-
-  private async addToOutbox(entry: OutboxEntry) {
-    this.outbox.push(entry);
-    await this.saveOutbox();
+      },
+    });
   }
 
   async retryFailedEmails() {
-    for (let i = this.outbox.length - 1; i >= 0; i--) {
-      const entry = this.outbox[i];
-      if (entry.retries < 3) {
-        try {
-          await this.transporter.sendMail(entry.mailOptions);
-          this.outbox.splice(i, 1); // Remove from outbox on success
-        } catch (error: any) {
-          entry.retries++;
-          entry.lastRetry = new Date();
-          entry.error = error.message;
-        }
+    const failedEmails = await this.prisma.outbox.findMany({
+      where: { retries: { lt: 3 } },
+    });
+
+    for (const email of failedEmails) {
+      try {
+        const mailOptions = {
+          to: email.to,
+          subject: email.subject,
+          html: email.html,
+        };
+        await this.transporter.sendMail(mailOptions);
+        await this.prisma.outbox.delete({ where: { id: email.id } });
+      } catch (error: any) {
+        await this.prisma.outbox.update({
+          where: { id: email.id },
+          data: {
+            retries: email.retries + 1,
+            lastRetry: new Date(),
+            error: error.message,
+          },
+        });
       }
     }
-    await this.saveOutbox();
-  }
-
-  getOutbox(): OutboxEntry[] {
-    return this.outbox;
   }
 }
-
-export const mailService = new MailService();

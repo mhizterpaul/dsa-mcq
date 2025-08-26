@@ -1,0 +1,10 @@
+model Outbox {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  html      String   @db.Text
+  retries   Int
+  lastRetry DateTime
+  error     String   @db.Text
+  createdAt DateTime @default(now())
+}
