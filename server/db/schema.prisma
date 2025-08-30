@@ -8,3 +8,4 @@
 @@import("./models/VerificationToken.prisma")
 @@import("./models/Media.prisma")
 @@import("./models/Outbox.prisma")
+@@import("./models/DevOpsMetric.prisma")
