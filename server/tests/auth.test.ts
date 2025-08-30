@@ -1,93 +1,222 @@
-import request from 'supertest';
+import { createMocks } from 'node-mocks-http';
 import registerHandler from '../src/pages/api/auth/register';
-import signinHandler from '../src/pages/api/auth/[...nextauth]'; // Assuming this handles signin
-import providerSigninHandler from '../src/pages/api/auth/provider-signin';
-import requestPasswordResetHandler from '../src/pages/api/auth/request-password-reset';
 import resetPasswordHandler from '../src/pages/api/auth/reset-password';
+import loginHandler from '../src/pages/api/auth/login';
 
-// Mock the DB connection
-jest.mock('pg', () => {
-  const mPool = {
-    connect: jest.fn(),
-    query: jest.fn(),
-    end: jest.fn(),
-  };
-  return { Pool: jest.fn(() => mPool) };
+
+eforeAll(() => {
+  process.env.AUTH_PROVIDERS = JSON.stringify([
+    Google({
+      clientId: "google-id-123",
+      clientSecret: "dummy-google-secret",
+      authorization: {
+        url: "https://oauth-mock.mock.beeceptor.com/oauth/authorize",
+      },
+      token: {
+        url: "https://oauth-mock.mock.beeceptor.com/oauth/token/google",
+      },
+      userinfo: {
+        url: "https://oauth-mock.mock.beeceptor.com/userinfo/google",
+      },
+    }),
+  ]);
 });
-
+// Mock the mail service
+jest.mock('../src/services/mailService', () => {
+  return {
+    sendEmail: jest.fn((to, subject, body) => {
+      // Extract code from body and store it for test use
+      const match = body.match(/code: (\w+)/);
+      if (match) {
+        (global as any).lastResetCode = match[1];
+      }
+      return Promise.resolve();
+    }),
+  };
+});
 describe('/api/auth', () => {
   describe('/register', () => {
-    it('should return 405 Method Not Allowed for non-POST requests', async () => {
-      const { status } = await request(registerHandler).get('/');
-      expect(status).toBe(405);
+    function makeReqRes(method: string, body: any = {}) {
+      const { req, res } = createMocks({ method, body });
+      return { req, res };
+    }
+
+    it('400 if email or password missing', async () => {
+      let { req, res } = makeReqRes('POST', { email: 'user@example.com' });
+      await registerHandler(req, res);
+      expect(res._getStatusCode()).toBe(400);
+
+      ({ req, res } = makeReqRes('POST', { password: 'pass123' }));
+      await registerHandler(req, res);
+      expect(res._getStatusCode()).toBe(400);
     });
 
-    it('should return 400 Bad Request if fields are missing', async () => {
-      const { status } = await request(registerHandler)
-        .post('/')
-        .send({ email: 'test@test.com' });
-      expect(status).toBe(400);
+    it('400 if email malformed', async () => {
+      const { req, res } = makeReqRes('POST', {
+        email: 'not-an-email',
+        password: 'ValidPass123!',
+      });
+      await registerHandler(req, res);
+      expect(res._getStatusCode()).toBe(400);
+      expect(res._getData()).toContain('Invalid email');
     });
 
-    // DB-dependent tests are more complex to mock with supertest against Next API handlers
-    // For now, we'll skip the tests that require a successful DB interaction.
+    it('201 and proper payload on valid input', async () => {
+      const { req, res } = makeReqRes('POST', {
+        email: 'newuser@example.com',
+        password: 'SecurePass123!',
+      });
+      await registerHandler(req, res);
+      expect(res._getStatusCode()).toBe(201);
+
+      const data = JSON.parse(res._getData());
+      expect(data).toMatchObject({
+        userId: expect.any(String),
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+        user: {
+          email: 'newuser@example.com',
+          profilePicUrl: expect.any(String),
+        },
+      });
+    });
+
+    it('409 if user already registered', async () => {
+      const { req, res } = makeReqRes('POST', {
+        email: 'existing@example.com',
+        password: 'AnotherPass123!',
+      });
+      await registerHandler(req, res);
+      expect(res._getStatusCode()).toBe(409);
+      expect(res._getData()).toContain('User already exists');
+    });
+
+    it('authenticates users using OAuth', async () => {
+    // Step 1: Request access token from Beeceptor token endpoint
+    const tokenResponse = await fetch(
+      'https://oauth-mock.mock.beeceptor.com/oauth/token/google',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'testuser',
+          password: 'testpass',
+          grant_type: 'password',
+        }),
+      }
+    );
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Step 2: Send token to registerHandler as frontend would
+    const { req, res } = makeReqRes('POST', {
+      oauthProvider: 'google',
+      oauthToken: accessToken,
+    });
+
+    await registerHandler(req, res);
+
+    expect(res._getStatusCode()).toBe(201);
+
+    const data = JSON.parse(res._getData());
+    expect(res._getStatusCode()).toBe(401); 
+expect(res._getData()).toContain('Invalid token');  });
+    });
+describe('/api/auth/login', () => {
+  function makeReqRes(method: string, body: any = {}) {
+    return createMocks({ method, body });
+  }
+
+  it('returns 400 if email or password is missing', async () => {
+    let { req, res } = makeReqRes('POST', { email: 'user@example.com' });
+    await loginHandler(req, res);
+    expect(res._getStatusCode()).toBe(400);
+
+    ({ req, res } = makeReqRes('POST', { password: 'pass123' }));
+    await loginHandler(req, res);
+    expect(res._getStatusCode()).toBe(400);
   });
 
-  describe('/provider-signin', () => {
-    it('should return 405 Method Not Allowed for non-POST requests', async () => {
-      const { status } = await request(providerSigninHandler).get('/');
-      expect(status).toBe(405);
+  it('returns 401 if credentials are invalid', async () => {
+    const { req, res } = makeReqRes('POST', {
+      email: 'nonexistent@example.com',
+      password: 'wrongpassword',
     });
 
-    it('should return 400 Bad Request if token is missing', async () => {
-      const { status } = await request(providerSigninHandler)
-        .post('/')
-        .send({ provider: 'google' });
-      expect(status).toBe(400);
-    });
-
-    it('should return 401 Unauthorized for invalid token', async () => {
-        const { status } = await request(providerSigninHandler)
-            .post('/')
-            .send({ provider: 'google', token: 'invalid-token' });
-        expect(status).toBe(401);
-    });
-
-    it('should return 200 and user object on successful sign-in', async () => {
-        const { status, body } = await request(providerSigninHandler)
-            .post('/')
-            .send({ provider: 'google', token: 'valid-token' });
-        expect(status).toBe(200);
-        expect(body).toHaveProperty('token');
-        expect(body).toHaveProperty('user');
-    });
+    await loginHandler(req, res);
+    expect(res._getStatusCode()).toBe(401);
+    expect(res._getData()).toContain('Invalid credentials');
   });
 
-  describe('/request-password-reset', () => {
-    it('should return 405 Method Not Allowed for non-POST requests', async () => {
-      const { status } = await request(requestPasswordResetHandler).get('/');
-      expect(status).toBe(405);
+  it('returns 200 and payload on successful login', async () => {
+    const { req, res } = makeReqRes('POST', {
+      email: 'existinguser@example.com',
+      password: 'CorrectPass123!',
     });
 
-    it('should return 400 Bad Request if email is missing', async () => {
-      const { status } = await request(requestPasswordResetHandler)
-        .post('/')
-        .send({});
-      expect(status).toBe(400);
+    await loginHandler(req, res);
+    expect(res._getStatusCode()).toBe(200);
+
+    const data = JSON.parse(res._getData());
+    expect(data).toMatchObject({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+      user: {
+        email: 'existinguser@example.com',
+        name: expect.any(String),
+        image: expect.any(String),
+      },
     });
   });
+})
+ 
 
-  describe('/reset-password', () => {
-    it('should return 405 Method Not Allowed for non-POST requests', async () => {
-      const { status } = await request(resetPasswordHandler).get('/');
-      expect(status).toBe(405);
-    });
+describe('/reset-password', () => { 
+  function makeReqRes(method: string, url = '', body: any = {}) {
+    return createMocks({ method, url, body });
+  }
 
-    it('should return 400 Bad Request if password is missing', async () => {
-      const { status } = await request(resetPasswordHandler)
-        .post('/')
-        .send({ token: 'valid-token' });
-      expect(status).toBe(400);
+  it('registers a user, resets password, and logs in with new password', async () => {
+    const email = 'resetuser@example.com';
+    const oldPassword = 'OldPass123!';
+    const newPassword = 'NewPass456!';
+
+    // Step 1: Register user
+    let { req, res } = makeReqRes('POST', '', { email, password: oldPassword });
+    await registerHandler(req, res);
+    expect(res._getStatusCode()).toBe(201);
+    const userId = JSON.parse(res._getData()).userId;
+
+    // Step 2: Request password reset (sends email via mocked service)
+    ({ req, res } = makeReqRes('POST', '', { email }));
+    await resetPasswordHandler(req, res);
+    expect(res._getStatusCode()).toBe(201);
+
+    // Step 3: Retrieve reset code from mocked mail service
+    const resetCode = (global as any).lastResetCode;
+    expect(resetCode).toBeDefined();
+
+    // Step 4: Submit new password with reset code
+    ({ req, res } = makeReqRes('POST', `/reset-password?userId=${userId}`, { newPassword, resetCode }));
+    await resetPasswordHandler(req, res);
+    expect(res._getStatusCode()).toBe(200);
+
+    // Step 5: Login with new password
+    ({ req, res } = makeReqRes('POST', '', { email, password: newPassword }));
+    await loginHandler(req, res);
+    expect(res._getStatusCode()).toBe(200);
+
+    const loginData = JSON.parse(res._getData());
+    expect(loginData).toMatchObject({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+      user: {
+        email,
+        name: expect.any(String),
+        image: expect.any(String),
+      },
     });
   });
+}); 
 });
