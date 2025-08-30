@@ -1,0 +1,7 @@
+model DevOpsMetric {
+  id        String   @id @default(cuid())
+  type      String
+  payload   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
