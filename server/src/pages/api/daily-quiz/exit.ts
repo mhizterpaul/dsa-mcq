@@ -12,15 +12,9 @@ export default function handler(
     }
 
     if (req.method === 'POST') {
-        const { questionId, answer } = req.body;
         const session = quizService.getOrCreateDailyQuizSession();
-
-        try {
-            const result = quizService.handleAnswer(session.id, user.id, questionId, answer);
-            res.status(200).json(result);
-        } catch (error: any) {
-            res.status(400).json({ message: error.message });
-        }
+        quizService.removeParticipant(session.id, user.id);
+        res.status(200).json({ success: true, message: 'Exited quiz' });
     } else {
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

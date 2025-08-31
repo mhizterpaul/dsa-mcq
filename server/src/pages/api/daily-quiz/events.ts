@@ -1,32 +1,30 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { quizService } from '../../../services/quizService';
+import { getAuthenticatedUser } from '../../../utils/auth';
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+    const user = getAuthenticatedUser(req);
+    if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     if (req.method === 'GET') {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();
 
-        let eventCount = 0;
-        const intervalId = setInterval(() => {
-            eventCount++;
-            const eventData = {
-                type: 'question',
-                question: { id: eventCount, text: `This is question number ${eventCount}` }
-            };
-            res.write(`data: ${JSON.stringify(eventData)}\n\n`);
+        const session = quizService.getOrCreateDailyQuizSession();
+        quizService.addSseConnection(session.id, user.id, res);
 
-            if (eventCount >= 5) { // Send 5 mock events then close
-                clearInterval(intervalId);
-                res.end();
-            }
-        }, 2000);
+        // Send a connected event
+        res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
 
         req.on('close', () => {
-            clearInterval(intervalId);
+            quizService.removeSseConnection(session.id, user.id);
             res.end();
         });
     } else {
