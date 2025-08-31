@@ -1,4 +1,4 @@
-import { MailService } from '../../services/mailService';
+import { MailService } from '../../src/services/mailService';
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 
