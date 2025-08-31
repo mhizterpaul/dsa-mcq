@@ -11,7 +11,7 @@ export interface WeeklyKing {
 const weeklyKing: WeeklyKing = {
   userId: 'user-123',
   name: 'Asiq Mohammed', // From the mockup
-  // score: 10000, // Bug: commented out score
+  score: 10000,
   avatarUrl: 'https://i.pravatar.cc/150?u=asiq',
 };
 

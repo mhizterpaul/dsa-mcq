@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .where('token', '=', token)
       .execute();
 
-    res.status(201).json({ message: 'Password has been reset successfully.' });
+    res.status(200).json({ message: 'Password has been reset successfully.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });

@@ -5,7 +5,7 @@ export default function handler(
   res: NextApiResponse
 ) {
     if (req.method === 'GET') {
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();

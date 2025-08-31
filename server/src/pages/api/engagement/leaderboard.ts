@@ -21,7 +21,7 @@ export default function handler(
   res: NextApiResponse<Player[]>
 ) {
     if (req.method === 'GET') {
-        res.status(201).json(leaderboard);
+        res.status(200).json(leaderboard);
     } else {
         res.setHeader('Allow', ['GET']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

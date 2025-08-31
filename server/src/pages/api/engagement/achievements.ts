@@ -21,7 +21,7 @@ export default function handler(
   res: NextApiResponse<Achievement[]>
 ) {
     if (req.method === 'GET') {
-        res.status(201).json(allAchievements);
+        res.status(200).json(allAchievements);
     } else {
         res.setHeader('Allow', ['GET']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

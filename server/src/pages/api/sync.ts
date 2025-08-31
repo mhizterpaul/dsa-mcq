@@ -50,7 +50,7 @@ export default function handler(
         }
 
         // Return the synced data to the client
-        res.status(201).json(syncedData);
+        res.status(200).json(syncedData);
     } else {
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

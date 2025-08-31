@@ -25,7 +25,7 @@ export default function handler(
         if (typeof userId === 'string' && userEngagementData[userId]) {
             res.status(200).json(userEngagementData[userId]);
         } else {
-            res.status(400).json({ error: 'User engagement data not found.' });
+            res.status(404).json({ error: 'User engagement data not found.' });
         }
     } else {
         res.setHeader('Allow', ['GET']);

@@ -15,7 +15,7 @@ export default function handler(
                 { userId: '3', name: 'Charlie', avatarUrl: 'https://i.pravatar.cc/150?u=charlie' },
             ]
         };
-        res.status(201).json(mockSession);
+        res.status(200).json(mockSession);
     } else {
         res.setHeader('Allow', ['GET']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

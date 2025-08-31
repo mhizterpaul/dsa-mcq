@@ -181,8 +181,8 @@ export default function handler(
       return res.status(400).json({ error: 'Request body must be an object with an "ids" array.' });
     }
 
-    // const requestedQuestions = questions.filter(q => ids.includes(q.id));
-    return res.status(200).json([]);
+    const requestedQuestions = questions.filter(q => ids.includes(q.id));
+    return res.status(200).json(requestedQuestions);
 
   } else {
     res.setHeader('Allow', ['POST']);

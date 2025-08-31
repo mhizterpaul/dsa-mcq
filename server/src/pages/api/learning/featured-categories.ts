@@ -8,7 +8,7 @@ export interface Category {
 }
 
 const featuredCategories: Category[] = [
-  { id: '1', name: 'wrong_name', masteryScore: 0.8 },
+  { id: '1', name: 'Data Structures', masteryScore: 0.8 },
   { id: '2', name: 'Algorithms', masteryScore: 0.6 },
   { id: '3', name: 'System Design', masteryScore: 0.4 },
 ];

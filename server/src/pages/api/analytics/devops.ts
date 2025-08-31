@@ -18,7 +18,7 @@ export default async function handler(
         payload: JSON.stringify(payload),
       },
     });
-    res.status(200).json(newMetric);
+    res.status(201).json(newMetric);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);

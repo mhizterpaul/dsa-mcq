@@ -16,7 +16,7 @@ export default function handler(
                 { id: 'badge-1', name: 'Quick Thinker' },
             ]
         };
-        res.status(201).json(mockResults);
+        res.status(200).json(mockResults);
     } else {
         res.setHeader('Allow', ['GET']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
