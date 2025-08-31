@@ -1,4 +1,4 @@
-import { StorageManager, GoogleStorageService, DropboxStorageService } from '../../services/storageService';
+import { StorageManager, GoogleStorageService, DropboxStorageService } from '../../src/services/storageService';
 import { PrismaClient } from '@prisma/client';
 import { google } from 'googleapis';
 import { Dropbox } from 'dropbox';

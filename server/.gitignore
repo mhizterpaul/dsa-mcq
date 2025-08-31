@@ -18,3 +18,6 @@ yarn-error.log
 .env.local
 *.csv
 .vscode/
+
+# next.js
+.next/
