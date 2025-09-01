@@ -30,4 +30,5 @@ model User {
   learningSessions  LearningSession[]
   userQuestionData  UserQuestionData[]
   notifications     Notification[]
+  media             Media[]
 }
