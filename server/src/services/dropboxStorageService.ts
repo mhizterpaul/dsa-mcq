@@ -28,9 +28,9 @@ export class DropboxStorageService implements IStorageService {
     const { url } = await this.dbx.sharingCreateSharedLinkWithSettings({ path: response.result.path_display! });
     const directUrl = url.replace('dl=0', 'raw=1');
 
-
     await this.prisma.media.create({
       data: {
+        userId,
         provider,
         providerId: fileId,
         url: directUrl,

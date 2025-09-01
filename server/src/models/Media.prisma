@@ -1,5 +1,7 @@
 model Media {
   id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider    String
   providerId  String
   url         String

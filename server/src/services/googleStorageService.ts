@@ -60,6 +60,7 @@ export class GoogleStorageService implements IStorageService {
 
     await this.prisma.media.create({
       data: {
+        userId,
         provider,
         providerId: fileId,
         url,

@@ -9,7 +9,7 @@ export interface IStorageService {
   update(fileId: string, file: any): Promise<void>;
 }
 
-export class StorageService implements IStorageService {
+class StorageService implements IStorageService {
   private provider: IStorageService;
   private providerType: 'google' | 'dropbox';
 
@@ -47,3 +47,5 @@ export class StorageService implements IStorageService {
     return this.provider.update(fileId, file);
   }
 }
+
+export const storageService = new StorageService();
