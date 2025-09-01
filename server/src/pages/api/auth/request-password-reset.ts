@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { Kysely, PostgresDialect } from 'kysely';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { verifySignature } from '../../../utils/signature';
 
 interface Database {
   users: {
@@ -39,6 +40,10 @@ const transporter = nodemailer.createTransport({
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!verifySignature(req)) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }

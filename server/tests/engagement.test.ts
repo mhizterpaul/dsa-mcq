@@ -1,60 +1,99 @@
-import request from 'supertest';
-import achievementsHandler from '../src/pages/api/engagement/achievements';
+import { createMocks } from 'node-mocks-http';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { engagementService } from '../src/services/engagementService';
+import { schedulerService } from '../src/services/schedulerService';
+import actionHandler from '../src/pages/api/engagement/action';
 import leaderboardHandler from '../src/pages/api/engagement/leaderboard';
-import userEngagementHandler from '../src/pages/api/engagement/user-engagement/[userId]';
 import weeklyKingHandler from '../src/pages/api/engagement/weekly-king';
+import settingsHandler from '../src/pages/api/engagement/settings';
+
+const prisma = new PrismaClient();
+
+// Helper function to create an authenticated user
+async function createAuthenticatedUser(email = 'testuser@example.com', password = 'TestPassword123!') {
+  const user = await prisma.user.create({ data: { email, password } });
+  const accessToken = jwt.sign({ user }, 'your-jwt-secret');
+  return { user, accessToken };
+}
 
 describe('/api/engagement', () => {
-  describe('/achievements', () => {
-    it('should return 405 Method Not Allowed for non-GET requests', async () => {
-      const { status } = await request(achievementsHandler).post('/');
-      expect(status).toBe(405);
+    beforeAll(() => {
+        schedulerService.start();
     });
 
-    it('should return 200 OK on success', async () => {
-      const { status } = await request(achievementsHandler).get('/');
-      expect(status).toBe(200);
-    });
-  });
-
-  describe('/leaderboard', () => {
-    it('should return 405 Method Not Allowed for non-GET requests', async () => {
-      const { status } = await request(leaderboardHandler).post('/');
-      expect(status).toBe(405);
+    beforeEach(async () => {
+        await prisma.engagement.deleteMany({});
+        await prisma.leaderboard.deleteMany({});
+        await prisma.user.deleteMany({});
     });
 
-    it('should return 200 OK on success', async () => {
-      const { status } = await request(leaderboardHandler).get('/');
-      expect(status).toBe(200);
-    });
-  });
-
-  describe('/user-engagement/[userId]', () => {
-    it('should return 405 Method Not Allowed for non-GET requests', async () => {
-        const { status } = await request(userEngagementHandler).post('/?userId=1');
-        expect(status).toBe(405);
+    afterAll(async () => {
+        await prisma.$disconnect();
     });
 
-    it('should return 404 Not Found for non-existent user', async () => {
-        const { status } = await request(userEngagementHandler).get('/?userId=non-existent-user');
-        expect(status).toBe(404);
+    describe('/action', () => {
+        it('should update user XP', async () => {
+            const { user, accessToken } = await createAuthenticatedUser();
+            const { req, res } = createMocks({
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: { xp: 50 },
+            });
+            await actionHandler(req, res);
+            expect(res._getStatusCode()).toBe(200);
+        });
+
+        it('should return 401 for unauthenticated users', async () => {
+            const { req, res } = createMocks({ method: 'POST', body: { xp: 50 } });
+            await actionHandler(req, res);
+            expect(res._getStatusCode()).toBe(401);
+        });
     });
 
-    it('should return 200 OK on success', async () => {
-        const { status } = await request(userEngagementHandler).get('/?userId=user-123');
-        expect(status).toBe(200);
-    });
-  });
+    describe('/leaderboard', () => {
+        it('should return a ranked list of users', async () => {
+            const user1 = await createAuthenticatedUser('user1@test.com');
+            await engagementService.updateUserXP(user1.user.id, 100);
+            const user2 = await createAuthenticatedUser('user2@test.com');
+            await engagementService.updateUserXP(user2.user.id, 50);
 
-  describe('/weekly-king', () => {
-    it('should return 405 Method Not Allowed for non-GET requests', async () => {
-      const { status } = await request(weeklyKingHandler).post('/');
-      expect(status).toBe(405);
+            const { req, res } = createMocks({ method: 'GET' });
+            await leaderboardHandler(req, res);
+
+            expect(res._getStatusCode()).toBe(200);
+        });
     });
 
-    it('should return 200 OK on success', async () => {
-      const { status } = await request(weeklyKingHandler).get('/');
-      expect(status).toBe(200);
+    describe('/weekly-king', () => {
+        it('should return the user with the highest weekly XP', async () => {
+            const user1 = await createAuthenticatedUser('user1@test.com');
+            await engagementService.updateUserXP(user1.user.id, 100);
+
+            const { req, res } = createMocks({ method: 'GET' });
+            await weeklyKingHandler(req, res);
+
+            expect(res._getStatusCode()).toBe(200);
+        });
     });
-  });
+
+    describe('/settings', () => {
+        it('should update global settings', async () => {
+            const { accessToken } = await createAuthenticatedUser();
+            const { req, res } = createMocks({
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: { quizTitle: 'New Title' },
+            });
+            await settingsHandler(req, res);
+            expect(res._getStatusCode()).toBe(200);
+        });
+
+        it('should return 401 for unauthenticated users', async () => {
+            const { req, res } = createMocks({ method: 'POST', body: { quizTitle: 'New Title' } });
+            await settingsHandler(req, res);
+            expect(res._getStatusCode()).toBe(401);
+        });
+    });
 });

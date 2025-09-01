@@ -1,56 +1,51 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getAuthenticatedUser } from '../../utils/auth';
+import { verifySignature } from '../../utils/signature';
+import prisma from '../../db/prisma';
 
-// In a real app, this would be a connection to a real database (e.g., Postgres)
-const serverDataStore: { [tableName: string]: any[] } = {
-    'user_engagement': [
-        // a mock record
-        { userId: 'user-123', xp_progress: 1000, updatedAt: Date.now() - 100000 }
-    ],
-    'categories': [
-        // a mock record
-        { id: '1', name: 'Data Structures', masteryScore: 0.9, updatedAt: Date.now() - 200000 }
-    ],
-    // ... other tables
-};
-
-export default function handler(
+export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+    if (!verifySignature(req)) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = getAuthenticatedUser(req);
+    if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     if (req.method === 'POST') {
         const clientDirtyData = req.body;
         const syncedData: { [tableName: string]: any[] } = {};
 
-        // Iterate over tables sent by the client
-        for (const tableName in clientDirtyData) {
-            if (serverDataStore[tableName]) {
+        try {
+            for (const tableName in clientDirtyData) {
                 const clientRecords = clientDirtyData[tableName];
-                const serverRecords = serverDataStore[tableName];
 
-                // "Last write wins" conflict resolution
-                clientRecords.forEach(clientRecord => {
-                    const serverRecordIndex = serverRecords.findIndex(sr => sr.id === clientRecord.id || sr.userId === clientRecord.userId);
-
-                    if (serverRecordIndex > -1) {
-                        // Record exists on server, compare timestamps
-                        const serverRecord = serverRecords[serverRecordIndex];
-                        if (clientRecord.updatedAt > serverRecord.updatedAt) {
-                            // Client is newer, update server record
-                            serverRecords[serverRecordIndex] = clientRecord;
+                if (tableName === 'Engagement') {
+                    for (const record of clientRecords) {
+                        // Basic security check
+                        if (record.userId !== user.id) {
+                            continue;
                         }
-                    } else {
-                        // Record is new, add to server
-                        serverRecords.push(clientRecord);
+                        await prisma.engagement.upsert({
+                            where: { userId: record.userId },
+                            update: { xp: record.xp },
+                            create: { userId: record.userId, xp: record.xp },
+                        });
                     }
-                });
-
-                // The "truth" is now the server's state
-                syncedData[tableName] = serverRecords;
+                    syncedData[tableName] = await prisma.engagement.findMany({ where: { userId: user.id } });
+                }
+                // ... handle other tables
             }
-        }
 
-        // Return the synced data to the client
-        res.status(200).json(syncedData);
+            res.status(200).json(syncedData);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
     } else {
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

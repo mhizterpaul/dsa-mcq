@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { analyticsService } from '../../../services/analyticsService';
+import { engagementService } from '../../../services/engagementService';
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,15 +11,16 @@ export default async function handler(
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (req.method === 'GET') {
-        try {
-            const categories = await analyticsService.getFeaturedCategories();
-            res.status(200).json(categories);
-        } catch (error) {
-            res.status(500).json({ message: 'Internal Server Error' });
+    if (req.method === 'POST') {
+        const { quizTitle } = req.body;
+        if (typeof quizTitle !== 'string') {
+            return res.status(400).json({ message: 'Invalid quizTitle' });
         }
+
+        engagementService.updateGlobalSettings({ quizTitle });
+        res.status(200).json({ success: true });
     } else {
-        res.setHeader('Allow', ['GET']);
+        res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }
