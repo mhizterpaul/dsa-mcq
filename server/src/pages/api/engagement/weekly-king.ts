@@ -1,28 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { engagementService } from '../../../services/engagementService';
 
-// This should match a primitive on the client, e.g., in engagement store
-export interface WeeklyKing {
-  userId: string;
-  name: string;
-  score: number;
-  avatarUrl?: string;
-}
-
-const weeklyKing: WeeklyKing = {
-  userId: 'user-123',
-  name: 'Asiq Mohammed', // From the mockup
-  score: 10000,
-  avatarUrl: 'https://i.pravatar.cc/150?u=asiq',
-};
-
-export default function handler(
+export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<WeeklyKing>
+  res: NextApiResponse
 ) {
-  if (req.method === 'GET') {
-    res.status(200).json(weeklyKing);
-  } else {
-    res.setHeader('Allow', ['GET']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
+    if (req.method === 'GET') {
+        try {
+            const weeklyKing = await engagementService.getWeeklyKing();
+            res.status(200).json(weeklyKing);
+        } catch (error) {
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    } else {
+        res.setHeader('Allow', ['GET']);
+        res.status(405).end(`Method ${req.method} Not Allowed`);
+    }
 }

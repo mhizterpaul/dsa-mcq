@@ -1,0 +1,12 @@
+model Engagement {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp                      Int      @default(0)
+  xp_weekly               Int      @default(0)
+  xp_monthly              Int      @default(0)
+  last_xp_reset_weekly    DateTime @default(now())
+  last_xp_reset_monthly   DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

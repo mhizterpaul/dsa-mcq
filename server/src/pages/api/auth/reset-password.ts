@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { Pool } from 'pg';
 import { Kysely, PostgresDialect } from 'kysely';
 import bcrypt from 'bcryptjs';
+import { verifySignature } from '../../../utils/signature';
 
 interface Database {
   users: {
@@ -29,6 +30,10 @@ const db = new Kysely<Database>({
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!verifySignature(req)) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }

@@ -1,9 +1,12 @@
 import { createMocks } from 'node-mocks-http';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import registerHandler from '../src/pages/api/auth/register';
-import resetPasswordHandler from '../src/pages/api/auth/reset-password';
 import loginHandler from '../src/pages/api/auth/login';
+import resetPasswordHandler from '../src/pages/api/auth/reset-password';
+import callbackHandler from '../src/pages/api/auth/callback';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { google } from 'googleapis';
 
 const prisma = new PrismaClient();
 
@@ -32,19 +35,41 @@ beforeAll(() => {
 jest.mock('../src/services/mailService', () => {
   return {
     sendEmail: jest.fn((to: string, subject: string, body: string) => {
-      // Extract code from body and store it for test use
-      const codeMatch = body.match(/code: (\w+)/);
-      if (codeMatch) {
-        (global as any).lastResetCode = codeMatch[1];
-      }
-      const tokenMatch = body.match(/token: (\w+)/);
-      if (tokenMatch) {
-        (global as any).lastVerificationToken = tokenMatch[1];
-      }
-      return Promise.resolve();
+        const codeMatch = body.match(/code: (\w+)/);
+        if (codeMatch) {
+          (global as any).lastResetCode = codeMatch[1];
+        }
+        const tokenMatch = body.match(/token: (\w+)/);
+        if (tokenMatch) {
+          (global as any).lastVerificationToken = tokenMatch[1];
+        }
+        return Promise.resolve();
     }),
   };
 });
+
+// Mock Google Apis
+jest.mock('googleapis', () => {
+    const mockAuth = {
+        getToken: jest.fn(),
+        setCredentials: jest.fn(),
+    };
+    const mockOauth2 = {
+        userinfo: {
+            get: jest.fn(),
+        },
+    };
+    return {
+        google: {
+            auth: {
+                OAuth2: jest.fn(() => mockAuth),
+            },
+            oauth2: jest.fn(() => mockOauth2),
+        },
+    };
+});
+
+const mockedGoogle = google as jest.Mocked<typeof google>;
 
 describe('/api/auth', () => {
   // A single, consistent mock request/response creator
@@ -125,15 +150,13 @@ describe('/api/auth', () => {
     });
 
     it('409 if user already registered', async () => {
-      // First, create the user
       await prisma.user.create({
         data: {
           email: 'existing@example.com',
-          password: 'hashedpassword', // In a real scenario, this would be hashed
+          password: 'hashedpassword',
         }
       });
 
-      // Now, try to register again
       const { req, res } = makeReqRes('POST', { body: { email: 'existing@example.com', password: 'AnotherPass123!' } });
       await registerHandler(req, res);
       expect(res._getStatusCode()).toBe(409);
@@ -199,6 +222,53 @@ describe('/api/auth', () => {
           email,
         },
       });
+    });
+  });
+
+  describe('/callback', () => {
+    it('handles a valid OAuth callback, creates a new user, and returns tokens', async () => {
+      const code = 'valid-code';
+      const tokens = { access_token: 'test-access-token' };
+      const userInfo = { email: 'oauthuser@example.com', name: 'OAuth User', picture: 'test.jpg' };
+
+      (mockedGoogle.auth.OAuth2().getToken as jest.Mock).mockResolvedValue({ tokens });
+      (mockedGoogle.oauth2().userinfo.get as jest.Mock).mockResolvedValue({ data: userInfo });
+
+      const { req, res } = makeReqRes('GET', { query: { code } });
+      await callbackHandler(req, res);
+
+      expect(res._getStatusCode()).toBe(200);
+      const data = JSON.parse(res._getData());
+      expect(data.user.email).toBe(userInfo.email);
+      expect(data.accessToken).toBeDefined();
+    });
+
+    it('handles a valid OAuth callback for an existing user', async () => {
+        const code = 'valid-code';
+        const tokens = { access_token: 'test-access-token' };
+        const userInfo = { email: 'existingoauth@example.com', name: 'Existing OAuth User' };
+
+        await prisma.user.create({ data: { email: userInfo.email, name: userInfo.name } });
+
+        (mockedGoogle.auth.OAuth2().getToken as jest.Mock).mockResolvedValue({ tokens });
+        (mockedGoogle.oauth2().userinfo.get as jest.Mock).mockResolvedValue({ data: userInfo });
+
+        const { req, res } = makeReqRes('GET', { query: { code } });
+        await callbackHandler(req, res);
+
+        expect(res._getStatusCode()).toBe(200);
+        const data = JSON.parse(res._getData());
+        expect(data.user.email).toBe(userInfo.email);
+    });
+
+    it('returns a 400 error for an invalid code', async () => {
+        const code = 'invalid-code';
+        (mockedGoogle.auth.OAuth2().getToken as jest.Mock).mockRejectedValue(new Error('Invalid code'));
+
+        const { req, res } = makeReqRes('GET', { query: { code } });
+        await callbackHandler(req, res);
+
+        expect(res._getStatusCode()).toBe(500);
     });
   });
 });
