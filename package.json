@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "@types/node-cron": "^3.0.11",
-    "eventsource": "^4.0.0",
-    "node-cron": "^4.2.1",
-    "pg-mem": "^3.0.5"
-  }
-}
