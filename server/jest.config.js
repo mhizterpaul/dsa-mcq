@@ -13,9 +13,6 @@ module.exports = {
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
-<<<<<<< HEAD
-=======
 
->>>>>>> bb08b70 (chore)
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 }
