@@ -1,33 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Pool } from 'pg';
-import { Kysely, PostgresDialect } from 'kysely';
 import bcrypt from 'bcryptjs';
 import { verifySignature } from '../../../utils/signature';
-
-interface Database {
-  users: {
-    id: string;
-    password?: string | null;
-  };
-  verification_token: {
-    identifier: string;
-    token: string;
-    expires: Date;
-  };
-  // ... other tables
-}
-
-const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({
-      host: process.env.POSTGRES_HOST,
-      user: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DATABASE,
-      ssl: process.env.POSTGRES_SSL === 'true',
-    }),
-  }),
-});
+import prisma from '../../../db/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!verifySignature(req)) {
@@ -45,11 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const verificationToken = await db
-      .selectFrom('verification_token')
-      .where('token', '=', token)
-      .selectAll()
-      .executeTakeFirst();
+    const verificationToken = await prisma.verificationToken.findUnique({
+      where: { token },
+    });
 
     if (!verificationToken || verificationToken.expires < new Date()) {
       return res.status(400).json({ message: 'Invalid or expired token' });
@@ -57,16 +29,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await db
-      .updateTable('users')
-      .set({ password: hashedPassword })
-      .where('id', '=', verificationToken.identifier)
-      .execute();
+    await prisma.user.update({
+      where: { id: verificationToken.identifier },
+      data: { password: hashedPassword },
+    });
 
-    await db
-      .deleteFrom('verification_token')
-      .where('token', '=', token)
-      .execute();
+    await prisma.verificationToken.delete({
+      where: { token },
+    });
 
     res.status(200).json({ message: 'Password has been reset successfully.' });
   } catch (error) {

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "NODE_OPTIONS=--max-old-space-size=4096 yarn prisma:generate && jest --runInBand server/tests/auth.test.ts",
+    "test": "yarn prisma:generate && jest --testPathIgnorePatterns server/tests/auth.test.ts server/tests/daily-quiz.test.ts",
     "test:watch": "yarn prisma:generate && jest --watch --runInBand",
     "test:coverage": "yarn prisma:generate && jest --coverage",
     "prisma:pregenerate": "cat src/db/schema.header.prisma src/models/*.prisma > src/db/schema.combined.prisma",

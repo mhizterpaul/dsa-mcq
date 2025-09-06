@@ -1,22 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Pool } from 'pg';
-import { Kysely, PostgresDialect } from 'kysely';
 import bcrypt from 'bcryptjs';
 import { verifySignature } from '../../../utils/signature';
 import jwt from 'jsonwebtoken';
 import cache from '../../../services/cacheService';
-
-interface Database {
-  // ... (database interface)
-}
-
-const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({
-      // ... (db connection)
-    }),
-  }),
-});
+import prisma from '../../../db/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!verifySignature(req)) {
@@ -37,11 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let user = cache.get(email) as any;
 
     if (!user) {
-      user = await db
-        .selectFrom('users')
-        .where('email', '=', email)
-        .selectAll()
-        .executeTakeFirst();
+      user = await prisma.user.findUnique({ where: { email } });
 
       if (user) {
         cache.set(email, user);

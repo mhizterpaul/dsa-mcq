@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { quizService } from '../../../services/quizService';
 import { getAuthenticatedUser } from '../../../utils/auth';
 
-export default function handler(
+export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -13,10 +13,10 @@ export default function handler(
 
     if (req.method === 'POST') {
         const { questionId, answer } = req.body;
-        const session = quizService.getOrCreateDailyQuizSession();
+        const session = await quizService.findOrCreateSessionForUser(user);
 
         try {
-            const result = quizService.handleAnswer(session.id, user.id, questionId, answer);
+            const result = await quizService.handleAnswer(session.id, user.id, questionId, answer);
             res.status(200).json(result);
         } catch (error: any) {
             res.status(400).json({ message: error.message });
