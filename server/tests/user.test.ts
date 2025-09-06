@@ -5,6 +5,7 @@ import profilePictureHandler from '../src/pages/api/user/profile-picture';
 import { storageService } from '../src/services/storageService';
 import path from 'path';
 import fs from 'fs';
+import { createMocks } from 'node-mocks-http';
 
 const prisma = new PrismaClient();
 

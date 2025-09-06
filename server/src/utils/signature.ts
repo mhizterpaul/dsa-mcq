@@ -15,5 +15,12 @@ export function verifySignature(req: import('next').NextApiRequest): boolean {
     }
 
     const expectedSignature = generateSignature(req.body);
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const signatureBuffer = Buffer.from(signature);
+    const expectedSignatureBuffer = Buffer.from(expectedSignature);
+
+    if (signatureBuffer.length !== expectedSignatureBuffer.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(signatureBuffer, expectedSignatureBuffer);
 }

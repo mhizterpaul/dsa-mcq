@@ -3,8 +3,12 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import featuredCategoriesHandler from '../src/pages/api/learning/featured-categories';
 import { analyticsService } from '../src/services/analyticsService';
+import { prismock as prisma } from './helpers/prismock';
 
-const prisma = new PrismaClient();
+jest.mock('../src/db/prisma', () => ({
+  __esModule: true,
+  default: jest.requireActual('./helpers/prismock').prismock,
+}));
 
 // Helper function to create an authenticated user
 async function createAuthenticatedUser(email = 'testuser@example.com', password = 'TestPassword123!') {
@@ -20,9 +24,6 @@ describe('/api/learning', () => {
         await prisma.user.deleteMany({});
     });
 
-    afterAll(async () => {
-        await prisma.$disconnect();
-    });
 
     describe('/featured-categories', () => {
         it('should return the top 5 liked categories', async () => {

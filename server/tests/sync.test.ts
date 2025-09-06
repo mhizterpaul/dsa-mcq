@@ -3,8 +3,11 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import syncHandler from '../src/pages/api/sync';
 import { generateSignature } from '../src/utils/signature';
-
-const prisma = new PrismaClient();
+jest.mock('../src/db/prisma', () => ({
+  __esModule: true,
+  default: jest.requireActual('./helpers/prismock').prismock,
+}));
+import { prismock as prisma } from './helpers/prismock';
 
 // Helper function to create an authenticated user
 async function createAuthenticatedUser(email = 'testuser@example.com', password = 'TestPassword123!') {
@@ -20,7 +23,7 @@ describe('/api/sync', () => {
     });
 
     afterAll(async () => {
-        await prisma.$disconnect();
+        // await prisma.$disconnect();
     });
 
     it('should sync client data with the server', async () => {

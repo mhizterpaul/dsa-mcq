@@ -1,3 +1,9 @@
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
 model Question {
   id                    String       @id @default(cuid())
   title                 String
