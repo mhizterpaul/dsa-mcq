@@ -31,6 +31,7 @@ model User {
   userQuestionData  UserQuestionData[]
   notifications     Notification[]
   media             Media[]
+  quizParticipants  QuizParticipant[]
 }
 
 model Session {

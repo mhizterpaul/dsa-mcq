@@ -25,6 +25,7 @@ model Question {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   userQuestionData      UserQuestionData[]
+  quizQuestions         QuizQuestion[]
 
   @@index([difficulty])
   @@index([categoryId])

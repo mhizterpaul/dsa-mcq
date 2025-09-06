@@ -106,10 +106,45 @@ model Question {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   userQuestionData      UserQuestionData[]
+  quizQuestions         QuizQuestion[]
 
   @@index([difficulty])
   @@index([categoryId])
   @@index([tagsText], type: Gin)
+}
+model QuizSession {
+  id          String   @id @default(cuid())
+  date        DateTime @unique @db.Date
+  startTime   DateTime
+  endTime     DateTime?
+  participants QuizParticipant[]
+  questions   QuizQuestion[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model QuizParticipant {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String
+  session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  score       Int         @default(0)
+  streak      Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([userId, sessionId])
+}
+
+model QuizQuestion {
+    id          String      @id @default(cuid())
+    sessionId   String
+    session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    questionId  String
+    question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
 }
 model Tag {
   id        String          @id @default(uuid())
@@ -160,6 +195,7 @@ model User {
   userQuestionData  UserQuestionData[]
   notifications     Notification[]
   media             Media[]
+  quizParticipants  QuizParticipant[]
 }
 
 model Session {

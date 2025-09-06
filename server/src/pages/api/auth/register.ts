@@ -1,24 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Pool } from 'pg';
-import { Kysely, PostgresDialect } from 'kysely';
 import bcrypt from 'bcryptjs';
 import { verifySignature } from '../../../utils/signature';
 import { sendEmail } from '../../../services/mailService';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import cache from '../../../services/cacheService';
-
-interface Database {
-  // ... (database interface)
-}
-
-const db = new Kysely<Database>({
-  dialect: new PostgresDialect({
-    pool: new Pool({
-      // ... (db connection)
-    }),
-  }),
-});
+import prisma from '../../../db/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!verifySignature(req)) {
@@ -37,28 +24,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      const token = await db
-        .selectFrom('verification_token')
-        .where('token', '=', verificationToken)
-        .selectAll()
-        .executeTakeFirst();
+      const token = await prisma.verificationToken.findUnique({
+        where: { token: verificationToken },
+      });
 
       if (!token || token.expires < new Date()) {
         return res.status(400).json({ message: 'Invalid or expired token' });
       }
 
-      await db
-        .updateTable('users')
-        .set({ emailVerified: new Date() })
-        .where('id', '=', token.identifier)
-        .execute();
+      await prisma.user.update({
+        where: { id: token.identifier },
+        data: { emailVerified: new Date() },
+      });
 
-      await db
-        .deleteFrom('verification_token')
-        .where('token', '=', verificationToken)
-        .execute();
+      await prisma.verificationToken.delete({
+        where: { token: verificationToken },
+      });
 
-      const user = await db.selectFrom('users').where('id', '=', token.identifier).selectAll().executeTakeFirst();
+      const user = await prisma.user.findUnique({ where: { id: token.identifier } });
 
       const accessToken = jwt.sign({ user }, 'your-jwt-secret');
       const refreshToken = jwt.sign({ userId: user.id }, 'your-refresh-secret', { expiresIn: '7d' });
@@ -81,11 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      const existingUser = await db
-        .selectFrom('users')
-        .where('email', '=', email)
-        .selectAll()
-        .executeTakeFirst();
+      const existingUser = await prisma.user.findUnique({ where: { email } });
 
       if (existingUser) {
         return res.status(409).json({ message: 'User already exists' });
@@ -93,27 +72,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const newUser = await db
-        .insertInto('users')
-        .values({
+      const newUser = await prisma.user.create({
+        data: {
           name,
           email,
           password: hashedPassword,
-        })
-        .returning(['id', 'name', 'email', 'image'])
-        .executeTakeFirst();
+        },
+      });
 
       const token = crypto.randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 3600000); // 1 hour
 
-      await db
-        .insertInto('verification_token')
-        .values({
+      await prisma.verificationToken.create({
+        data: {
           identifier: newUser.id,
           token,
           expires,
-        })
-        .execute();
+        },
+      });
 
       await sendEmail(email, 'Verify your email', `Your verification token is: ${token}`);
 
