@@ -1,16 +1,17 @@
-// schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
-model Category {
-    id String @id @default(uuid())
-    name String @unique
-    questions Question[]
+model Category { 
+    id String @id @default(uuid()) 
+    name String @unique 
+    questions Question[] 
 }
 model DevOpsMetric {
   id        String   @id @default(cuid())
@@ -86,27 +87,33 @@ enum Difficulty {
 }
 
 model Question {
-  id                    String       @id @default(cuid())
+  id                    Int             @id @default(autoincrement())
   title                 String
-  body                  String       @db.Text
+  body                  String          @db.Text
   difficulty            Difficulty
   categoryId            String
-  category              Category     @relation(fields: [categoryId], references: [id])
+  category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
   tagsText              String[]
-  successRate           Float        @default(0)
-  totalSubmissions      Int          @default(0)
-  totalAccepted         Int          @default(0)
+  successRate           Float           @default(0)
+  totalSubmissions      Int             @default(0)
+  totalAccepted         Int             @default(0)
   companyTags           String[]
-  likes                 Int          @default(0)
-  dislikes              Int          @default(0)
+  likes                 Int             @default(0)
+  dislikes              Int             @default(0)
   hints                 String[]
   similarQuestionIds    String[]
   similarQuestionsText  String[]
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  userQuestionData      UserQuestionData[]
-  quizQuestions         QuizQuestion[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  quizQuestions       QuizQuestion[]
+  userQuestionData    UserQuestionData[] 
+  // ✅ New columns for MCQ options
+  a                     String
+  b                     String
+  c                     String
+  d                     String
+  correct               String
 
   @@index([difficulty])
   @@index([categoryId])
@@ -138,23 +145,23 @@ model QuizParticipant {
 }
 
 model QuizQuestion {
-    id          String      @id @default(cuid())
+    id   Int @id @default(autoincrement())
     sessionId   String
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    questionId  String
+    questionId  Int
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @updatedAt
 }
 model Tag {
-  id        String          @id @default(uuid())
+  id        Int       @id @default(autoincrement())
   name      String          @unique
   questions TagOnQuestion[]
 }
 
 model TagOnQuestion {
-  questionId String
-  tagId      String
+  questionId Int
+  tagId      Int
   question   Question @relation(fields: [questionId], references: [id])
   tag        Tag      @relation(fields: [tagId], references: [id])
 
@@ -196,6 +203,7 @@ model User {
   notifications     Notification[]
   media             Media[]
   quizParticipants  QuizParticipant[]
+  
 }
 
 model Session {
@@ -214,10 +222,10 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 model UserQuestionData {
-  id          String   @id @default(cuid())
+  id          Int @id @default(autoincrement())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  String
+  questionId  Int
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   attempts    Int      @default(0)
   correct     Boolean  @default(false)

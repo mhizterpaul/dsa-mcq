@@ -1,8 +1,8 @@
 model UserQuestionData {
-  id          String   @id @default(cuid())
+  id          Int @id @default(autoincrement())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  String
+  questionId  Int
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   attempts    Int      @default(0)
   correct     Boolean  @default(false)

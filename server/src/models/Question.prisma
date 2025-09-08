@@ -1,0 +1,39 @@
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Question {
+  id                    Int             @id @default(autoincrement())
+  title                 String
+  body                  String          @db.Text
+  difficulty            Difficulty
+  categoryId            String
+  category              Category        @relation(fields: [categoryId], references: [id])
+  tags                  TagOnQuestion[]
+  tagsText              String[]
+  successRate           Float           @default(0)
+  totalSubmissions      Int             @default(0)
+  totalAccepted         Int             @default(0)
+  companyTags           String[]
+  likes                 Int             @default(0)
+  dislikes              Int             @default(0)
+  hints                 String[]
+  similarQuestionIds    String[]
+  similarQuestionsText  String[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  quizQuestions       QuizQuestion[]
+  userQuestionData    UserQuestionData[] 
+  // ✅ New columns for MCQ options
+  a                     String
+  b                     String
+  c                     String
+  d                     String
+  correct               String
+
+  @@index([difficulty])
+  @@index([categoryId])
+  @@index([tagsText], type: Gin)
+}

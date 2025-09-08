@@ -24,10 +24,10 @@ model QuizParticipant {
 }
 
 model QuizQuestion {
-    id          String      @id @default(cuid())
+    id   Int @id @default(autoincrement())
     sessionId   String
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    questionId  String
+    questionId  Int
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @updatedAt
