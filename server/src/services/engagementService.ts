@@ -1,36 +1,46 @@
-import prisma from '../db/prisma';
+import { PrismaClient } from '@prisma/client';
+import { CacheService } from './cacheService';
 
 interface GlobalSettings {
     quizTitle: string;
 }
 
-class EngagementService {
+export class EngagementService {
+    private prisma: PrismaClient;
+    private cache: CacheService;
     private globalSettings: GlobalSettings = {
         quizTitle: 'Default Quiz Title',
     };
 
-    async updateUserXP(userId: string, xpGained: number) {
-        // ... (updateUserXP implementation)
+    constructor(prisma: PrismaClient, cache: CacheService) {
+        this.prisma = prisma;
+        this.cache = cache;
     }
 
-    async updateLeaderboard(userId: string, xp: number) {
-        // ... (updateLeaderboard implementation)
+    async updateUserXP(userId: string, xpGained: number) {
+        const engagement = await this.prisma.engagement.upsert({
+            where: { userId },
+            update: { xp: { increment: xpGained } },
+            create: { userId, xp: xpGained },
+        });
+        return engagement;
     }
 
     async getLeaderboard() {
-        // ... (getLeaderboard implementation)
+        return this.prisma.engagement.findMany({
+            orderBy: { xp: 'desc' },
+            take: 10,
+            include: { user: { select: { name: true, image: true } } },
+        });
     }
 
     async getWeeklyKing() {
-        // ... (getWeeklyKing implementation)
-    }
-
-    async resetWeeklyXP() {
-        // ... (resetWeeklyXP implementation)
-    }
-
-    async resetMonthlyXP() {
-        // ... (resetMonthlyXP implementation)
+        // This is a placeholder. A real implementation would query based on a weekly timestamp.
+        const topUser = await this.prisma.engagement.findFirst({
+            orderBy: { xp: 'desc' },
+            include: { user: { select: { name: true } } },
+        });
+        return topUser;
     }
 
     getGlobalSettings() {
@@ -42,5 +52,3 @@ class EngagementService {
         return this.globalSettings;
     }
 }
-
-export const engagementService = new EngagementService();

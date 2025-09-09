@@ -1,15 +1,25 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import { verifySignature } from '../../../utils/signature';
-import { sendEmail } from '../../../services/mailService';
+import argon2 from 'argon2';
+import { PrismaClient } from '@prisma/client';
+import { MailService } from '../../../services/mailService';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import cache from '../../../services/cacheService';
-import prisma from '../../../db/prisma';
+import { CacheService } from '../../../services/cacheService';
+import { verifySignature } from '../../../utils/signature';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function registerHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  prisma?: PrismaClient,
+  cache?: CacheService,
+  mailService?: MailService,
+) {
+  const client = prisma ?? new PrismaClient();
+  const cacheService = cache ?? new CacheService();
+  const mailer = mailService ?? new MailService(client);
+
   if (!verifySignature(req)) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(403).json({ message: 'Invalid signature' });
   }
 
   if (req.method !== 'POST') {
@@ -24,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      const token = await prisma.verificationToken.findUnique({
+      const token = await client.verificationToken.findUnique({
         where: { token: verificationToken },
       });
 
@@ -32,21 +42,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'Invalid or expired token' });
       }
 
-      await prisma.user.update({
+      await client.user.update({
         where: { id: token.identifier },
         data: { emailVerified: new Date() },
       });
 
-      await prisma.verificationToken.delete({
+      await client.verificationToken.delete({
         where: { token: verificationToken },
       });
 
-      const user = await prisma.user.findUnique({ where: { id: token.identifier } });
+      const user = await client.user.findUnique({ where: { id: token.identifier } });
 
       const accessToken = jwt.sign({ user }, 'your-jwt-secret');
       const refreshToken = jwt.sign({ userId: user.id }, 'your-refresh-secret', { expiresIn: '7d' });
 
-      cache.set(user.id, user);
+      cacheService.set(user.id, user);
 
       return res.status(200).json({ user, accessToken, refreshToken });
 
@@ -64,15 +74,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      const existingUser = await prisma.user.findUnique({ where: { email } });
+      const existingUser = await client.user.findUnique({ where: { email } });
 
       if (existingUser) {
         return res.status(409).json({ message: 'User already exists' });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await argon2.hash(password);
 
-      const newUser = await prisma.user.create({
+      const newUser = await client.user.create({
         data: {
           name,
           email,
@@ -83,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const token = crypto.randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 3600000); // 1 hour
 
-      await prisma.verificationToken.create({
+      await client.verificationToken.create({
         data: {
           identifier: newUser.id,
           token,
@@ -91,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       });
 
-      await sendEmail(email, 'Verify your email', `Your verification token is: ${token}`);
+      await mailer.sendMail({ to: email, subject: 'Verify your email', html: `Your verification token is: ${token}` });
 
       res.status(201).json({ message: 'Verification email sent' });
     } catch (error) {
@@ -99,4 +109,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(500).json({ message: 'Internal Server Error' });
     }
   }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const prisma = new PrismaClient();
+  const cacheService = new CacheService();
+  const mailService = new MailService(prisma);
+  return await registerHandler(req, res, prisma, cacheService, mailService);
 }

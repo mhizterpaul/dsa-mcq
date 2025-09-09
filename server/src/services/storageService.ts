@@ -1,42 +1,41 @@
-import { PrismaClient } from '@prisma/client';
 import { GoogleStorageService } from './googleStorageService';
 import { DropboxStorageService } from './dropboxStorageService';
+import { formidable } from 'formidable';
 
 export interface IStorageService {
-  name: 'google' | 'dropbox';
-  upload(file: any, userId: string, provider: 'google' | 'dropbox'): Promise<string>;
+  upload(file: formidable.File | formidable.File[], userId: string): Promise<string>;
   delete(fileId: string): Promise<void>;
   update(fileId: string, file: any): Promise<void>;
 }
 
-class StorageService implements IStorageService {
+class MockStorageService implements IStorageService {
+    async upload(file: any, userId: string): Promise<string> {
+        console.log(`Mock upload for user ${userId}`);
+        return 'mock://path/to/file.jpg';
+    }
+    async delete(fileId: string): Promise<void> {
+        console.log(`Mock delete for file ${fileId}`);
+    }
+    async update(fileId: string, file: any): Promise<void> {
+        console.log(`Mock update for file ${fileId}`);
+    }
+}
+
+export class StorageService implements IStorageService {
   private provider: IStorageService;
-  private providerType: 'google' | 'dropbox';
 
-  constructor(provider: 'google' | 'dropbox' = 'google') {
-    this.providerType = provider;
-    this.provider = this.createProvider(provider);
-  }
-
-  private createProvider(provider: 'google' | 'dropbox'): IStorageService {
-    if (provider === 'google') {
-      return new GoogleStorageService();
+  constructor(provider: 'google' | 'dropbox' | 'mock' = 'google') {
+    if (process.env.NODE_ENV === 'test') {
+        this.provider = new MockStorageService();
+    } else if (provider === 'google') {
+      this.provider = new GoogleStorageService();
     } else {
-      return new DropboxStorageService();
+      this.provider = new DropboxStorageService();
     }
   }
 
-  getProvider(): string {
-    return this.provider.name;
-  }
-
-  setProvider(provider: 'google' | 'dropbox') {
-    this.providerType = provider;
-    this.provider = this.createProvider(provider);
-  }
-
-  async upload(file: any, userId: string): Promise<string> {
-    return this.provider.upload(file, userId, this.providerType);
+  async upload(file: formidable.File | formidable.File[], userId: string): Promise<string> {
+    return this.provider.upload(file, userId);
   }
 
   async delete(fileId: string): Promise<void> {
@@ -47,5 +46,3 @@ class StorageService implements IStorageService {
     return this.provider.update(fileId, file);
   }
 }
-
-export const storageService = new StorageService();

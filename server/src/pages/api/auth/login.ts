@@ -1,13 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import { verifySignature } from '../../../utils/signature';
+import argon2 from 'argon2';
+import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import cache from '../../../services/cacheService';
-import prisma from '../../../db/prisma';
+import { CacheService } from '../../../services/cacheService';
+import { verifySignature } from '../../../utils/signature';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function loginHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient, cache?: CacheService) {
+  const client = prisma ?? new PrismaClient();
+  const cacheService = cache ?? new CacheService();
+
   if (!verifySignature(req)) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(403).json({ message: 'Invalid signature' });
   }
 
   if (req.method !== 'POST') {
@@ -21,13 +24,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    let user = cache.get(email) as any;
+    let user = cacheService.get(email) as any;
 
     if (!user) {
-      user = await prisma.user.findUnique({ where: { email } });
+      user = await client.user.findUnique({ where: { email } });
 
       if (user) {
-        cache.set(email, user);
+        cacheService.set(email, user);
       }
     }
 
@@ -35,7 +38,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (user.emailVerified === null) {
+        return res.status(401).json({ message: 'Email not verified' });
+    }
+
+    const passwordMatch = await argon2.verify(user.password, password);
 
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -49,4 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    return await loginHandler(req, res);
 }

@@ -1,14 +1,9 @@
 import { createMocks } from 'node-mocks-http';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import featuredCategoriesHandler from '../src/pages/api/learning/featured-categories';
-import { analyticsService } from '../src/services/analyticsService';
+import { featuredCategoriesHandler } from '../src/pages/api/learning/featured-categories';
+import { AnalyticsService } from '../src/services/analyticsService';
 import { prismock as prisma } from './helpers/prismock';
-
-jest.mock('../src/db/prisma', () => ({
-  __esModule: true,
-  default: jest.requireActual('./helpers/prismock').prismock,
-}));
 
 // Helper function to create an authenticated user
 async function createAuthenticatedUser(email = 'testuser@example.com', password = 'TestPassword123!') {
@@ -18,6 +13,12 @@ async function createAuthenticatedUser(email = 'testuser@example.com', password 
 }
 
 describe('/api/learning', () => {
+    let analyticsService: AnalyticsService;
+
+    beforeAll(() => {
+        analyticsService = new AnalyticsService(prisma);
+    });
+
     beforeEach(async () => {
         await prisma.question.deleteMany({});
         await prisma.category.deleteMany({});
@@ -38,7 +39,7 @@ describe('/api/learning', () => {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
-            await featuredCategoriesHandler(req, res);
+            await featuredCategoriesHandler(req, res, analyticsService);
 
             expect(res._getStatusCode()).toBe(200);
             const data = JSON.parse(res._getData());
@@ -48,7 +49,7 @@ describe('/api/learning', () => {
 
         it('should return 401 for unauthenticated users', async () => {
             const { req, res } = createMocks({ method: 'GET' });
-            await featuredCategoriesHandler(req, res);
+            await featuredCategoriesHandler(req, res, analyticsService);
             expect(res._getStatusCode()).toBe(401);
         });
     });
