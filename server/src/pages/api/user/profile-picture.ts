@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { storageService } from '../../../services/storageService';
-import prisma from '../../../db/prisma';
+import { StorageService } from '../../../services/storageService';
+import { PrismaClient } from '@prisma/client';
 import formidable from 'formidable';
 
 export const config = {
@@ -10,10 +10,7 @@ export const config = {
     },
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function profilePictureHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient, storageService: StorageService) {
     const user = getAuthenticatedUser(req);
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -49,4 +46,13 @@ export default async function handler(
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
+}
+
+export default async function handler(
+    req: NextApiRequest,
+    res: NextApiResponse
+) {
+    const prisma = new PrismaClient();
+    const storageService = new StorageService();
+    return profilePictureHandler(req, res, prisma, storageService);
 }

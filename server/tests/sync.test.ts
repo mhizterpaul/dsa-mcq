@@ -1,12 +1,8 @@
 import { createMocks } from 'node-mocks-http';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import syncHandler from '../src/pages/api/sync';
+import { syncHandler } from '../src/pages/api/sync';
 import { generateSignature } from '../src/utils/signature';
-jest.mock('../src/db/prisma', () => ({
-  __esModule: true,
-  default: jest.requireActual('./helpers/prismock').prismock,
-}));
 import { prismock as prisma } from './helpers/prismock';
 
 // Helper function to create an authenticated user
@@ -46,7 +42,7 @@ describe('/api/sync', () => {
             body: dirtyData,
         });
 
-        await syncHandler(req, res);
+        await syncHandler(req, res, prisma);
 
         expect(res._getStatusCode()).toBe(200);
 
@@ -56,7 +52,9 @@ describe('/api/sync', () => {
 
     it('should return 401 for unauthenticated users', async () => {
         const { req, res } = createMocks({ method: 'POST' });
-        await syncHandler(req, res);
+        // We can't test the default handler easily, so we test the logic handler
+        // with a missing user, which should be caught by getAuthenticatedUser
+        await syncHandler(req, res, prisma);
         expect(res._getStatusCode()).toBe(401);
     });
 
@@ -69,7 +67,7 @@ describe('/api/sync', () => {
                 'x-client-signature': 'invalid-signature',
             },
         });
-        await syncHandler(req, res);
+        await syncHandler(req, res, prisma);
         expect(res._getStatusCode()).toBe(401);
     });
 });

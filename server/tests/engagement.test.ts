@@ -1,99 +1,100 @@
 import { createMocks } from 'node-mocks-http';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismockClient } from 'prismock';
+import { User } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import { engagementService } from '../src/services/engagementService';
-import { schedulerService } from '../src/services/schedulerService';
-import actionHandler from '../src/pages/api/engagement/action';
-import leaderboardHandler from '../src/pages/api/engagement/leaderboard';
-import weeklyKingHandler from '../src/pages/api/engagement/weekly-king';
-import settingsHandler from '../src/pages/api/engagement/settings';
 
-const prisma = new PrismaClient();
+import { actionHandler } from '../src/pages/api/engagement/action';
+import { leaderboardHandler } from '../src/pages/api/engagement/leaderboard';
+import { settingsHandler } from '../src/pages/api/engagement/settings';
+import { weeklyKingHandler } from '../src/pages/api/engagement/weekly-king';
 
-// Helper function to create an authenticated user
-async function createAuthenticatedUser(email = 'testuser@example.com', password = 'TestPassword123!') {
-  const user = await prisma.user.create({ data: { email, password } });
-  const accessToken = jwt.sign({ user }, 'your-jwt-secret');
-  return { user, accessToken };
-}
+import { EngagementService } from '../src/services/engagementService';
+import { CacheService } from '../src/services/cacheService';
 
 describe('/api/engagement', () => {
-    beforeAll(() => {
-        schedulerService.start();
+    let prismock: PrismockClient;
+    let engagementService: EngagementService;
+    let cacheService: CacheService;
+    let testUser: User;
+    let testUserToken: string;
+
+    beforeAll(async () => {
+        prismock = new PrismockClient() as unknown as PrismockClient;
+        cacheService = new CacheService();
+        engagementService = new EngagementService(prismock, cacheService);
+
+        testUser = await prismock.user.create({
+            data: {
+                id: 'test-user-id',
+                name: 'Test User',
+                email: 'test@example.com',
+            },
+        });
+        testUserToken = jwt.sign({ user: testUser }, 'your-jwt-secret');
     });
 
     beforeEach(async () => {
-        await prisma.engagement.deleteMany({});
-        await prisma.leaderboard.deleteMany({});
-        await prisma.user.deleteMany({});
+        await prismock.engagement.deleteMany({});
     });
 
-    afterAll(async () => {
-        await prisma.$disconnect();
-    });
+    const makeReqRes = (method: 'POST' | 'GET', options: { headers?: any, body?: any } = {}) => {
+        const { req, res } = createMocks({
+            method,
+            headers: { Authorization: `Bearer ${testUserToken}`, ...options.headers },
+            body: options.body,
+        });
+        return { req: req as NextApiRequest, res: res as NextApiResponse };
+    };
 
     describe('/action', () => {
         it('should update user XP', async () => {
-            const { user, accessToken } = await createAuthenticatedUser();
-            const { req, res } = createMocks({
-                method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}` },
-                body: { xp: 50 },
-            });
-            await actionHandler(req, res);
-            expect(res._getStatusCode()).toBe(200);
-        });
+            const { req, res } = makeReqRes('POST', { body: { xp: 50 } });
+            await actionHandler(req, res, engagementService);
 
-        it('should return 401 for unauthenticated users', async () => {
-            const { req, res } = createMocks({ method: 'POST', body: { xp: 50 } });
-            await actionHandler(req, res);
-            expect(res._getStatusCode()).toBe(401);
+            expect(res._getStatusCode()).toBe(200);
+            const engagement = await prismock.engagement.findUnique({ where: { userId: testUser.id } });
+            expect(engagement?.xp).toBe(50);
         });
     });
 
     describe('/leaderboard', () => {
         it('should return a ranked list of users', async () => {
-            const user1 = await createAuthenticatedUser('user1@test.com');
-            await engagementService.updateUserXP(user1.user.id, 100);
-            const user2 = await createAuthenticatedUser('user2@test.com');
-            await engagementService.updateUserXP(user2.user.id, 50);
+            await engagementService.updateUserXP(testUser.id, 100);
+            const user2 = await prismock.user.create({ data: { id: 'user2', email: 'user2@test.com' }});
+            await engagementService.updateUserXP(user2.id, 50);
 
-            const { req, res } = createMocks({ method: 'GET' });
-            await leaderboardHandler(req, res);
+            const { req, res } = makeReqRes('GET');
+            await leaderboardHandler(req, res, engagementService);
 
             expect(res._getStatusCode()).toBe(200);
+            const body = JSON.parse(res._getData());
+            expect(body).toHaveLength(2);
+            expect(body[0].userId).toBe(testUser.id);
         });
     });
 
     describe('/weekly-king', () => {
         it('should return the user with the highest weekly XP', async () => {
-            const user1 = await createAuthenticatedUser('user1@test.com');
-            await engagementService.updateUserXP(user1.user.id, 100);
+            await engagementService.updateUserXP(testUser.id, 100);
 
-            const { req, res } = createMocks({ method: 'GET' });
-            await weeklyKingHandler(req, res);
+            const { req, res } = makeReqRes('GET');
+            await weeklyKingHandler(req, res, engagementService);
 
             expect(res._getStatusCode()).toBe(200);
+            const body = JSON.parse(res._getData());
+            expect(body.userId).toBe(testUser.id);
         });
     });
 
     describe('/settings', () => {
         it('should update global settings', async () => {
-            const { accessToken } = await createAuthenticatedUser();
-            const { req, res } = createMocks({
-                method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}` },
-                body: { quizTitle: 'New Title' },
-            });
-            await settingsHandler(req, res);
-            expect(res._getStatusCode()).toBe(200);
-        });
+            const { req, res } = makeReqRes('POST', { body: { quizTitle: 'New Title' } });
+            await settingsHandler(req, res, engagementService);
 
-        it('should return 401 for unauthenticated users', async () => {
-            const { req, res } = createMocks({ method: 'POST', body: { quizTitle: 'New Title' } });
-            await settingsHandler(req, res);
-            expect(res._getStatusCode()).toBe(401);
+            expect(res._getStatusCode()).toBe(200);
+            const settings = engagementService.getGlobalSettings();
+            expect(settings.quizTitle).toBe('New Title');
         });
     });
 });

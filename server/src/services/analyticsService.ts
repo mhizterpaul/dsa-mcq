@@ -1,29 +1,33 @@
-import prisma from '../db/prisma';
+import { PrismaClient } from '@prisma/client';
 
-class AnalyticsService {
-    async getFeaturedCategories() {
-        const categories = await prisma.category.findMany({
-            include: {
-                questions: {
-                    select: {
-                        likes: true,
-                    },
-                },
-            },
-        });
+export class AnalyticsService {
+  private prisma: PrismaClient;
 
-        const categoriesWithLikes = categories.map(category => {
-            const totalLikes = category.questions.reduce((acc, q) => acc + q.likes, 0);
-            return {
-                ...category,
-                totalLikes,
-            };
-        });
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
 
-        const sortedCategories = categoriesWithLikes.sort((a, b) => b.totalLikes - a.totalLikes);
+  async getFeaturedCategories() {
+    const categories = await this.prisma.category.findMany({
+      include: {
+        questions: {
+          select: {
+            likes: true,
+          },
+        },
+      },
+    });
 
-        return sortedCategories.slice(0, 5);
-    }
+    const categoriesWithLikes = categories.map(category => {
+      const totalLikes = category.questions.reduce((acc, q) => acc + q.likes, 0);
+      return {
+        ...category,
+        totalLikes,
+      };
+    });
+
+    const sortedCategories = categoriesWithLikes.sort((a, b) => b.totalLikes - a.totalLikes);
+
+    return sortedCategories.slice(0, 5);
+  }
 }
-
-export const analyticsService = new AnalyticsService();

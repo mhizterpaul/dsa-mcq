@@ -1,12 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../utils/auth';
 import { verifySignature } from '../../utils/signature';
-import prisma from '../../db/prisma';
+import { PrismaClient } from '@prisma/client';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function syncHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient) {
     if (!verifySignature(req)) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -50,4 +47,12 @@ export default async function handler(
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
+}
+
+export default async function handler(
+    req: NextApiRequest,
+    res: NextApiResponse
+) {
+    const prisma = new PrismaClient();
+    return syncHandler(req, res, prisma);
 }
