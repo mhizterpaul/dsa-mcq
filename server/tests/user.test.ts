@@ -9,9 +9,16 @@ import { profilePictureHandler } from '../src/pages/api/user/profile-picture';
 import { StorageService } from '../src/services/storageService';
 
 
-// Mock StorageService
+// Mock services and libraries
 jest.mock('../src/services/storageService');
 const MockStorageService = StorageService as jest.MockedClass<typeof StorageService>;
+
+const mockParse = jest.fn();
+jest.mock('formidable', () => {
+    return jest.fn().mockImplementation(() => {
+        return { parse: mockParse };
+    });
+});
 
 
 describe('/api/user', () => {
@@ -46,31 +53,24 @@ describe('/api/user', () => {
     };
 
     describe('/profile-picture', () => {
-        // This test is skipped due to intractable issues with mocking the 'formidable' library.
-        // The library does not seem to be compatible with Jest's modern mocking approaches (spies or module-level mocks).
-        // The handler's logic is simple and has been manually verified.
-        it.skip('should upload a profile picture and update the user record', async () => {
+        it('should upload a profile picture and update the user record', async () => {
             const mockImageUrl = 'http://mock-storage.com/image.jpg';
             (storageService.upload as jest.Mock).mockResolvedValue(mockImageUrl);
 
-            // Spy on formidable and mock its parse method
-            const form = new formidable.IncomingForm();
-            const parseSpy = jest.spyOn(form, 'parse').mockImplementation((req, callback) => {
-                callback(null, {}, { profilePicture: { filepath: 'mock-path', originalFilename: 'mock.jpg' } });
+            // Configure the mock 'parse' method to simulate a file upload
+            mockParse.mockImplementation((req, callback) => {
+                const mockFile = { filepath: 'mock-path', originalFilename: 'mock.jpg' };
+                // formidable's callback is (err, fields, files)
+                callback(null, {}, { profilePicture: [mockFile] });
             });
 
             const { req, res } = makeReqRes('POST');
 
-            await new Promise<void>(resolve => {
-                res.on('end', resolve);
-                profilePictureHandler(req, res, prismock, storageService);
-            });
+            await profilePictureHandler(req, res, prismock, storageService);
 
             const updatedUser = await prismock.user.findUnique({ where: { id: testUser.id } });
             expect(updatedUser?.image).toBe(mockImageUrl);
-            expect(storageService.upload).toHaveBeenCalledTimes(1);
-
-            parseSpy.mockRestore();
+            expect(storageService.upload).toHaveBeenCalledWith(expect.objectContaining({ filepath: 'mock-path' }), 'profile-pictures');
         });
 
         it('should return 401 for unauthenticated users', async () => {

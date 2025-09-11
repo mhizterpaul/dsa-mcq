@@ -1,10 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
 import { EngagementService } from '../../../services/engagementService';
-import { PrismaClient } from '@prisma/client';
-import { CacheService } from '../../../services/cacheService';
+import { engagementService } from '../../../services/engagementServiceInstance';
 
-export async function settingsHandler(req: NextApiRequest, res: NextApiResponse, engagementService: EngagementService) {
+export async function settingsHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
     const user = getAuthenticatedUser(req);
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -16,7 +15,7 @@ export async function settingsHandler(req: NextApiRequest, res: NextApiResponse,
             return res.status(400).json({ message: 'Invalid quizTitle' });
         }
 
-        engagementService.updateGlobalSettings({ quizTitle });
+        service.updateGlobalSettings({ quizTitle });
         res.status(200).json({ success: true });
     } else {
         res.setHeader('Allow', ['POST']);
@@ -28,8 +27,5 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const prisma = new PrismaClient();
-    const cache = new CacheService();
-    const engagementService = new EngagementService(prisma, cache);
     return settingsHandler(req, res, engagementService);
 }
