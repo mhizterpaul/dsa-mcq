@@ -11,6 +11,10 @@ import { weeklyKingHandler } from '../src/pages/api/engagement/weekly-king';
 
 import { EngagementService } from '../src/services/engagementService';
 import { CacheService } from '../src/services/cacheService';
+import * as engagementServiceInstance from '../src/services/engagementServiceInstance';
+
+// Mock the singleton module
+jest.mock('../src/services/engagementServiceInstance');
 
 describe('/api/engagement', () => {
     let prismock: PrismockClient;
@@ -22,7 +26,6 @@ describe('/api/engagement', () => {
     beforeAll(async () => {
         prismock = new PrismockClient() as unknown as PrismockClient;
         cacheService = new CacheService();
-        engagementService = new EngagementService(prismock, cacheService);
 
         testUser = await prismock.user.create({
             data: {
@@ -36,6 +39,10 @@ describe('/api/engagement', () => {
 
     beforeEach(async () => {
         await prismock.engagement.deleteMany({});
+        engagementService = new EngagementService(prismock, cacheService);
+        Object.defineProperty(engagementServiceInstance, 'engagementService', {
+            get: () => engagementService,
+        });
     });
 
     const makeReqRes = (method: 'POST' | 'GET', options: { headers?: any, body?: any } = {}) => {
@@ -50,7 +57,7 @@ describe('/api/engagement', () => {
     describe('/action', () => {
         it('should update user XP', async () => {
             const { req, res } = makeReqRes('POST', { body: { xp: 50 } });
-            await actionHandler(req, res, engagementService);
+            await require('../src/pages/api/engagement/action').default(req, res);
 
             expect(res._getStatusCode()).toBe(200);
             const engagement = await prismock.engagement.findUnique({ where: { userId: testUser.id } });
@@ -61,11 +68,11 @@ describe('/api/engagement', () => {
     describe('/leaderboard', () => {
         it('should return a ranked list of users', async () => {
             await engagementService.updateUserXP(testUser.id, 100);
-            const user2 = await prismock.user.create({ data: { id: 'user2', email: 'user2@test.com' }});
+            const user2 = await prismock.user.create({ data: { id: 'user2', email: 'user2@test.com' } });
             await engagementService.updateUserXP(user2.id, 50);
 
             const { req, res } = makeReqRes('GET');
-            await leaderboardHandler(req, res, engagementService);
+            await require('../src/pages/api/engagement/leaderboard').default(req, res);
 
             expect(res._getStatusCode()).toBe(200);
             const body = JSON.parse(res._getData());
@@ -79,7 +86,7 @@ describe('/api/engagement', () => {
             await engagementService.updateUserXP(testUser.id, 100);
 
             const { req, res } = makeReqRes('GET');
-            await weeklyKingHandler(req, res, engagementService);
+            await require('../src/pages/api/engagement/weekly-king').default(req, res);
 
             expect(res._getStatusCode()).toBe(200);
             const body = JSON.parse(res._getData());
@@ -90,11 +97,26 @@ describe('/api/engagement', () => {
     describe('/settings', () => {
         it('should update global settings', async () => {
             const { req, res } = makeReqRes('POST', { body: { quizTitle: 'New Title' } });
-            await settingsHandler(req, res, engagementService);
+            await require('../src/pages/api/engagement/settings').default(req, res);
 
             expect(res._getStatusCode()).toBe(200);
             const settings = engagementService.getGlobalSettings();
             expect(settings.quizTitle).toBe('New Title');
         });
+    });
+
+    describe('Authentication', () => {
+        const endpoints = [
+            { name: '/action', handler: require('../src/pages/api/engagement/action').default, method: 'POST' },
+            { name: '/settings', handler: require('../src/pages/api/engagement/settings').default, method: 'POST' },
+        ];
+
+        for (const endpoint of endpoints) {
+            it(`should return 401 for unauthenticated access to ${endpoint.name}`, async () => {
+                const { req, res } = createMocks({ method: endpoint.method as any });
+                await endpoint.handler(req, res);
+                expect(res._getStatusCode()).toBe(401);
+            });
+        }
     });
 });

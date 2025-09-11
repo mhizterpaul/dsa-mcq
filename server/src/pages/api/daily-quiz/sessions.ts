@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { QuizService } from '../../../services/quizService';
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { PrismaClient } from '@prisma/client';
-import { CacheService } from '../../../services/cacheService';
+import { quizService } from '../../../services/quizServiceInstance';
 
 export async function sessionsHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService) {
     const user = getAuthenticatedUser(req);
@@ -12,16 +11,13 @@ export async function sessionsHandler(req: NextApiRequest, res: NextApiResponse,
 
     if (req.method === 'GET') {
         try {
-            const session = await quizService.findOrCreateSessionForUser(user);
+            let session = await quizService.getOrCreateDailyQuizSession();
+            await quizService.findOrCreateParticipant(session, user);
 
-            // Convert Map to array for JSON serialization
-            const participants = Array.from(session.participants.values());
+            // Re-fetch session to get the latest participant list
+            session = await quizService.getOrCreateDailyQuizSession();
 
-            res.status(200).json({
-                ...session,
-                participants,
-                sseConnections: undefined, // Don't send sseConnections to client
-            });
+            res.status(200).json(session);
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Internal Server Error' });
@@ -36,8 +32,5 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const prisma = new PrismaClient();
-    const cache = new CacheService();
-    const quizService = new QuizService(prisma, cache);
     return sessionsHandler(req, res, quizService);
 }

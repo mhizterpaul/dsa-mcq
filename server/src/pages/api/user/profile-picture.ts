@@ -10,42 +10,50 @@ export const config = {
     },
 };
 
-export async function profilePictureHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient, storageService: StorageService) {
-    const user = getAuthenticatedUser(req);
-    if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
+export function profilePictureHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient, storageService: StorageService): Promise<void> {
+    return new Promise((resolve) => {
+        const user = getAuthenticatedUser(req);
+        if (!user) {
+            res.status(401).json({ message: 'Unauthorized' });
+            return resolve();
+        }
 
-    if (req.method === 'POST') {
-        const form = formidable({});
-        form.parse(req, async (err, fields, files) => {
-            if (err) {
-                return res.status(500).json({ message: 'Error parsing form data' });
-            }
+        if (req.method === 'POST') {
+            const form = formidable({});
+            form.parse(req, async (err, fields, files) => {
+                if (err) {
+                    res.status(500).json({ message: 'Error parsing form data' });
+                    return resolve();
+                }
 
-            const profilePicture = files.profilePicture;
-            if (!profilePicture || Array.isArray(profilePicture)) {
-                return res.status(400).json({ message: 'No profile picture uploaded' });
-            }
+                const profilePicture = files.profilePicture;
+                if (!profilePicture || !Array.isArray(profilePicture) || profilePicture.length === 0) {
+                    res.status(400).json({ message: 'No profile picture uploaded' });
+                    return resolve();
+                }
 
-            try {
-                const imageUrl = await storageService.upload(profilePicture, user.id);
+                try {
+                    const imageUrl = await storageService.upload(profilePicture[0], 'profile-pictures');
 
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { image: imageUrl },
-                });
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { image: imageUrl },
+                    });
 
-                res.status(200).json({ imageUrl });
-            } catch (error) {
-                console.error(error);
-                res.status(500).json({ message: 'Error uploading file' });
-            }
-        });
-    } else {
-        res.setHeader('Allow', ['POST']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
+                    res.status(200).json({ imageUrl });
+                    resolve();
+                } catch (error) {
+                    console.error(error);
+                    res.status(500).json({ message: 'Error uploading file' });
+                    resolve();
+                }
+            });
+        } else {
+            res.setHeader('Allow', ['POST']);
+            res.status(405).end(`Method ${req.method} Not Allowed`);
+            resolve();
+        }
+    });
 }
 
 export default async function handler(

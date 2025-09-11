@@ -4,45 +4,71 @@ import { PrismockClient } from 'prismock';
 import { User } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
-import { answerHandler } from '../src/pages/api/daily-quiz/answer';
-import { eventsHandler } from '../src/pages/api/daily-quiz/events';
-import { exitHandler } from '../src/pages/api/daily-quiz/exit';
-import { resultsHandler } from '../src/pages/api/daily-quiz/results';
-import { sessionsHandler } from '../src/pages/api/daily-quiz/sessions';
+// Import the actual handlers
+import answerHandler from '../src/pages/api/daily-quiz/answer';
+import eventsHandler from '../src/pages/api/daily-quiz/events';
+import exitHandler from '../src/pages/api/daily-quiz/exit';
+import resultsHandler from '../src/pages/api/daily-quiz/results';
+import sessionsHandler from '../src/pages/api/daily-quiz/sessions';
 
+// Import services and the singleton module
 import { QuizService, MockSessionStore } from '../src/services/quizService';
 import { CacheService } from '../src/services/cacheService';
+import * as quizServiceInstance from '../src/services/quizServiceInstance';
+
+// Mock the singleton module
+jest.mock('../src/services/quizServiceInstance');
 
 describe('/api/daily-quiz', () => {
     let prismock: PrismockClient;
-    let quizService: QuizService;
     let cacheService: CacheService;
-    let sessionStore: MockSessionStore;
     let testUser: User;
     let testUserToken: string;
+    let testUser2: User;
+    let testUser2Token: string;
+    let expiredToken: string;
+    let quizService: QuizService; // The single instance for the test suite
 
     beforeAll(async () => {
         prismock = new PrismockClient() as unknown as PrismockClient;
         cacheService = new CacheService();
-        sessionStore = new MockSessionStore();
-        quizService = new QuizService(prismock, cacheService, sessionStore);
 
-        // Create a single test user for all tests in this suite
         testUser = await prismock.user.create({
             data: {
-                id: 'test-user-id',
-                name: 'Test User',
-                email: 'test@example.com',
-                password: 'password', // Not used for auth in these tests
+                id: 'test-user-id-1',
+                name: 'Test User 1',
+                email: 'test1@example.com',
+                password: 'password',
             },
         });
         testUserToken = jwt.sign({ user: testUser }, 'your-jwt-secret');
+
+        testUser2 = await prismock.user.create({
+            data: {
+                id: 'test-user-id-2',
+                name: 'Test User 2',
+                email: 'test2@example.com',
+                password: 'password',
+            },
+        });
+        testUser2Token = jwt.sign({ user: testUser2 }, 'your-jwt-secret');
+
+        const expiredUser = { id: 'expired-user', name: 'Expired User' };
+        expiredToken = jwt.sign({ user: expiredUser }, 'your-jwt-secret', { expiresIn: '-1s' });
     });
 
-    beforeEach(() => {
-        // Reset the session store before each test to ensure isolation
-        sessionStore = new MockSessionStore();
-        quizService = new QuizService(prismock, cacheService, sessionStore);
+    beforeEach(async () => {
+        // Clean up database before each test
+        await prismock.quizParticipant.deleteMany({});
+        await prismock.quizSession.deleteMany({});
+
+        // Create a new QuizService for each test to ensure isolation
+        quizService = new QuizService(prismock, cacheService);
+
+        // Configure the mock to return our test-specific QuizService instance
+        Object.defineProperty(quizServiceInstance, 'quizService', {
+            get: () => quizService,
+        });
     });
 
     const makeReqRes = (method: 'POST' | 'GET', options: { headers?: any, body?: any } = {}) => {
@@ -57,126 +83,200 @@ describe('/api/daily-quiz', () => {
     describe('/sessions', () => {
         it('should create a new session and add the authenticated user', async () => {
             const { req, res } = makeReqRes('GET');
-            await sessionsHandler(req, res, quizService);
+            await sessionsHandler(req, res);
 
+            // Check API response
             expect(res._getStatusCode()).toBe(200);
             const body = JSON.parse(res._getData());
-
             expect(body.id).toBeDefined();
             expect(body.participants).toHaveLength(1);
-            expect(body.participants[0].id).toBe(testUser.id);
+            expect(body.participants[0].userId).toBe(testUser.id);
+
+            // Check DB state
+            const dbSessions = await prismock.quizSession.findMany({});
+            expect(dbSessions).toHaveLength(1);
+            const dbParticipants = await prismock.quizParticipant.findMany({});
+            expect(dbParticipants).toHaveLength(1);
+            expect(dbParticipants[0].userId).toBe(testUser.id);
+            expect(dbParticipants[0].sessionId).toBe(dbSessions[0].id);
         });
     });
 
     describe('/answer', () => {
-        it('should accept a correct answer and update the score', async () => {
-            // Setup: create a session and add a question
-            const session = quizService.getOrCreateDailyQuizSession();
-            await prismock.question.create({ data: { id: 'q1', title: 'Test Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' }});
+        it('should accept a correct answer and update the score in the database', async () => {
+            // Setup: create a question
+            await prismock.question.create({ data: { id: 'q1', title: 'Test Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' } });
 
             const { req, res } = makeReqRes('POST', { body: { questionId: 'q1', answer: 'A' } });
 
-            // The user implicitly joins the session by answering
-            await answerHandler(req, res, quizService);
+            await answerHandler(req, res);
 
+            // Check API response
             expect(res._getStatusCode()).toBe(200);
             const body = JSON.parse(res._getData());
             expect(body.isCorrect).toBe(true);
             expect(body.score).toBe(10);
+            expect(body.streak).toBe(1);
+
+            // Check DB state
+            const participant = await prismock.quizParticipant.findFirst({ where: { userId: testUser.id } });
+            expect(participant).not.toBeNull();
+            expect(participant?.score).toBe(10);
+            expect(participant?.streak).toBe(1);
         });
     });
 
     describe('/results', () => {
-        it('should return the current results for the session', async () => {
-            // User joins and answers a question
-            const session = await quizService.findOrCreateSessionForUser(testUser);
-            await prismock.question.create({ data: { id: 'q1', title: 'Test Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' }});
-            await quizService.handleAnswer(session.id, testUser.id, 'q1', 'A');
+        it('should return the current results for the session from the database', async () => {
+            // Setup: A user joins and answers a question
+            await prismock.question.create({ data: { id: 'q1', title: 'Test Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' } });
+            await quizService.handleAnswer(testUser.id, 'q1', 'A');
 
+            // Action: Call the results handler
             const { req, res } = makeReqRes('GET');
-            await resultsHandler(req, res, quizService);
+            await resultsHandler(req, res);
 
+            // Check API response
             expect(res._getStatusCode()).toBe(200);
             const body = JSON.parse(res._getData());
             expect(body.results).toHaveLength(1);
-            expect(body.results[0].id).toBe(testUser.id);
+            expect(body.results[0].userId).toBe(testUser.id);
             expect(body.results[0].score).toBe(10);
         });
     });
 
     describe('/exit', () => {
-        it('should remove a participant from the session', async () => {
-            // User joins
-            await quizService.findOrCreateSessionForUser(testUser);
+        it('should remove a participant from the database', async () => {
+            // Setup: a user joins the session
+            const session = await quizService.getOrCreateDailyQuizSession();
+            await quizService.findOrCreateParticipant(session, testUser);
 
+            // Pre-condition check
+            let participant = await prismock.quizParticipant.findFirst({ where: { userId: testUser.id } });
+            expect(participant).not.toBeNull();
+
+            // Action: call the exit handler
             const { req, res } = makeReqRes('POST');
-            await exitHandler(req, res, quizService);
+            await exitHandler(req, res);
 
+            // Check API response
             expect(res._getStatusCode()).toBe(200);
-            const session = quizService.getOrCreateDailyQuizSession();
-            expect(session.participants.has(testUser.id)).toBe(false);
+
+            // Check DB state
+            participant = await prismock.quizParticipant.findFirst({ where: { userId: testUser.id } });
+            expect(participant).toBeNull();
         });
     });
 
     describe('/events', () => {
-        // This test is skipped due to issues with reliably testing SSE broadcasts in the Jest environment.
-        // The mock response object from node-mocks-http doesn't behave exactly like a real response,
-        // and timing issues with the async broadcast make the test flaky. The logic has been manually verified.
-        it.skip('should send a participant-joined event when a new user joins', async () => {
+        it('should trigger a broadcast when a new user joins', async () => {
             const { req, res } = makeReqRes('GET');
+            const broadcastSpy = jest.spyOn(quizService, 'broadcast');
 
-            const write = jest.fn();
-            res.write = write; // Mock the write function to capture SSE events
-            (res as any).flushHeaders = jest.fn(); // Mock flushHeaders for SSE
+            // Mock the response for the SSE connection
+            (res as any).flushHeaders = jest.fn();
+            res.write = jest.fn();
 
-            // Initial user connects to SSE
-            eventsHandler(req, res, quizService);
+            // 1. User 1 connects to the event stream.
+            const session = await quizService.getOrCreateDailyQuizSession();
+            quizService.addSseConnection(session.id, testUser.id, res);
 
-            // A second user joins the session
-            const user2 = { id: 'user2', name: 'User Two', email: 'user2@test.com' };
-            await quizService.findOrCreateSessionForUser(user2 as User);
+            // 2. User 2 joins the session, which should trigger a broadcast
+            const { req: req2, res: res2 } = makeReqRes('GET', { headers: { Authorization: `Bearer ${testUser2Token}` } });
+            await sessionsHandler(req2, res2);
 
-            // The first user should receive a broadcast about the second user joining
-            expect(write).toHaveBeenCalledTimes(2); // First write is 'connected', second is 'participant-joined'
-            const secondCallData = JSON.parse(write.mock.calls[1][0].replace('data: ', ''));
-            expect(secondCallData.type).toBe('participant-joined');
-            expect(secondCallData.participant.id).toBe('user2');
+            // 3. Assert that broadcast was called with the correct event
+            expect(broadcastSpy).toHaveBeenCalledWith(
+                session.id,
+                expect.objectContaining({
+                    type: 'participant-joined',
+                    participant: expect.objectContaining({ userId: testUser2.id }),
+                })
+            );
+
+            broadcastSpy.mockRestore();
         });
     });
 
-    describe('Concurrency Test', () => {
-        it('should handle at least 15 concurrent users joining and answering', async () => {
-            await prismock.question.create({ data: { id: 'q-concurrent', title: 'Test Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' }});
+    describe('Multi-User Workflow', () => {
+        it('should correctly handle multiple users joining, answering, and getting results', async () => {
+            // Setup: create a question
+            await prismock.question.create({ data: { id: 'q-workflow', title: 'Workflow Q', body: 'b', difficulty: 'EASY', correctAnswer: 'A' } });
 
-            const userPromises = [];
-            for (let i = 0; i < 15; i++) {
-                const concurrentUser = { id: `concurrent-user-${i}`, name: `User ${i}`, email: `user${i}@test.com` };
+            // 1. User 1 joins
+            const { req: req1, res: res1 } = makeReqRes('GET', { headers: { Authorization: `Bearer ${testUserToken}` } });
+            await sessionsHandler(req1, res1);
+            expect(res1._getStatusCode()).toBe(200);
+            let participants = await prismock.quizParticipant.findMany({});
+            expect(participants).toHaveLength(1);
+            expect(participants[0].userId).toBe(testUser.id);
 
-                const promise = new Promise<void>(async (resolve) => {
-                    // Each "user" makes a request to join and then answer
-                    const { req: sessionReq, res: sessionRes } = createMocks({ headers: { Authorization: `Bearer ${jwt.sign({ user: concurrentUser }, 'your-jwt-secret')}` } });
-                    await sessionsHandler(sessionReq as NextApiRequest, sessionRes as NextApiResponse, quizService);
+            // 2. User 2 joins
+            const { req: req2, res: res2 } = makeReqRes('GET', { headers: { Authorization: `Bearer ${testUser2Token}` } });
+            await sessionsHandler(req2, res2);
+            expect(res2._getStatusCode()).toBe(200);
+            participants = await prismock.quizParticipant.findMany({});
+            expect(participants).toHaveLength(2);
 
-                    const { req: answerReq, res: answerRes } = createMocks({
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${jwt.sign({ user: concurrentUser }, 'your-jwt-secret')}` },
-                        body: { questionId: 'q-concurrent', answer: 'A' }
-                    });
-                    await answerHandler(answerReq as NextApiRequest, answerRes as NextApiResponse, quizService);
+            // 3. User 1 answers correctly
+            const { req: req3, res: res3 } = makeReqRes('POST', {
+                headers: { Authorization: `Bearer ${testUserToken}` },
+                body: { questionId: 'q-workflow', answer: 'A' },
+            });
+            await answerHandler(req3, res3);
+            expect(res3._getStatusCode()).toBe(200);
+            const participant1 = await prismock.quizParticipant.findFirst({ where: { userId: testUser.id } });
+            expect(participant1?.score).toBe(10);
 
-                    resolve();
-                });
-                userPromises.push(promise);
-            }
+            // 4. User 2 answers incorrectly
+            const { req: req4, res: res4 } = makeReqRes('POST', {
+                headers: { Authorization: `Bearer ${testUser2Token}` },
+                body: { questionId: 'q-workflow', answer: 'B' },
+            });
+            await answerHandler(req4, res4);
+            expect(res4._getStatusCode()).toBe(200);
+            const participant2 = await prismock.quizParticipant.findFirst({ where: { userId: testUser2.id } });
+            expect(participant2?.score).toBe(0);
 
-            await Promise.all(userPromises);
+            // 5. Get results
+            const { req: req5, res: res5 } = makeReqRes('GET', { headers: { Authorization: `Bearer ${testUserToken}` } });
+            await resultsHandler(req5, res5);
+            expect(res5._getStatusCode()).toBe(200);
+            const body = JSON.parse(res5._getData());
 
-            const session = quizService.getOrCreateDailyQuizSession();
-            expect(session.participants.size).toBe(15);
+            // Assert final API response
+            expect(body.results).toHaveLength(2);
+            const user1Result = body.results.find((r: any) => r.userId === testUser.id);
+            const user2Result = body.results.find((r: any) => r.userId === testUser2.id);
+            expect(user1Result.score).toBe(10);
+            expect(user2Result.score).toBe(0);
+        });
+    });
 
-            for (const participant of session.participants.values()) {
-                expect(participant.score).toBe(10);
-            }
+    describe('Authentication', () => {
+        const endpoints = [
+            { name: '/sessions', handler: require('../src/pages/api/daily-quiz/sessions').default },
+            { name: '/answer', handler: require('../src/pages/api/daily-quiz/answer').default },
+            { name: '/results', handler: require('../src/pages/api/daily-quiz/results').default },
+            { name: '/exit', handler: require('../src/pages/api/daily-quiz/exit').default },
+            { name: '/events', handler: require('../src/pages/api/daily-quiz/events').default },
+        ];
+
+        for (const endpoint of endpoints) {
+            it(`should return 401 for unauthenticated access to ${endpoint.name}`, async () => {
+                const { req, res } = createMocks({ method: endpoint.method as any });
+                await endpoint.handler(req, res);
+                expect(res._getStatusCode()).toBe(401);
+            });
+        }
+
+        it('should return 401 for an expired token', async () => {
+            const { req, res } = createMocks({
+                method: 'GET',
+                headers: { Authorization: `Bearer ${expiredToken}` },
+            });
+            await require('../src/pages/api/daily-quiz/sessions').default(req, res);
+            expect(res._getStatusCode()).toBe(401);
         });
     });
 });

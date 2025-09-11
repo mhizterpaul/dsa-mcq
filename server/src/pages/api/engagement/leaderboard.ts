@@ -1,12 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EngagementService } from '../../../services/engagementService';
-import { PrismaClient } from '@prisma/client';
-import { CacheService } from '../../../services/cacheService';
+import { engagementService } from '../../../services/engagementServiceInstance';
 
-export async function leaderboardHandler(req: NextApiRequest, res: NextApiResponse, engagementService: EngagementService) {
+export async function leaderboardHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
     if (req.method === 'GET') {
         try {
-            const leaderboard = await engagementService.getLeaderboard();
+            const leaderboard = await service.getLeaderboard();
             res.status(200).json(leaderboard);
         } catch (error) {
             res.status(500).json({ message: 'Internal Server Error' });
@@ -21,8 +20,5 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const prisma = new PrismaClient();
-    const cache = new CacheService();
-    const engagementService = new EngagementService(prisma, cache);
     return leaderboardHandler(req, res, engagementService);
 }
