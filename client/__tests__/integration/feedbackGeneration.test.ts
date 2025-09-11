@@ -1,12 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { learningRootReducer } from '../../src/learning/store';
-import { fetchFeedbackForQuestion, addQuestion } from '../../src/learning/store/question.slice';
-import * as feedbackService from '../../src/learning/services/feedbackService';
-import { Question } from '../../src/learning/store/primitives/Question';
+import { learningRootReducer } from '../../src/components/learning/store';
+import { fetchBatchFeedback, addQuestion } from '../../src/components/learning/store/question.slice';
+import * as feedbackService from '../../src/components/learning/services/feedbackService';
+import { Question } from '../../src/components/learning/store/primitives/Question';
 
-jest.mock('../../src/learning/services/feedbackService');
+jest.mock('../../src/components/learning/services/feedbackService');
+const mockedFeedbackService = jest.mocked(feedbackService, { shallow: true });
 
-const mockedFeedbackService = feedbackService as jest.Mocked<typeof feedbackService>;
 
 describe('Feedback Generation Integration Test', () => {
   let store: ReturnType<typeof configureStore>;
@@ -22,6 +22,8 @@ describe('Feedback Generation Integration Test', () => {
   });
 
   it('should fetch feedback for a question and update the store', async () => {
+    const generateBatchFeedbackSpy = jest.spyOn(feedbackService, 'generateBatchFeedback');
+
     const questionId = 'q1';
     const initialQuestion = new Question(
       questionId,
@@ -30,23 +32,25 @@ describe('Feedback Generation Integration Test', () => {
       0,
       ['geography'],
       1,
-      { correct_approach: '', incorrect_approach: '' }
+      { correct_approach: 'Error', incorrect_approach: '' }
     );
 
     store.dispatch(addQuestion({ ...initialQuestion }));
 
     const mockFeedback = {
-      correct_approach: 'Paris is the correct answer.',
-      incorrect_approach: 'London is the capital of the UK.',
+      q1: {
+        correct_approach: 'Paris is the correct answer.',
+        incorrect_approach: 'London is the capital of the UK.',
+      }
     };
 
-    mockedFeedbackService.generateFeedback.mockResolvedValue(mockFeedback);
+    generateBatchFeedbackSpy.mockResolvedValue(mockFeedback);
 
-    await store.dispatch(fetchFeedbackForQuestion(questionId));
+    await store.dispatch(fetchBatchFeedback([questionId]));
 
     const state = store.getState();
     const updatedQuestion = state.questions.entities[questionId];
 
-    expect(updatedQuestion?.feedback).toEqual(mockFeedback);
+    expect(updatedQuestion?.feedback).toEqual(mockFeedback.q1);
   });
 });

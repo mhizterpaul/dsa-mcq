@@ -1,4 +1,4 @@
-import { EngagementComponent } from '../../engagement/interface';
+import { EngagementComponent } from '../components/engagement/interface';
 
 // This would represent the structure of a badge
 interface Badge {

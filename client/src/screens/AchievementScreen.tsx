@@ -3,11 +3,11 @@ import { View, StyleSheet, Text } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
-import { EngagementComponent } from '../../engagement/interface';
-import { UserComponent } from '../../user/interface';
-import BackButton from '../components/BackButton';
-import BottomNav from '../components/BottomNav';
-import BadgeDetails from '../../engagement/components/BadgeDetails';
+import { EngagementComponent } from '../components/engagement/interface';
+import { UserComponent } from '../components/user/interface';
+import BackButton from '../components/common/components/BackButton';
+import BottomNav from '../components/common/components/BottomNav';
+import BadgeDetails from '../components/engagement/components/BadgeDetails';
 
 type RootStackParamList = {
     Home: undefined;
@@ -37,7 +37,7 @@ const AchievementScreen: React.FC<ScreenProps> = ({ navigation, route }) => {
     });
 
     const badgeImageMapping = {
-        '1': require('../../engagement/components/mockup/original-6b0784cb19d1d688a7a939d8d3dd637f.jpg'),
+        '1': require('../components/engagement/components/mockup/original-6b0784cb19d1d688a7a939d8d3dd637f.jpg'),
     };
 
     return (

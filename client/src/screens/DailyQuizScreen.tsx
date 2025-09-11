@@ -2,9 +2,9 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-import { LearningComponent } from '../../learning/interface';
-import BackButton from '../components/BackButton';
-import BottomNav from '../components/BottomNav';
+import { LearningComponent } from '../components/learning/interface';
+import BackButton from '../components/common/components/BackButton';
+import BottomNav from '../components/common/components/BottomNav';
 
 // This should be your root stack param list
 type RootStackParamList = {

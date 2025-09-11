@@ -1,27 +1,29 @@
-export class Question {
-  id: string;
-  options: string[];
-  correctOption: number;
-  categories: string[];
-  difficulty: number;
-  feedback: {
-    correct_approach: string;
-    incorrect_approach: string;
-  };
+import { Feedback } from "../../services/feedbackService";
 
-  constructor(
-    id: string,
-    options: string[],
-    correctOption: number,
-    categories: string[],
-    difficulty: number,
-    feedback: { correct_approach: string; incorrect_approach: string }
-  ) {
-    this.id = id;
-    this.options = options;
-    this.correctOption = correctOption;
-    this.categories = categories;
-    this.difficulty = difficulty;
-    this.feedback = feedback;
+export class Question {
+    id: string;
+    text: string;
+    options: string[];
+    correctOption: number;
+    categories: string[];
+    difficulty: number;
+    feedback?: Feedback;
+
+    constructor(
+      id: string,
+      text: string,
+      options: string[],
+      correctOption: number,
+      categories: string[],
+      difficulty: number,
+      feedback?: Feedback,
+    ) {
+      this.id = id;
+      this.text = text;
+      this.options = options;
+      this.correctOption = correctOption;
+      this.categories = categories;
+      this.difficulty = difficulty;
+      this.feedback = feedback;
+    }
   }
-}

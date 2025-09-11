@@ -3,10 +3,10 @@ import { View, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
-import { LearningComponent } from '../../learning/interface';
-import learningService from '../../learning/services/learningService';
-import BackButton from '../components/BackButton';
-import BottomNav from '../components/BottomNav';
+import { LearningComponent } from '../components/learning/interface';
+import learningService from '../components/learning/services/learningService';
+import BackButton from '../components/common/components/BackButton';
+import BottomNav from '../components/common/components/BottomNav';
 
 type RootStackParamList = {
     Home: undefined;

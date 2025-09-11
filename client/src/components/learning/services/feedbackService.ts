@@ -16,7 +16,7 @@ export interface Feedback {
 
 // --- BATCH FEEDBACK IMPLEMENTATION ---
 
-const buildBatchPrompt = (questions: Question[]): string => {
+export const buildBatchPrompt = (questions: Question[]): string => {
   const questionPrompts = questions.map(q => {
     const { id, text, options, correctOption, categories } = q;
     const correctOptionText = options[correctOption];
@@ -46,7 +46,7 @@ const buildBatchPrompt = (questions: Question[]): string => {
   `;
 };
 
-const generateBatchFeedback = async (questions: Question[]): Promise<Record<string, Feedback>> => {
+export const generateBatchFeedback = async (questions: Question[]): Promise<Record<string, Feedback>> => {
   if (!GEMINI_API_KEY || questions.length === 0) {
     return {};
   }
@@ -70,7 +70,7 @@ const generateBatchFeedback = async (questions: Question[]): Promise<Record<stri
 
 // --- SINGLE FEEDBACK IMPLEMENTATION (Legacy or for single use) ---
 
-const buildSinglePrompt = (question: Question): string => {
+export const buildSinglePrompt = (question: Question): string => {
   const { text, options, correctOption, categories } = question;
   const correctOptionText = options[correctOption];
 
@@ -94,7 +94,7 @@ const buildSinglePrompt = (question: Question): string => {
   `;
 };
 
-const generateFeedback = async (question: Question): Promise<Feedback> => {
+export const generateFeedback = async (question: Question): Promise<Feedback> => {
   if (!GEMINI_API_KEY) {
     return {
       correct_approach: 'API key not configured.',

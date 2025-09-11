@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Button, Image } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useOAuth } from '../../common/hooks/useOAuth';
+import { useOAuth } from './components/common/hooks/useOAuth';
 
 type RootStackParamList = {
     Auth: undefined;

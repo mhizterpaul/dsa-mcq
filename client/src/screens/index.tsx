@@ -2,9 +2,11 @@ import React from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native-ui-lib';
 import store from '../store';
 import { Provider } from 'react-redux';
-import { UserComponent, LearningComponent, EngagementComponent } from '..';
-import BottomNav from '../components/BottomNav';
-import AdComponent from '../components/AdComponent';
+import { UserComponent } from '../components/user/interface';
+import { LearningComponent } from '../components/learning/interface';
+import { EngagementComponent } from '../components/engagement/interface';
+import BottomNav from '../components/common/components/BottomNav';
+import AdComponent from '../components/common/components/AdComponent';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const user = new UserComponent();

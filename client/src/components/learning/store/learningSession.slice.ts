@@ -93,11 +93,12 @@ export const processAnswerAndUpdate = createAsyncThunk(
 
         // Update session and check for feedback batching
         const currentSession = state.learningSession.session;
+        let batchesNeeded = 0;
         if (currentSession) {
             const answeredCount = Object.keys(currentSession.answers).length + 1; // +1 for the current answer
             const totalQuestions = currentSession.allQuestionIds.length;
             const threshold = Math.max(1, Math.floor(totalQuestions / 4));
-            const batchesNeeded = Math.floor(answeredCount / threshold);
+            batchesNeeded = Math.floor(answeredCount / threshold);
 
             if (batchesNeeded > currentSession.feedbackBatchesGenerated) {
                 const startIndex = currentSession.feedbackBatchesGenerated * threshold;
@@ -114,26 +115,6 @@ export const processAnswerAndUpdate = createAsyncThunk(
         }
 
         return { questionId, answer, isCorrect, batchesNeeded: batchesNeeded };
-    }
-);
-
-export const endCurrentSession = createAsyncThunk(/* ... existing implementation ... */);
-export const generateRecommendations = createAsyncThunk(/* ... existing implementation ... */);
-
-        const uqd = state.userQuestionData.entities[`${userId}-${questionId}`];
-        if (uqd) {
-            const updatedUqd = learningService.processAnswer(uqd, isCorrect, quality, techniqueIds);
-            dispatch(setUserQuestionData(updatedUqd)); // This should also be a DB thunk
-        }
-        // We need to get the updated session from state to save it
-        const updatedSession = (getState() as LearningRootState).learningSession.session;
-        if (updatedSession) {
-            const sessionCopy = { ...updatedSession };
-            sessionCopy.answers[questionId] = { answer, isCorrect };
-            sessionCopy.currentQuestionIndex++;
-            dispatch(saveSessionDb(sessionCopy));
-        }
-        return { questionId, answer, isCorrect };
     }
 );
 

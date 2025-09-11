@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './navigation/navigator';
-import { UserComponent } from '../user/interface';
-import { LearningComponent } from '../learning/interface';
-import { EngagementComponent } from '../engagement/interface';
+import { UserComponent } from './components/user/interface';
+import { LearningComponent } from './components/learning/interface';
+import { EngagementComponent } from './components/engagement/interface';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from './store';
 
