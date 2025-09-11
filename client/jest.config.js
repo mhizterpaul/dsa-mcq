@@ -1,15 +1,7 @@
 module.exports = {
   preset: 'react-native',
-  transform: {
-    '^.+\\.tsx?$': 'ts-jest',
-  },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|uuid|@cucumber|jest-cucumber|@auth/pg-adapter|react-native-vector-icons)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|react-native-gesture-handler|react-native-vector-icons|react-redux|react-native-sse)/)',
   ],
-  testMatch: ['**/*.steps.ts', '**/*.test.ts'],
-  modulePaths: ['<rootDir>/src/user/auth-server/node_modules'],
-  moduleNameMapper: {
-    '^@auth/pg-adapter$': '<rootDir>/src/user/auth-server/node_modules/@auth/pg-adapter/index.js',
-    '^@google/genai$': '<rootDir>/__mocks__/@google/genai.js',
-  },
 };

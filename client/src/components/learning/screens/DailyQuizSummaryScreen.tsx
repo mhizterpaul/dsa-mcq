@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import mediatorService from '../../mediator/services/mediatorService';
+import mediatorService from '../../../services/mediatorService';
 import { API_BASE_URL } from '../services/learningService';
 
 // Define types for route params and results

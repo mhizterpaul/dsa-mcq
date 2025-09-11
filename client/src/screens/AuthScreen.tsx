@@ -5,11 +5,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-import { loginUser, registerUser } from '../../user/store/user.slice';
-import Spinner from '../../common/components/Spinner';
-import Toast from '../../common/components/Toast';
-import { RootState, AppDispatch } from '../../mediator/store';
-import { useOAuth } from '../../common/hooks/useOAuth';
+import { loginUser, registerUser } from '../components/user/store/user.slice';
+import Spinner from '../components/common/components/Spinner';
+import Toast from '../components/common/components/Toast';
+import { RootState, AppDispatch } from '../store';
+import { useOAuth } from '../components/common/hooks/useOAuth';
 
 type RootStackParamList = {
     Home: undefined;

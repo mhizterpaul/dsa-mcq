@@ -4,7 +4,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
 import SessionSummary from '../components/SessionSummary';
-import BottomNav from '../../mediator/components/BottomNav';
+import BottomNav from '../../common/components/BottomNav';
 
 type RootStackParamList = {
     Home: undefined;

@@ -3,13 +3,13 @@ import { View, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
-import DailyQuizSummaryScreen from '../../learning/screens/DailyQuizSummaryScreen';
+import DailyQuizSummaryScreen from '../components/learning/screens/DailyQuizSummaryScreen';
 
 type RootStackParamList = {
     Home: undefined;
-    DailyQuizSummary: { sessionId: string };
+    DailyQuizSummary: { results: { score: number, timeTaken: number } };
 };
-type NavigationProp = StackNavigationProp<RootStackParamList, 'DailyQuizSummary'>;
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type ScreenRouteProp = RouteProp<RootStackParamList, 'DailyQuizSummary'>;
 
 interface ScreenProps {

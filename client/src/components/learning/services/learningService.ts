@@ -225,7 +225,7 @@ const getQuestionsByIds = async (ids: number[]): Promise<Question[]> => {
     return await response.json();
 };
 
-const learningService = {
+export const learningService = {
     getFeaturedCategories,
     getQuestionsByIds,
     updateSM2Data,

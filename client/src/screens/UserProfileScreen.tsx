@@ -2,9 +2,9 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-import { UserComponent } from '../../user/interface';
-import BackButton from '../components/BackButton';
-import BottomNav from '../components/BottomNav';
+import { UserComponent } from '../components/user/interface';
+import BackButton from '../components/common/components/BackButton';
+import BottomNav from '../components/common/components/BottomNav';
 
 type RootStackParamList = { Home: undefined; };
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;

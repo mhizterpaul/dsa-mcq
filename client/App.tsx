@@ -7,8 +7,8 @@
 
 import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
-import Mediator from './src/mediator';
-import { metricsService } from './src/analytics/services/metricsService';
+import Mediator from './src/index';
+import { metricsService } from './src/components/analytics/services/metricsService';
 
 interface AppProps {
   startTime: number;

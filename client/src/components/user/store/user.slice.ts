@@ -34,80 +34,23 @@ export interface AuthResponse {
 }
 
 
-const login = async (email: string, password:string): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/auth/signin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Invalid credentials');
-  }
-
-  return await response.json();
-};
-
-const register = async (name: string, email: string, password: string): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Registration failed');
-  }
-
-  const { user, token } = await response.json();
-  return { user: new User(user.id, user.name, user.email), token };
-};
-
-const logout = async (): Promise<void> => {
-  await fetch(`${API_BASE_URL}/auth/signout`, {
-    method: 'POST',
-  });
-};
-
-const requestVerificationCode = async (email: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to request verification code');
-  }
-};
-
-const verifyCode = async (token: string): Promise<void> => {
-    // This function is no longer needed, as the reset link will take the user to a page
-    // that calls resetPassword directly.
-    console.warn("verifyCode is deprecated");
-};
-
-const resetPassword = async (token: string, password: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to reset password');
-  }
-};
- 
-
 export const loginUser = createAsyncThunk<
   AuthResponse,
   { username: string; password: string },
   { rejectValue: string }
 >('user/login', async ({ username, password }, { rejectWithValue }) => {
   try {
-    return await login(username, password);
+    const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: username, password }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Invalid credentials');
+    }
+
+    return await response.json();
   } catch (err: any) {
     return rejectWithValue(err.message || 'Login failed');
   }
@@ -143,30 +86,66 @@ export const registerUser = createAsyncThunk<
   { rejectValue: string }
 >('user/register', async ({ username, email, password }, { rejectWithValue }) => {
   try {
-    return await register(username, email, password);
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: username, email, password }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Registration failed');
+    }
+
+    const { user, token } = await response.json();
+    return { user: new User(user.id, user.name, user.email), token };
   } catch (err: any) {
     return rejectWithValue(err.message || 'Registration failed');
   }
 });
 
 // Request verification code
-export const requestVerificationCode = createAsyncThunk<void, { email: string }, { rejectValue: string }>(
+export const requestVerificationCodeAPI = createAsyncThunk<void, { email: string }, { rejectValue: string }>(
   'user/requestVerificationCode',
   async ({ email }, { rejectWithValue }) => {
     try {
-      await requestVerificationCode(email);
+      const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to request verification code');
+      }
     } catch (err: any) {
       return rejectWithValue(err.message || 'Failed to send verification code');
     }
   }
 );
 
+// Logout user
+export const logoutUserAPI = createAsyncThunk<void, void, { rejectValue: string }>(
+  'user/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/signout`, {
+        method: 'POST',
+      });
+    } catch (err: any) {
+      return rejectWithValue(err.message || 'Logout failed');
+    }
+  }
+);
+
 // Verify code
-export const verifyCode = createAsyncThunk<void, { email: string; code: string }, { rejectValue: string }>(
+export const verifyCodeAPI = createAsyncThunk<void, { email: string; code: string }, { rejectValue: string }>(
   'user/verifyCode',
   async ({ email, code }, { rejectWithValue }) => {
     try {
-      await verifyCode(email, code);
+      // This function is no longer needed, as the reset link will take the user to a page
+      // that calls resetPassword directly.
+      console.warn("verifyCode is deprecated");
     } catch (err: any) {
       return rejectWithValue(err.message || 'Code verification failed');
     }
@@ -174,11 +153,19 @@ export const verifyCode = createAsyncThunk<void, { email: string; code: string }
 );
 
 // Reset password
-export const resetPassword = createAsyncThunk<void, { email: string; newPassword: string }, { rejectValue: string }>(
+export const resetPasswordAPI = createAsyncThunk<void, { email: string; newPassword: string }, { rejectValue: string }>(
   'user/resetPassword',
   async ({ email, newPassword }, { rejectWithValue }) => {
     try {
-      await resetPassword(email, newPassword);
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: newPassword }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset password');
+      }
     } catch (err: any) {
       return rejectWithValue(err.message || 'Password reset failed');
     }
@@ -255,19 +242,27 @@ const userSlice = createSlice({
     builder.addCase(registerUser.rejected, setError);
 
     // Request Verification Code
-    builder.addCase(requestVerificationCode.pending, setLoading);
-    builder.addCase(requestVerificationCode.fulfilled, setSuccess);
-    builder.addCase(requestVerificationCode.rejected, setError);
+    builder.addCase(requestVerificationCodeAPI.pending, setLoading);
+    builder.addCase(requestVerificationCodeAPI.fulfilled, setSuccess);
+    builder.addCase(requestVerificationCodeAPI.rejected, setError);
 
     // Verify Code
-    builder.addCase(verifyCode.pending, setLoading);
-    builder.addCase(verifyCode.fulfilled, setSuccess);
-    builder.addCase(verifyCode.rejected, setError);
+    builder.addCase(verifyCodeAPI.pending, setLoading);
+    builder.addCase(verifyCodeAPI.fulfilled, setSuccess);
+    builder.addCase(verifyCodeAPI.rejected, setError);
 
     // Reset Password
-    builder.addCase(resetPassword.pending, setLoading);
-    builder.addCase(resetPassword.fulfilled, setSuccess);
-    builder.addCase(resetPassword.rejected, setError);
+    builder.addCase(resetPasswordAPI.pending, setLoading);
+    builder.addCase(resetPasswordAPI.fulfilled, setSuccess);
+    builder.addCase(resetPasswordAPI.rejected, setError);
+
+    // Logout
+    builder.addCase(logoutUserAPI.pending, setLoading);
+    builder.addCase(logoutUserAPI.fulfilled, (state) => {
+      setSuccess(state);
+      state.currentUser = null;
+    });
+    builder.addCase(logoutUserAPI.rejected, setError);
   },
 });
 

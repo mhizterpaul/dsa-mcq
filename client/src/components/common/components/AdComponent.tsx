@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { View, Text, Button } from 'react-native-ui-lib';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store/rootReducer';
-import { addAd, setActiveAd } from '../store/ad.slice';
-import { Ad } from '../store/primitives/Ad';
+import { RootState } from '../../../store/rootReducer';
+import { addAd, setActiveAd } from '../../../store/ad.slice';
+import { Ad } from '../../../store/primitives/Ad';
 
 const AdComponent = () => {
     const { ads, activeAdId } = useSelector((state: RootState) => state.mediator.ad);
