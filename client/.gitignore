@@ -77,6 +77,7 @@ yarn-error.log
 # development
 .env
 .env.local
+.env.*
 mcq_dataset.csv
 */**/mcq_dataset.csv
 *.csv
