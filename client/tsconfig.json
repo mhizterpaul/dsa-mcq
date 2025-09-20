@@ -1,6 +1,14 @@
-{
-  "extends": "@react-native/typescript-config",
-  "compilerOptions": {
-    "jsx": "react"
-  }
-}
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "jsx": "react",
+    "esModuleInterop": true,                 // enables default imports for CommonJS modules
+    "allowSyntheticDefaultImports": true,    // allows default import syntax for many libraries
+    "strict": true,                          // optional, enforces strict typing
+    "moduleResolution": "node",              // ensures proper resolution of node modules
+    "skipLibCheck": true,                    // avoids type checking node_modules
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "__tests__"],
+  "exclude": ["node_modules", "dist", "build"]
+}

@@ -111,6 +111,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
       <View flex>
         <TextField
+          testID="email-input"
           placeholder="Input your email"
           leadingAccessory={<Icon name="email-outline" size={20} color="#888" />}
           keyboardType="email-address"
@@ -119,6 +120,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           autoCapitalize="none"
         />
         <TextField
+          testID="password-input"
           placeholder="Input your password"
           leadingAccessory={<Icon name="lock-outline" size={20} color="#888" />}
           secureTextEntry
@@ -128,6 +130,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
         {!isLogin && (
           <TextField
+            testID="confirm-password-input"
             placeholder="Confirm your password"
             leadingAccessory={<Icon name="lock-check-outline" size={20} color="#888" />}
             secureTextEntry
@@ -159,9 +162,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           <View flex height={1} bg-grey50 />
         </View>
         <View row spread paddingH-40>
-          <Icon name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
-          <Icon name="github" size={30} color="#000" onPress={() => signIn('github')} />
-          <Icon name="twitter" size={30} color="#000" onPress={() => signIn('twitter')} />
+          <Icon testID="google-button" name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
+          <Icon testID="github-button" name="github" size={30} color="#000" onPress={() => signIn('github')} />
+          <Icon testID="twitter-button" name="twitter" size={30} color="#000" onPress={() => signIn('twitter')} />
         </View>
       </View>
     </KeyboardAvoidingView>
