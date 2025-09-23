@@ -9,26 +9,28 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(' +
       [
-        '@react-native',                // React Native core
-        'react-native',                 // RN main package
+        '@react-native',
+        'react-native',
         'react-clone-referenced-element',
         '@react-navigation',
         'react-native-url-polyfill',
         'whatwg-url-without-unicode',
         'react-native-gesture-handler',
+        'react-native-ui-lib',
+        'uilib-native',
+        'react-native-worklets',
+        'react-native-reanimated',
         'react-redux',
         '@reduxjs/toolkit',
         'immer',
         '@mswjs/interceptors',
         'msw',
         'react-native-vector-icons',
-        '@testing-library',             // ✅ include all testing-library deps
-        'expo',                         // ✅ include Expo packages if used
-        'expo-.*',                      // ✅ for deep expo deps
+        '@testing-library',
       ]
         .map(pkg => `${pkg}(/.*)?`)
         .join('|') +
-      ')/)',  // ✅ Properly closes group and regex
+      ')/)',
   ],
 
   setupFilesAfterEnv: ['./jest.setup.ts'],
