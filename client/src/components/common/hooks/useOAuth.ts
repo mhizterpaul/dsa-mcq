@@ -1,6 +1,6 @@
 import { useDispatch } from 'react-redux';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { authorize } from 'react-native-app-auth';
+import OAuthManager from 'react-native-oauth';
 
 import { loginWithProviderToken } from '../../user/store/user.slice';
 import { AppDispatch } from '../../../store';
@@ -11,30 +11,18 @@ const GITHUB_CLIENT_SECRET = 'your-github-client-secret';
 const TWITTER_CONSUMER_KEY = 'your-twitter-consumer-key';
 const TWITTER_CONSUMER_SECRET = 'your-twitter-consumer-secret';
 
-const configs = {
-  github: {
-    redirectUrl: 'com.dsamcq://oauthredirect',
-    clientId: GITHUB_CLIENT_ID,
-    clientSecret: GITHUB_CLIENT_SECRET,
-    scopes: ['identity'],
-    additionalHeaders: { Accept: 'application/json' },
-    serviceConfiguration: {
-      authorizationEndpoint: 'https://github.com/login/oauth/authorize',
-      tokenEndpoint: 'https://github.com/login/oauth/access_token',
-      revocationEndpoint: `https://github.com/settings/connections/applications/${GITHUB_CLIENT_ID}`,
+const manager = new OAuthManager('dsamcq');
+manager.configure({
+    github: {
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
     },
-  },
-  twitter: {
-    redirectUrl: 'com.dsamcq://oauthredirect',
-    clientId: TWITTER_CONSUMER_KEY,
-    clientSecret: TWITTER_CONSUMER_SECRET,
-    scopes: ['tweet.read', 'users.read', 'offline.access'],
-    serviceConfiguration: {
-      authorizationEndpoint: 'https://twitter.com/i/oauth2/authorize',
-      tokenEndpoint: 'https://api.twitter.com/2/oauth2/token',
-    },
-  },
-};
+    twitter: {
+        consumer_key: TWITTER_CONSUMER_KEY,
+        consumer_secret: TWITTER_CONSUMER_SECRET,
+    }
+});
+
 
 export const useOAuth = () => {
     const dispatch: AppDispatch = useDispatch();
@@ -55,9 +43,13 @@ export const useOAuth = () => {
                     break;
 
                 case 'github':
+                    const githubResponse = await manager.authorize('github');
+                    accessToken = githubResponse?.response?.credentials?.accessToken;
+                    break;
+
                 case 'twitter':
-                    const authState = await authorize(configs[provider]);
-                    accessToken = authState.accessToken;
+                    const twitterResponse = await manager.authorize('twitter');
+                    accessToken = twitterResponse?.response?.credentials?.accessToken;
                     break;
             }
 

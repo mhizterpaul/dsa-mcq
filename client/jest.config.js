@@ -1,10 +1,46 @@
+/** @type {import('jest').Config} */
 module.exports = {
   preset: 'react-native',
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
+  },
+
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-paper|react-native-vector-icons|react-native-gesture-handler|@react-navigation|react-native-app-auth|react-native-base64)/)',
+    'node_modules/(?!(' +
+      [
+        '@react-native',                // React Native core
+        'react-native',                 // RN main package
+        'react-clone-referenced-element',
+        '@react-navigation',
+        'react-native-url-polyfill',
+        'whatwg-url-without-unicode',
+        'react-native-gesture-handler',
+        'react-native-reanimated', 
+        'react-redux',
+        '@reduxjs/toolkit',
+        'immer',
+        '@mswjs/interceptors',
+        'msw',
+        'react-native-vector-icons',
+        '@testing-library',             // ✅ include all testing-library deps
+      ]
+        .map(pkg => `${pkg}(/.*)?`)
+        .join('|') +
+      ')/)',  // ✅ Properly closes group and regex
   ],
+
+  setupFilesAfterEnv: ['./jest.setup.ts'],
+
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  testEnvironment: 'node',
-  setupFiles: ['<rootDir>/node_modules/react-native-gesture-handler/jestSetup.js'],
+
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
+
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+
+  clearMocks: true,
+  verbose: true,
+  testTimeout: 20000,
 };

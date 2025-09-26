@@ -1,115 +1,85 @@
-import { NativeModules } from 'react-native';
-
-// Mock the specific native module that's causing the crash
-NativeModules.StatusBarManager = {
-  getHeight: jest.fn(() => 20),
-  setColor: jest.fn(),
-  setStyle: jest.fn(),
-  setNetworkActivityIndicatorVisible: jest.fn(),
-  setHidden: jest.fn(),
-};
-
-import 'react-native-gesture-handler/jestSetup';
-import '@testing-library/jest-native/extend-expect';
-
-// Comprehensive mock for the core Animated library
-jest.mock('react-native/Libraries/Animated/Animated', () => {
-  const ActualAnimated = jest.requireActual(
-    'react-native/Libraries/Animated/Animated',
-  );
-  const addListener = () => 'listener-id';
-  const removeListener = () => {};
-  const removeAllListeners = () => {};
-
-  return {
-    ...ActualAnimated,
-    Value: jest.fn().mockImplementation(() => ({
-      __getValue: jest.fn(() => 0),
-      setValue: jest.fn(),
-      setOffset: jest.fn(),
-      addListener: jest.fn(addListener),
-      removeListener: jest.fn(removeListener),
-      removeAllListeners: jest.fn(removeAllListeners),
-      interpolate: jest.fn(() => 0),
-    })),
-    timing: (value, config) => ({
-      start: (callback) => {
-        value.setValue(config.toValue);
-        if (callback) {
-          callback({ finished: true });
-        }
-      },
-      stop: () => {},
-    }),
-    spring: (value, config) => ({
-      start: (callback) => {
-        value.setValue(config.toValue);
-        if (callback) {
-          callback({ finished: true });
-        }
-      },
-      stop: () => {},
-    }),
-    sequence: (animations) => ({
-      start: (callback) => {
-        animations.forEach((anim) => anim.start());
-        if (callback) {
-          callback({ finished: true });
-        }
-      },
-      stop: () => {},
-    }),
-    parallel: (animations) => ({
-      start: (callback) => {
-        animations.forEach((anim) => anim.start());
-        if (callback) {
-          callback({ finished: true });
-        }
-      },
-      stop: () => {},
-    }),
-    event: jest.fn(() => () => {}),
-  };
-});
-
-import 'whatwg-fetch';
-import { TextEncoder, TextDecoder } from 'util';
-import React from 'react';
-
-// Polyfill TextEncoder / TextDecoder for MSW & fetch
-global.TextEncoder = global.TextEncoder || TextEncoder;
-global.TextDecoder = global.TextDecoder || TextDecoder;
-
-// Polyfill minimal crypto for libraries that need it
-if (!global.crypto) {
-  global.crypto = {
-    getRandomValues: (arr) => require('crypto').randomBytes(arr.length),
-  };
-}
-
-// Ensure global.window is defined (some libs expect it)
-if (typeof global.window === 'undefined') {
-  global.window = global;
-}
-
-// ---- Navigation Mocks ----
-jest.mock('@react-navigation/native', () => {
-  const actualNav = jest.requireActual('@react-navigation/native');
-  return {
-    ...actualNav,
-    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-    useRoute: () => ({ params: {} }),
-  };
-});
-
-jest.mock('@react-navigation/stack', () => {
-  const React = require('react');
-  return {
-    createStackNavigator: () => ({
-      Navigator: ({ children }) =>
-        React.createElement(React.Fragment, null, children),
-      Screen: ({ children }) =>
-        React.createElement(React.Fragment, null, children),
-    }),
-  };
-});
+import 'react-native-gesture-handler/jestSetup';
+import '@testing-library/jest-native/extend-expect';
+import 'whatwg-fetch';
+import { TextEncoder, TextDecoder } from 'util';
+import { NativeModules, Platform, LayoutAnimation } from 'react-native';
+
+// ---- Polyfills ----
+global.TextEncoder = global.TextEncoder || TextEncoder;
+global.TextDecoder = global.TextDecoder || TextDecoder;
+
+if (!global.crypto) {
+  global.crypto = {
+    getRandomValues: (arr: Uint8Array) =>
+      require('crypto').randomBytes(arr.length),
+  } as Crypto;
+}
+
+if (typeof global.window === 'undefined') {
+  global.window = global as any;
+}
+
+// ---- Navigation Mocks ----
+jest.mock('@react-navigation/native', () => {
+  const actualNav = jest.requireActual('@react-navigation/native');
+  return {
+    ...actualNav,
+    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useRoute: () => ({ params: {} }),
+  };
+});
+
+jest.mock('@react-navigation/stack', () => ({
+  createStackNavigator: () => ({
+    Navigator: (props: any) => props.children,
+    Screen: (props: any) => props.children,
+  }),
+}));
+
+// ---- Animated Mocks ----
+jest.mock('react-native/Libraries/Animated/Animated', () => {
+  const ActualAnimated = jest.requireActual(
+    'react-native/Libraries/Animated/Animated'
+  );
+
+  class AnimatedValue {
+    _value: any;
+    constructor(value: any) { this._value = value; }
+    setValue = jest.fn();
+    addListener = jest.fn();
+    removeListener = jest.fn();
+    removeAllListeners = jest.fn();
+    interpolate = jest.fn(() => new AnimatedValue(0));
+  }
+
+  return {
+    ...ActualAnimated,
+    Value: AnimatedValue,
+    timing: () => ({ start: jest.fn() }),
+    spring: () => ({ start: jest.fn() }),
+    decay: () => ({ start: jest.fn() }),
+  };
+});
+
+// ---- LayoutAnimation Mock ----
+jest.mock('react-native/Libraries/LayoutAnimation/LayoutAnimation', () => ({
+  configureNext: jest.fn(),
+  create: jest.fn(),
+  Types: { easeInEaseOut: 'easeInEaseOut' },
+  Properties: { opacity: 'opacity', scaleXY: 'scaleXY' },
+}));
+
+// ---- TouchableOpacity Stub ----
+jest.mock(
+  'react-native/Libraries/Components/Touchable/TouchableOpacity',
+  () => ({ children }: any) => children
+);
+
+// ---- Optional NativeModules Mocks ----
+NativeModules.SomeNativeModule = NativeModules.SomeNativeModule || {
+  doSomething: jest.fn(),
+};
+
+// ---- Platform defaults ----
+Platform.OS = 'android';
+Platform.Version = 31;
