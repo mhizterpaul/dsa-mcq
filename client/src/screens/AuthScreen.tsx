@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
-import { View, Text, Button, TextField, Checkbox } from 'react-native-ui-lib';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Button, TextInput, Checkbox, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -13,6 +13,7 @@ import { useOAuth } from '../components/common/hooks/useOAuth';
 
 type RootStackParamList = {
     Home: undefined;
+    ForgotPassword: undefined;
     // other screens
 };
 
@@ -27,6 +28,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const [toast, setToast] = useState({ visible: false, message: '' });
 
@@ -83,8 +85,8 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+
       <Spinner visible={loading} />
       <Toast
         visible={toast.visible}
@@ -92,79 +94,99 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
         onHide={handleToastHide}
       />
 
-      <View row bg-grey70 br20 marginB-24>
+      <View style={styles.tabContainer}>
         <Button
-          label="Login"
-          flex
-          backgroundColor={isLogin ? '#00B5D8' : 'transparent'}
-          color={isLogin ? '#fff' : '#666'}
+          testID="login-tab"
+          mode={isLogin ? 'contained' : 'text'}
           onPress={() => setActiveTab('login')}
-        />
+          style={styles.tabButton}
+          labelStyle={isLogin ? styles.activeTabText : styles.inactiveTabText}
+          theme={{ colors: { primary: '#00B5D8' } }}
+        >
+          Login
+        </Button>
         <Button
-          label="Register"
-          flex
-          backgroundColor={!isLogin ? '#00B5D8' : 'transparent'}
-          color={!isLogin ? '#fff' : '#666'}
+          testID="register-tab"
+          mode={!isLogin ? 'contained' : 'text'}
           onPress={() => setActiveTab('register')}
-        />
+          style={styles.tabButton}
+          labelStyle={!isLogin ? styles.activeTabText : styles.inactiveTabText}
+          theme={{ colors: { primary: '#00B5D8' } }}
+        >
+          Register
+        </Button>
       </View>
 
-      <View flex>
-        <TextField
+      <View style={styles.formContainer}>
+        <TextInput
           testID="email-input"
-          placeholder="Input your email"
-          leadingAccessory={<Icon name="email-outline" size={20} color="#888" />}
-          keyboardType="email-address"
+          label="Email"
           value={email}
           onChangeText={setEmail}
+          keyboardType="email-address"
           autoCapitalize="none"
+          left={<TextInput.Icon icon="email-outline" />}
+          style={styles.input}
         />
-        <TextField
+        <TextInput
           testID="password-input"
-          placeholder="Input your password"
-          leadingAccessory={<Icon name="lock-outline" size={20} color="#888" />}
-          secureTextEntry
+          label="Password"
           value={password}
           onChangeText={setPassword}
+          secureTextEntry
+          left={<TextInput.Icon icon="lock-outline" />}
+          style={styles.input}
         />
 
         {!isLogin && (
-          <TextField
+          <TextInput
             testID="confirm-password-input"
-            placeholder="Confirm your password"
-            leadingAccessory={<Icon name="lock-check-outline" size={20} color="#888" />}
-            secureTextEntry
+            label="Confirm Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
+            secureTextEntry
+            left={<TextInput.Icon icon="lock-check-outline" />}
+            style={styles.input}
           />
         )}
 
         {isLogin && (
-          <View row spread centerV marginB-14>
-            <Checkbox label="Remember me" />
-            <Button link label="Forgot Password?" />
+          <View style={styles.loginOptionsContainer}>
+            <Checkbox.Item
+              label="Remember me"
+              status={rememberMe ? 'checked' : 'unchecked'}
+              onPress={() => setRememberMe(!rememberMe)}
+              style={styles.checkbox}
+              labelStyle={styles.checkboxLabel}
+              position='leading'
+            />
+            <Button mode="text" onPress={() => navigation.navigate('ForgotPassword')}>
+              Forgot Password?
+            </Button>
           </View>
         )}
 
         <Button
-          label={isLogin ? 'Login' : 'Register'}
-          backgroundColor="#00B5D8"
-          marginT-4
+          testID="auth-button"
+          mode="contained"
           onPress={handleAuth}
           disabled={loading}
-        />
+          style={styles.authButton}
+        >
+          {isLogin ? 'Login' : 'Register'}
+        </Button>
       </View>
 
-      <View paddingV-20>
-        <View row centerV marginB-16>
-          <View flex height={1} bg-grey50 />
-          <Text text90 marginH-8 color-grey30>Or sign in with</Text>
-          <View flex height={1} bg-grey50 />
+      <View style={styles.socialLoginContainer}>
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>Or sign in with</Text>
+          <View style={styles.divider} />
         </View>
-        <View row spread paddingH-40>
+        <View style={styles.socialIconsContainer}>
           <Icon testID="google-button" name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
           <Icon testID="github-button" name="github" size={30} color="#000" onPress={() => signIn('github')} />
-          <Icon testID="twitter-button" name="twitter" size={30} color="#000" onPress={() => signIn('twitter')} />
+          <Icon testID="twitter-button" name="twitter" size={30} color="#1DA1F2" onPress={() => signIn('twitter')} />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -176,5 +198,69 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
         padding: 20,
+        justifyContent: 'center',
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#f0f0f0', // bg-grey70
+        borderRadius: 20, // br20
+        marginBottom: 24, // marginB-24
+    },
+    tabButton: {
+        flex: 1,
+    },
+    activeTabText: {
+        color: '#fff',
+    },
+    inactiveTabText: {
+        color: '#666',
+    },
+    formContainer: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    input: {
+        marginBottom: 16,
+    },
+    loginOptionsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 14, // marginB-14
+    },
+    checkbox: {
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        marginLeft: -10,
+    },
+    checkboxLabel: {
+      fontSize: 14,
+      color: '#000',
+    },
+    authButton: {
+        marginTop: 4, // marginT-4
+        paddingVertical: 8,
+    },
+    socialLoginContainer: {
+        paddingVertical: 20, // paddingV-20
+    },
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16, // marginB-16
+    },
+    divider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#ccc', // bg-grey50
+    },
+    dividerText: {
+        marginHorizontal: 8, // marginH-8
+        color: '#888', // color-grey30
+    },
+    socialIconsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around', // spread
+        paddingHorizontal: 40, // paddingH-40
     },
 });

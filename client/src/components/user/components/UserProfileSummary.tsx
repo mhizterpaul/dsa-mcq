@@ -1,20 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
-import { View, Text, TouchableOpacity, Card } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Menu, IconButton, Divider } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type MenuKey = 'coinHistory' | 'profileDetails' | 'weeklyGifts' | 'questions';
 
 export type UserProfileSummaryProps = {
   containerStyle?: object;
-  dropdownOffsetY?: number;
 };
 
 const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
   containerStyle,
-  dropdownOffsetY = 8,
 }) => {
   const [visible, setVisible] = useState(false);
+
+  const openMenu = () => setVisible(true);
+  const closeMenu = () => setVisible(false);
 
   const menuItems: { key: MenuKey; label: string; icon: string }[] = useMemo(
     () => [
@@ -26,77 +27,56 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
     []
   );
 
-  const onOpen = () => setVisible(true);
-  const onClose = () => setVisible(false);
-
   const onSelectMenuItem = (key: MenuKey) => {
     console.log('Selected menu item:', key);
-    onClose();
+    closeMenu();
   };
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <TouchableOpacity
-        accessibilityLabel="Open profile menu"
-        onPress={onOpen}
-        style={styles.menuButton}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="ellipsis-vertical" size={18} color="#111" />
-      </TouchableOpacity>
-
-      {visible && (
-        <Card style={[styles.dropdown, { top: 28 + dropdownOffsetY, right: 0 }]}>
-          {menuItems.map((item, idx) => (
-            <TouchableOpacity
-              key={item.key}
+      <Menu
+        visible={visible}
+        onDismiss={closeMenu}
+        anchor={
+          <IconButton
+            icon="dots-vertical"
+            size={18}
+            onPress={openMenu}
+            style={styles.menuButton}
+          />
+        }>
+        {menuItems.map((item, idx) => (
+          <View key={item.key}>
+            <Menu.Item
               onPress={() => onSelectMenuItem(item.key)}
-              style={[styles.menuItem, idx < menuItems.length - 1 && styles.menuItemDivider]}
-              activeOpacity={0.8}
-            >
-              <Ionicons name={item.icon as any} size={16} color="#111" style={{ marginRight: 8 }} />
-              <Text text70 color_grey10>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </Card>
-      )}
+              title={item.label}
+              leadingIcon={() => <Ionicons name={item.icon as any} size={16} color="#111" />}
+              titleStyle={styles.menuItemText}
+            />
+            {idx < menuItems.length - 1 && <Divider />}
+          </View>
+        ))}
+      </Menu>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { position: 'relative' },
+  container: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   menuButton: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#F2F3F5',
-    marginLeft: 8,
+    margin: 0,
   },
-  dropdown: {
-    position: 'absolute',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 4,
-    minWidth: 170,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-  },
-  menuItemDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
+  menuItemText: {
+    color: '#212121', // color_grey10
+    fontSize: 16, // text70
   },
 });
 

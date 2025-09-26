@@ -2,11 +2,27 @@ import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  View,
 } from 'react-native';
-import { View, Text, Button, TextField } from 'react-native-ui-lib';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Button, TextInput, Text, ProgressBar, IconButton } from 'react-native-paper';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-export default function ForgotPasswordScreen() {
+type RootStackParamList = {
+  VerifyCodeScreen: undefined;
+  // other screens...
+};
+
+type ForgotPasswordScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'VerifyCodeScreen'
+>;
+
+interface ForgotPasswordScreenProps {
+  navigation: ForgotPasswordScreenNavigationProp;
+}
+
+export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
   const [email, setEmail] = useState('');
 
   const isValidEmail = (val: string) =>
@@ -16,43 +32,93 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{flex: 1, backgroundColor: '#fff', padding: 20}}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
-      <View row spread centerV marginB-16>
-        <Button link iconSource={() => <Icon name="arrow-left" size={24} color="#333" />} onPress={() => navigation.goBack()} />
-        <Text text70b color_grey10>Reset Password</Text>
-        <View width={24} />
+      <View style={styles.header}>
+        <IconButton icon="arrow-left" size={24} onPress={() => navigation.goBack()} />
+        <Text style={styles.headerTitle}>Reset Password</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View height={6} bg-grey70 br10 marginB-24>
-        <View style={{width: '33%', height: 6, backgroundColor: '#00B5D8'}} />
-      </View>
+      <ProgressBar progress={0.33} color="#00B5D8" style={styles.progressBar} />
 
-      <Text text80 color_grey30 marginB-20>
+      <Text style={styles.instructionText}>
         Enter your email address to continue
       </Text>
 
-      <TextField
+      <TextInput
+        label="Email"
         placeholder="Input your email"
-        leadingAccessory={<Icon name="email-outline" size={20} color="#888" />}
+        left={<TextInput.Icon icon="email-outline" />}
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        style={styles.input}
       />
 
       <Button
-        label="Continue"
+        mode="contained"
         disabled={!emailIsValid}
         onPress={() => navigation.navigate('VerifyCodeScreen')}
-        marginB-10
-      />
+        style={styles.continueButton}
+      >
+        Continue
+      </Button>
 
       <Button
-        label="Cancel"
+        mode="contained"
         onPress={() => navigation.goBack()}
-        bg-grey70
-      />
+        style={styles.cancelButton}
+        labelStyle={styles.cancelButtonLabel}
+      >
+        Cancel
+      </Button>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#212121', // color_grey10
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 10, // br10
+    marginBottom: 24, // marginB-24
+    backgroundColor: '#f0f0f0', // bg-grey70
+  },
+  instructionText: {
+    fontSize: 14, // text80
+    color: '#888', // color_grey30
+    marginBottom: 20, // marginB-20
+  },
+  input: {
+    marginBottom: 10,
+  },
+  continueButton: {
+    marginBottom: 10, // marginB-10
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0', // bg-grey70
+  },
+  cancelButtonLabel: {
+    color: '#000',
+  }
+});

@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Button } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Text, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { LearningRootState } from '../store';
-import { addCategory, setCategories } from '../store/category.slice';
+import { setCategories } from '../store/category.slice';
 import { Category } from '../store/primitives/Category';
 
 const FeaturedCategories = () => {
@@ -27,33 +28,67 @@ const FeaturedCategories = () => {
 
   useEffect(() => {
     handleAddDummyData();
-  }, []);
+  }, [dispatch]);
 
   return (
-    <View>
-        <Text text70b color_grey10 marginT-28 marginL-18 marginB-10>Featured Categories</Text>
-        <View row spread marginH-12>
-            {featuredCategories.slice(0, 2).map((category) => (
-                <TouchableOpacity key={category.id} style={{width: '47%'}} onPress={() => handleSelectCategory(category.name)}>
-                    <View row centerV bg-white br20 paddingV-18 paddingH-16 style={{elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 3}}>
+    <View style={styles.container}>
+        <Text style={styles.title}>Featured Categories</Text>
+        <View style={styles.grid}>
+            {featuredCategories.map((category) => (
+                <Card
+                    key={category.id}
+                    style={styles.card}
+                    onPress={() => handleSelectCategory(category.name)}
+                >
+                    <Card.Content style={styles.cardContent}>
                         <Icon name={category.icon} size={22} color={category.color} />
-                        <Text text80b color_grey10 marginL-10>{category.name}</Text>
-                    </View>
-                </TouchableOpacity>
-            ))}
-        </View>
-        <View row spread marginH-12>
-            {featuredCategories.slice(2, 4).map((category) => (
-                <TouchableOpacity key={category.id} style={{width: '47%'}} onPress={() => handleSelectCategory(category.name)}>
-                    <View row centerV bg-white br20 paddingV-18 paddingH-16 style={{elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 3}}>
-                        <Icon name={category.icon} size={22} color={category.color} />
-                        <Text text80b color_grey10 marginL-10>{category.name}</Text>
-                    </View>
-                </TouchableOpacity>
+                        <Text style={styles.categoryName}>{category.name}</Text>
+                    </Card.Content>
+                </Card>
             ))}
         </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        marginTop: 28, // marginT-28
+        marginHorizontal: 18, // marginH-18
+    },
+    title: {
+        fontSize: 18, // text70b
+        fontWeight: 'bold', // text70b
+        color: '#212121', // color_grey10
+        marginBottom: 10, // marginB-10
+    },
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    card: {
+        width: '48%',
+        marginBottom: 12,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
+        backgroundColor: 'white',
+        borderRadius: 20, // br20
+    },
+    cardContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 18, // paddingV-18
+        paddingHorizontal: 16, // paddingH-16
+    },
+    categoryName: {
+        fontSize: 14, // text80b
+        fontWeight: 'bold', // text80b
+        color: '#212121', // color_grey10
+        marginLeft: 10, // marginL-10
+    },
+});
 
 export default FeaturedCategories;

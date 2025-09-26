@@ -12,12 +12,6 @@ NativeModules.StatusBarManager = {
 import 'react-native-gesture-handler/jestSetup';
 import '@testing-library/jest-native/extend-expect';
 
-// Mock for react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
 
 // Comprehensive mock for the core Animated library
 jest.mock('react-native/Libraries/Animated/Animated', () => {

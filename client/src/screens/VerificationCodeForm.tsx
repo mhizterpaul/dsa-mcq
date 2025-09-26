@@ -3,16 +3,28 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  View,
 } from 'react-native';
-import { View, Text, Button, TextField } from 'react-native-ui-lib';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Text, Button, TextInput, ProgressBar, IconButton } from 'react-native-paper';
 import { useDispatch } from 'react-redux';
-import { verifyCode, requestVerificationCode } from '../../user/store/user.slice';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const VerificationCodeForm = () => {
+import { verifyCode, requestVerificationCode } from '../components/user/store/user.slice';
+
+type RootStackParamList = {
+  // Define your screen params here
+};
+
+type VerificationCodeFormNavigationProp = StackNavigationProp<RootStackParamList>;
+
+interface VerificationCodeFormProps {
+  navigation: VerificationCodeFormNavigationProp;
+}
+
+const VerificationCodeForm = ({ navigation }: VerificationCodeFormProps) => {
     const [email, setEmail] = useState('');
     const [code, setCode] = useState(['', '', '', '', '', '']);
-    const inputs = useRef<TextField[]>([]);
+    const inputs = useRef<TextInput[]>([]);
     const dispatch = useDispatch();
 
     const handleChange = (text: string, index: number) => {
@@ -43,32 +55,31 @@ const VerificationCodeForm = () => {
     return (
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
-        <View row spread centerV marginB-16>
-          <Button link iconSource={() => <Icon name="arrow-left" size={24} color="#333" />} />
-          <Text text70b color_grey10>Verification</Text>
-          <View width={24} />
+        <View style={styles.header}>
+          <IconButton icon="arrow-left" size={24} onPress={() => navigation.goBack()} />
+          <Text style={styles.headerTitle}>Verification</Text>
+          <View style={styles.headerSpacer} />
         </View>
 
-        <View height={6} bg-grey70 br10 marginB-24>
-          <View style={[styles.progressBarFill, { width: '66%' }]} />
-        </View>
+        <ProgressBar progress={0.66} color="#00B5D8" style={styles.progressBar} />
 
-        <Text text60b marginB-8>Enter verification code</Text>
-        <Text text80 color_grey30 marginB-24>
+        <Text style={styles.title}>Enter verification code</Text>
+        <Text style={styles.subtitle}>
           We’ve sent a 6-digit code to your email.
         </Text>
 
-        <TextField
-            placeholder="Email"
+        <TextInput
+            label="Email"
             value={email}
             onChangeText={setEmail}
+            style={styles.emailInput}
         />
 
-        <View row spread marginB-30>
+        <View style={styles.codeContainer}>
           {code.map((digit, index) => (
-            <TextField
+            <TextInput
               key={index}
               ref={(ref) => (inputs.current[index] = ref!)}
               style={styles.codeBox}
@@ -76,20 +87,25 @@ const VerificationCodeForm = () => {
               maxLength={1}
               value={digit}
               onChangeText={(text) => handleChange(text, index)}
+              textAlign="center"
             />
           ))}
         </View>
 
         <Button
-          label="Verify Now"
+          mode="contained"
           disabled={!isComplete}
           onPress={handleVerify}
-          marginB-20
-        />
+          style={styles.verifyButton}
+        >
+          Verify Now
+        </Button>
 
-        <View row center>
-          <Text text80 color_grey30>Didn’t receive any code? </Text>
-          <Button link label="Resend Code" onPress={handleResend} />
+        <View style={styles.resendContainer}>
+          <Text style={styles.resendText}>Didn’t receive any code? </Text>
+          <Button mode="text" onPress={handleResend}>
+            Resend Code
+          </Button>
         </View>
       </KeyboardAvoidingView>
     );
@@ -97,7 +113,44 @@ const VerificationCodeForm = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-    progressBarFill: { height: 6, backgroundColor: '#00B5D8' },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#212121', // color_grey10
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    progressBar: {
+      height: 6,
+      borderRadius: 10,
+      marginBottom: 24,
+      backgroundColor: '#f0f0f0', // bg-grey70
+    },
+    title: {
+      fontSize: 24, // text60b
+      fontWeight: 'bold',
+      marginBottom: 8, // marginB-8
+    },
+    subtitle: {
+      fontSize: 14, // text80
+      color: '#888', // color_grey30
+      marginBottom: 24, // marginB-24
+    },
+    emailInput: {
+      marginBottom: 20,
+    },
+    codeContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 30, // marginB-30
+    },
     codeBox: {
       width: 48,
       height: 56,
@@ -108,6 +161,18 @@ const styles = StyleSheet.create({
       fontSize: 20,
       backgroundColor: '#F9F9F9',
       color: '#333',
+    },
+    verifyButton: {
+      marginBottom: 20, // marginB-20
+    },
+    resendContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    resendText: {
+      fontSize: 14, // text80
+      color: '#888', // color_grey30
     },
   });
 

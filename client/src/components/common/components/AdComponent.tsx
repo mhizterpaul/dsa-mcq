@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, Button } from 'react-native-ui-lib';
+import { View, StyleSheet } from 'react-native';
+import { Text, Button, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store/rootReducer';
@@ -32,29 +33,90 @@ const AdComponent = () => {
 
     if (!activeAd) {
         return (
-            <View center>
+            <View style={styles.loadingContainer}>
                 <Text>Loading ad...</Text>
-                <Button label="Add Dummy Ad" onPress={handleAddDummyData} />
+                <Button onPress={handleAddDummyData}>Add Dummy Ad</Button>
             </View>
         )
     }
 
   return (
     <View>
-      <View row centerV bg-purple20 br20 marginH-18 marginT-18 padding-18 style={{elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6}}>
-        <View flex>
-          <Text white text60b marginB-10>{activeAd.title}</Text>
-          <Button label={activeAd.buttonText} bg-purple50 br12 size={Button.sizes.small} onPress={handlePress} />
-        </View>
-        <Icon name={activeAd.icon} size={48} color="#FFBE0B" style={{ marginLeft: 10 }} />
-      </View>
-      <View row center marginT-10>
-        <View width={7} height={7} br100 bg-orange30 marginH-3 />
-        <View width={7} height={7} br100 bg-grey50 marginH-3 />
-        <View width={7} height={7} br100 bg-grey50 marginH-3 />
+      <Card style={styles.card}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>{activeAd.title}</Text>
+            <Button mode="contained" onPress={handlePress} style={styles.button} labelStyle={styles.buttonLabel}>
+              {activeAd.buttonText}
+            </Button>
+          </View>
+          <Icon name={activeAd.icon} size={48} color="#FFBE0B" style={styles.icon} />
+        </Card.Content>
+      </Card>
+      <View style={styles.dotContainer}>
+        <View style={[styles.dot, styles.activeDot]} />
+        <View style={styles.dot} />
+        <View style={styles.dot} />
       </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    backgroundColor: '#9B59B6', // bg-purple20
+    borderRadius: 20, // br20
+    marginHorizontal: 18, // marginH-18
+    marginTop: 18, // marginT-18
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18, // padding-18
+  },
+  textContainer: {
+    flex: 1,
+  },
+  title: {
+    color: '#fff', // white
+    fontSize: 24, // text60b
+    fontWeight: 'bold', // text60b
+    marginBottom: 10, // marginB-10
+  },
+  button: {
+    backgroundColor: '#8E44AD', // bg-purple50
+    borderRadius: 12, // br12
+    alignSelf: 'flex-start',
+  },
+  buttonLabel: {
+    fontSize: 14, // corresponds to Button.sizes.small
+  },
+  icon: {
+    marginLeft: 10,
+  },
+  dotContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 5, // br100
+    backgroundColor: '#E0E0E0', // bg-grey50
+    marginHorizontal: 3, // marginH-3
+  },
+  activeDot: {
+    backgroundColor: '#FFA500', // bg-orange30
+  },
+});
 
 export default AdComponent;
