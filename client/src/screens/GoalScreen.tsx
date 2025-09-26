@@ -1,19 +1,32 @@
 import React from 'react';
-import { View, Button } from 'react-native-ui-lib';
-import Feather from 'react-native-vector-icons/Feather';
-import { UserComponent } from '..';
+import { View, StyleSheet } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import GoalSetter from '../components/user/components/GoalSetter';
 
-const user = new UserComponent();
+interface GoalScreenProps {
+    navigation: StackNavigationProp<any>;
+}
 
-const GoalScreen = () => {
+const GoalScreen = ({ navigation }: GoalScreenProps) => {
   return (
-    <View flex padding-page style={{backgroundColor: '#121212'}}>
-      {user.renderGoal("GoalScreen")}
-      {// Add navigation backbutton
-      // Ensure to include bottom navigation
-      }
+    <View style={styles.container}>
+      <GoalSetter navigation={navigation} />
+      {/*
+        // Add navigation backbutton
+        // Ensure to include bottom navigation
+      */}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16, // Corresponds to padding-page
+    backgroundColor: '#121212',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 export default GoalScreen;

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Text, TouchableRipple, Surface } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -8,26 +9,63 @@ const BottomNav = () => {
   const route = useRoute();
   const activeScreen = route.name;
 
+  const navItems = [
+    { name: 'Home', icon: 'home', navigateTo: 'Home' },
+    { name: 'Bookmark', icon: 'bookmark', navigateTo: 'Bookmark' },
+    { name: 'Achievement', icon: 'seal', navigateTo: 'Achievement' },
+    { name: 'Profile', icon: 'account-circle', navigateTo: 'Profile' },
+  ];
+
   return (
-    <View row bg-white br20 marginH-18 marginB-12 paddingV-8 style={{elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4}}>
-      <TouchableOpacity flex center onPress={() => navigation.navigate('Home')}>
-        <Icon name="home" size={24} color={activeScreen === 'Home' ? '#FF7A3C' : '#B0B0B0'} />
-        <Text text90 color={activeScreen === 'Home' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Home</Text>
-      </TouchableOpacity>
-      <TouchableOpacity flex center onPress={() => navigation.navigate('Bookmark')}>
-        <Icon name="bookmark" size={24} color={activeScreen === 'Bookmark' ? '#FF7A3C' : '#B0B0B0'} />
-        <Text text90 color={activeScreen === 'Bookmark' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Bookmark</Text>
-      </TouchableOpacity>
-      <TouchableOpacity flex center onPress={() => navigation.navigate('Achievement')}>
-        <Icon name="seal" size={24} color={activeScreen === 'Achievement' ? '#FF7A3C' : '#B0B0B0'} />
-        <Text text90 color={activeScreen === 'Achievement' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Achievement</Text>
-      </TouchableOpacity>
-      <TouchableOpacity flex center onPress={() => navigation.navigate('Profile')}>
-        <Icon name="account-circle" size={24} color={activeScreen === 'Profile' ? '#FF7A3C' : '#B0B0B0'} />
-        <Text text90 color={activeScreen === 'Profile' ? '#FF7A3C' : '#B0B0B0'} style={{fontWeight: '600', marginTop: 2}}>Profile</Text>
-      </TouchableOpacity>
-    </View>
+    <Surface style={styles.container}>
+      {navItems.map((item) => {
+        const isActive = activeScreen === item.name;
+        const color = isActive ? '#FF7A3C' : '#B0B0B0';
+
+        return (
+          <TouchableRipple
+            key={item.name}
+            onPress={() => navigation.navigate(item.navigateTo as never)}
+            style={styles.navItem}
+            rippleColor="rgba(0, 0, 0, .32)"
+          >
+            <View style={styles.navItemContent}>
+              <Icon name={item.icon} size={24} color={color} />
+              <Text style={[styles.navItemText, { color }]}>{item.name}</Text>
+            </View>
+          </TouchableRipple>
+        );
+      })}
+    </Surface>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginHorizontal: 18,
+    marginBottom: 12,
+    paddingVertical: 8,
+    elevation: 4, // More pronounced shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    justifyContent: 'space-around',
+  },
+  navItem: {
+    flex: 1,
+    borderRadius: 15,
+  },
+  navItemContent: {
+    alignItems: 'center',
+  },
+  navItemText: {
+    fontSize: 12, // text90
+    fontWeight: '600',
+    marginTop: 2,
+  },
+});
 
 export default BottomNav;

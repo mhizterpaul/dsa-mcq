@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, Button } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Text, Button, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../../engagement/store/store';
@@ -29,22 +30,65 @@ const DailyQuizBanner: React.FC<DailyQuizBannerProps> = ({ navigation }) => {
 
   useEffect(() => {
     handleAddDummyData();
-  }, []);
+  }, [dispatch]);
 
   const handleJoinQuiz = () => {
     navigation.navigate('DailyQuiz');
   };
 
   return (
-    <View row spread centerV bg-orange20 br20 marginH-18 marginT-18 padding-18>
-      <View>
-        <Text text70b>{dailyQuiz?.title}</Text>
-        <Text text80>{dailyQuiz?.description}</Text>
-        <Button label="Join a quiz" bg-orange50 br12 size={Button.sizes.small} marginT-10 onPress={handleJoinQuiz} />
-      </View>
-      <Icon name="head-question-outline" size={48} color="white" />
-    </View>
+    <Card style={styles.card}>
+      <Card.Content style={styles.cardContent}>
+        <View>
+          <Text style={styles.title}>{dailyQuiz?.title}</Text>
+          <Text style={styles.description}>{dailyQuiz?.description}</Text>
+          <Button
+            mode="contained"
+            onPress={handleJoinQuiz}
+            style={styles.button}
+            labelStyle={styles.buttonLabel}
+            compact
+          >
+            Join a quiz
+          </Button>
+        </View>
+        <Icon name="head-question-outline" size={48} color="white" />
+      </Card.Content>
+    </Card>
   );
 };
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#FFB74D', // bg-orange20
+    borderRadius: 20, // br20
+    marginHorizontal: 18, // marginH-18
+    marginTop: 18, // marginT-18
+  },
+  cardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 18, // padding-18
+  },
+  title: {
+    fontSize: 18, // text70b
+    fontWeight: 'bold', // text70b
+    color: 'white',
+  },
+  description: {
+    fontSize: 14, // text80
+    color: 'white',
+  },
+  button: {
+    backgroundColor: '#F57C00', // bg-orange50
+    borderRadius: 12, // br12
+    marginTop: 10, // marginT-10
+    alignSelf: 'flex-start',
+  },
+  buttonLabel: {
+    color: 'white',
+  },
+});
 
 export default DailyQuizBanner;

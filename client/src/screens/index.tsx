@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native-ui-lib';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { FAB } from 'react-native-paper';
 import store from '../store';
 import { Provider } from 'react-redux';
 import { UserComponent } from '../components/user/interface';
@@ -7,7 +8,6 @@ import { LearningComponent } from '../components/learning/interface';
 import { EngagementComponent } from '../components/engagement/interface';
 import BottomNav from '../components/common/components/BottomNav';
 import AdComponent from '../components/common/components/AdComponent';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const user = new UserComponent();
 const learning = new LearningComponent();
@@ -20,9 +20,9 @@ const HomeScreenContent = ({ navigation }: any) => {
   };
 
   return (
-    <View flex bg-grey80>
+    <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View row spread centerV marginT-10 marginH-18>
+        <View style={styles.header}>
           {user.renderUserProfileSummary("index")}
           {engagement.renderUserScore("index")}
         </View>
@@ -38,31 +38,32 @@ const HomeScreenContent = ({ navigation }: any) => {
 
       <BottomNav navigation={navigation} activeScreen="Home" />
 
-      <TouchableOpacity
+      <FAB
         style={styles.fab}
+        icon="plus"
         onPress={handleStartQuiz}
-      >
-        <Icon name="plus" size={30} color="#fff" />
-      </TouchableOpacity>
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F5F5F5', // bg-grey80
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 10,
+        marginHorizontal: 18,
+    },
     fab: {
         position: 'absolute',
-        width: 56,
-        height: 56,
-        alignItems: 'center',
-        justifyContent: 'center',
         right: '50%',
         bottom: 30,
         backgroundColor: '#FF7A3C',
-        borderRadius: 28,
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
         transform: [{ translateX: 28 }], // Center the button
     },
 });
@@ -76,4 +77,4 @@ const HomeScreen = ({ navigation }: any) => {
 };
 
 
-export default HomeScreen; 
+export default HomeScreen;

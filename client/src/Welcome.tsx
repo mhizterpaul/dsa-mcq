@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Button, Image } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Text, Button, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useOAuth } from './components/common/hooks/useOAuth';
@@ -27,48 +28,126 @@ const Welcome: React.FC<WelcomeProps> = ({ navigation }) => {
     };
 
     return (
-        <View flex centerH paddingH-20 paddingT-20 bg-white>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1560185008-5a0d6c72c11d', // placeholder
-            }}
-            style={{width: '100%', height: 200}}
-            cover={false}
-            borderRadius={12}
-            marginB-20
-          />
+        <View style={styles.container}>
+          <Card style={styles.card}>
+            <Card.Cover
+              source={{
+                uri: 'https://images.unsplash.com/photo-1560185008-5a0d6c72c11d', // placeholder
+              }}
+              style={styles.image}
+            />
+          </Card>
 
-          <View row centerV marginB-12>
+          <View style={styles.logoContainer}>
             <Icon name="home-outline" size={36} color="#00B5D8" />
-            <Text text70b marginL-6>NestHouse</Text>
+            <Text style={styles.logoText}>NestHouse</Text>
           </View>
 
-          <Text text60b center marginB-8>
-            Find Your <Text color-cyan30>Dream</Text> Home with Ease
+          <Text style={styles.title}>
+            Find Your <Text style={styles.titleHighlight}>Dream</Text> Home with Ease
           </Text>
-          <Text text80 color-grey30 center marginB-24>
+          <Text style={styles.subtitle}>
             NestHouse helps you discover the perfect property tailored to your
             needs
           </Text>
 
-          <View row marginB-20>
-            <Button label="Login" flex marginH-4 onPress={handleLogin} />
-            <Button label="Register" flex marginH-4 bg-cyan80 onPress={handleRegister} />
+          <View style={styles.buttonContainer}>
+            <Button mode="contained" style={styles.button} onPress={handleLogin}>
+              Login
+            </Button>
+            <Button mode="contained" style={[styles.button, styles.registerButton]} onPress={handleRegister}>
+              Register
+            </Button>
           </View>
 
-          <View row centerV marginB-16 width="80%">
-            <View flex height={1} bg-grey70 />
-            <Text text90 marginH-8 color-grey50>Or sign in with</Text>
-            <View flex height={1} bg-grey70 />
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>Or sign in with</Text>
+            <View style={styles.divider} />
           </View>
 
-          <View row spread width="50%">
+          <View style={styles.socialIconsContainer}>
             <Icon name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
             <Icon name="github" size={30} color="#000" onPress={() => signIn('github')} />
-            <Icon name="twitter" size={30} color="#000" onPress={() => signIn('twitter')} />
+            <Icon name="twitter" size={30} color="#1DA1F2" onPress={() => signIn('twitter')} />
           </View>
         </View>
       );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        backgroundColor: '#fff',
+    },
+    card: {
+        width: '100%',
+        marginBottom: 20,
+        borderRadius: 12,
+    },
+    image: {
+        height: 200,
+    },
+    logoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    logoText: {
+        fontSize: 20, // text70b
+        fontWeight: 'bold',
+        marginLeft: 6,
+    },
+    title: {
+        fontSize: 24, // text60b
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    titleHighlight: {
+        color: '#00B5D8', // color-cyan30
+    },
+    subtitle: {
+        fontSize: 14, // text80
+        color: '#888', // color-grey30
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        marginBottom: 20,
+    },
+    button: {
+        flex: 1,
+        marginHorizontal: 4,
+    },
+    registerButton: {
+        backgroundColor: '#007A8D', // bg-cyan80 (darker cyan)
+    },
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        width: '80%',
+    },
+    divider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E0E0E0', // bg-grey70
+    },
+    dividerText: {
+        marginHorizontal: 8,
+        fontSize: 12, // text90
+        color: '#BDBDBD', // color-grey50
+    },
+    socialIconsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '50%',
+    },
+});
 
 export default Welcome;
