@@ -78,6 +78,17 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
     }
   };
 
+  const handleOAuthSignIn = async (provider: 'google' | 'github' | 'twitter') => {
+    try {
+      await signIn(provider);
+    } catch (error) {
+      setToast({
+        visible: true,
+        message: error instanceof Error ? error.message : 'OAuth sign-in failed'
+      });
+    }
+  };
+
   const handleToastHide = () => {
     setToast({ ...toast, visible: false });
   };
@@ -184,9 +195,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           <View style={styles.divider} />
         </View>
         <View style={styles.socialIconsContainer}>
-          <Icon testID="google-button" name="google" size={30} color="#DB4437" onPress={() => signIn('google')} />
-          <Icon testID="github-button" name="github" size={30} color="#000" onPress={() => signIn('github')} />
-          <Icon testID="twitter-button" name="twitter" size={30} color="#1DA1F2" onPress={() => signIn('twitter')} />
+          <Icon testID="google-button" name="google" size={30} color="#DB4437" onPress={() => handleOAuthSignIn('google')} />
+          <Icon testID="github-button" name="github" size={30} color="#000" onPress={() => handleOAuthSignIn('github')} />
+          <Icon testID="twitter-button" name="twitter" size={30} color="#1DA1F2" onPress={() => handleOAuthSignIn('twitter')} />
         </View>
       </View>
     </KeyboardAvoidingView>

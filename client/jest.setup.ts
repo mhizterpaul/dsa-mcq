@@ -12,37 +12,63 @@ NativeModules.StatusBarManager = {
 import 'react-native-gesture-handler/jestSetup';
 import '@testing-library/jest-native/extend-expect';
 
-
 // Comprehensive mock for the core Animated library
 jest.mock('react-native/Libraries/Animated/Animated', () => {
-  const ActualAnimated = jest.requireActual('react-native/Libraries/Animated/Animated');
+  const ActualAnimated = jest.requireActual(
+    'react-native/Libraries/Animated/Animated',
+  );
+  const addListener = () => 'listener-id';
+  const removeListener = () => {};
+  const removeAllListeners = () => {};
+
   return {
     ...ActualAnimated,
-    Value: jest.fn(() => ({
+    Value: jest.fn().mockImplementation(() => ({
       __getValue: jest.fn(() => 0),
       setValue: jest.fn(),
       setOffset: jest.fn(),
-      addListener: jest.fn(() => 'listener-id'),
-      removeListener: jest.fn(),
-      removeAllListeners: jest.fn(),
+      addListener: jest.fn(addListener),
+      removeListener: jest.fn(removeListener),
+      removeAllListeners: jest.fn(removeAllListeners),
       interpolate: jest.fn(() => 0),
     })),
     timing: (value, config) => ({
       start: (callback) => {
+        value.setValue(config.toValue);
         if (callback) {
           callback({ finished: true });
         }
       },
-      stop: jest.fn(),
+      stop: () => {},
     }),
     spring: (value, config) => ({
       start: (callback) => {
+        value.setValue(config.toValue);
         if (callback) {
           callback({ finished: true });
         }
       },
-      stop: jest.fn(),
+      stop: () => {},
     }),
+    sequence: (animations) => ({
+      start: (callback) => {
+        animations.forEach((anim) => anim.start());
+        if (callback) {
+          callback({ finished: true });
+        }
+      },
+      stop: () => {},
+    }),
+    parallel: (animations) => ({
+      start: (callback) => {
+        animations.forEach((anim) => anim.start());
+        if (callback) {
+          callback({ finished: true });
+        }
+      },
+      stop: () => {},
+    }),
+    event: jest.fn(() => () => {}),
   };
 });
 
@@ -57,14 +83,13 @@ global.TextDecoder = global.TextDecoder || TextDecoder;
 // Polyfill minimal crypto for libraries that need it
 if (!global.crypto) {
   global.crypto = {
-    getRandomValues: (arr: Uint8Array) =>
-      require('crypto').randomBytes(arr.length),
-  } as Crypto;
+    getRandomValues: (arr) => require('crypto').randomBytes(arr.length),
+  };
 }
 
 // Ensure global.window is defined (some libs expect it)
 if (typeof global.window === 'undefined') {
-  global.window = global as any;
+  global.window = global;
 }
 
 // ---- Navigation Mocks ----
@@ -81,8 +106,10 @@ jest.mock('@react-navigation/stack', () => {
   const React = require('react');
   return {
     createStackNavigator: () => ({
-      Navigator: ({ children }: any) => React.createElement(React.Fragment, null, children),
-      Screen: ({ children }: any) => React.createElement(React.Fragment, null, children),
+      Navigator: ({ children }) =>
+        React.createElement(React.Fragment, null, children),
+      Screen: ({ children }) =>
+        React.createElement(React.Fragment, null, children),
     }),
   };
 });
