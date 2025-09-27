@@ -1,61 +1,46 @@
 import { useDispatch } from 'react-redux';
-import { authorize } from 'react-native-app-auth';
+import { authorize, AuthConfiguration } from 'react-native-app-auth';
+
 import { loginWithProviderToken } from '../../user/store/user.slice';
 import { AppDispatch } from '../../../store';
 
-// TODO: These credentials should be loaded from environment variables
-const GITHUB_CLIENT_ID = 'your-github-client-id';
-const GITHUB_CLIENT_SECRET = 'your-github-client-secret';
-const GOOGLE_WEB_CLIENT_ID = 'your-google-web-client-id.apps.googleusercontent.com';
-
-const configs = {
+// TODO: These should be loaded from environment variables
+const configs: Record<string, AuthConfiguration> = {
   google: {
     issuer: 'https://accounts.google.com',
-    clientId: GOOGLE_WEB_CLIENT_ID,
-    redirectUrl: 'com.googleusercontent.apps.your-google-web-client-id:/oauth2redirect/google',
+    clientId: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+    redirectUrl: 'com.yourapp:/oauth2redirect/google',
     scopes: ['openid', 'profile', 'email'],
   },
-  github: {
-    clientId: GITHUB_CLIENT_ID,
-    clientSecret: GITHUB_CLIENT_SECRET,
-    redirectUrl: 'io.dsa-mcq.app://oauth-callback/github',
-    scopes: ['identity', 'user:email'],
-    serviceConfiguration: {
-      authorizationEndpoint: 'https://github.com/login/oauth/authorize',
-      tokenEndpoint: 'https://github.com/login/oauth/access_token',
-      revocationEndpoint: `https://github.com/settings/connections/applications/${GITHUB_CLIENT_ID}`
-    },
-  },
-  twitter: {
-    // Twitter has been deprecated from the project due to API costs
-    // and is no longer supported.
-  },
+  // Github and Twitter would be configured here as well
 };
 
 export const useOAuth = () => {
   const dispatch: AppDispatch = useDispatch();
 
-  const signIn = async (provider: 'google' | 'github') => {
+  const signIn = async (provider: 'google' | 'github' | 'twitter') => {
+    const config = configs[provider];
+    if (!config) {
+      throw new Error(`OAuth provider '${provider}' is not configured.`);
+    }
+
     try {
-      const config = configs[provider];
-      if (!config) {
-        throw new Error(`Provider "${provider}" is not supported.`);
-      }
-
-      const { accessToken } = await authorize(config);
-
-      if (accessToken) {
-        // For the mocked server, we need to send a specific token
-        dispatch(loginWithProviderToken({ provider, token: 'valid-token' }));
+      const authState = await authorize(config);
+      if (authState.accessToken) {
+        dispatch(loginWithProviderToken({ provider, token: authState.accessToken }));
       } else {
-        throw new Error('Failed to get access token from provider.');
+        throw new Error('OAuth login failed: No access token received.');
       }
     } catch (error) {
-      console.error('OAuth Error:', error);
-      // Re-throw the error to be caught by the component
-      throw error;
+      console.error(error);
+      throw new Error('OAuth sign-in failed');
     }
   };
 
-  return { signIn };
+  const signOut = async (provider: 'google' | 'github' | 'twitter') => {
+    // This is a placeholder for a real sign-out implementation
+    console.log(`Signing out from ${provider}`);
+  };
+
+  return { signIn, signOut };
 };

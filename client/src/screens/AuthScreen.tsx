@@ -130,7 +130,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
       <View style={styles.formContainer}>
         <TextInput
-          testID="email-input"
+          accessibilityLabel="Email"
           label="Email"
           value={email}
           onChangeText={setEmail}
@@ -140,7 +140,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           style={styles.input}
         />
         <TextInput
-          testID="password-input"
+          accessibilityLabel="Password"
           label="Password"
           value={password}
           onChangeText={setPassword}
@@ -151,7 +151,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
         {!isLogin && (
           <TextInput
-            testID="confirm-password-input"
+            accessibilityLabel="Confirm Password"
             label="Confirm Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
