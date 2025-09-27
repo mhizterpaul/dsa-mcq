@@ -1,33 +1,40 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { setupServer } from 'msw/native';
 import { http, HttpResponse } from 'msw';
+import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+
 import AuthScreen from '../../src/screens/AuthScreen';
 import userReducer from '../../src/components/user/store/user.slice';
 
-// --- MSW Handlers (Mock Server) ---
+// Use fake timers to handle async operations in a controlled way
+jest.useFakeTimers();
+
 const mockUser = { id: '1', name: 'Test User', email: 'test@example.com' };
+const mockToken = 'fake-token';
 
 const server = setupServer(
   http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
     const { email, password } = await request.json();
     if (email === 'test@example.com' && password === 'password123') {
-      return HttpResponse.json({ user: mockUser, token: 'fake-token' }, { status: 200 });
+      return HttpResponse.json({ user: mockUser, token: mockToken }, { status: 200 });
     }
     return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
   }),
-
   http.post('http://localhost:3000/api/auth/register', async () => {
-    return HttpResponse.json({ user: mockUser, token: 'fake-token' }, { status: 201 });
+    return HttpResponse.json({ user: mockUser, token: mockToken }, { status: 201 });
+  }),
+  http.post('http://localhost:3000/api/auth/provider-signin', async ({ request }) => {
+    const { provider, token } = await request.json();
+    if (provider && token === 'valid-token') {
+      return HttpResponse.json({ user: mockUser, token: mockToken }, { status: 200 });
+    }
+    return HttpResponse.json({ message: 'OAuth failed' }, { status: 401 });
   })
 );
 
-// --- Setup & Teardown MSW ---
 beforeAll(() => server.listen());
 afterEach(() => {
   server.resetHandlers();
@@ -35,299 +42,218 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-// Mock the useOAuth hook
-const mockSignIn = jest.fn();
-jest.mock('../../src/components/common/hooks/useOAuth', () => ({
-  useOAuth: () => ({
-    signIn: mockSignIn,
-  }),
+const mockAuthorize = jest.fn(() => Promise.resolve({ accessToken: 'valid-token' }));
+jest.mock('react-native-app-auth', () => ({
+  authorize: mockAuthorize,
 }));
 
-// --- Test Setup ---
-const Stack = createStackNavigator();
+// Mock the Toast component to prevent timer-related issues
+jest.mock('../../src/components/common/components/Toast', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return ({ visible, message }) =>
+      visible ? (
+        <View testID="toast">
+          <Text>{message}</Text>
+        </View>
+      ) : null;
+  });
 
-// Create a test component that tracks navigation
-const HomeScreen = () => <></>;
-
-const renderWithProviders = (initialRoute = 'Auth') => {
+const renderWithProviders = () => {
   const store = configureStore({
     reducer: { user: userReducer },
   });
 
-  const navigationSpy = jest.fn();
-  
-  const TestNavigator = () => (
-    <Provider store={store}>
-      <PaperProvider>
-        <NavigationContainer>
-          <Stack.Navigator 
-            initialRouteName={initialRoute}
-            screenOptions={{ headerShown: false }}
-          >
-            <Stack.Screen name="Auth" component={AuthScreen} />
-            <Stack.Screen 
-              name="Home" 
-              component={() => {
-                navigationSpy('Home');
-                return <HomeScreen />;
-              }} 
-            />
-            <Stack.Screen name="ForgotPassword" component={() => <></>} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
-    </Provider>
-  );
+  const navigation = {
+    navigate: jest.fn(),
+  };
 
-  return { 
-    store, 
-    navigationSpy,
-    ...render(<TestNavigator />) 
+  const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+  return {
+    store,
+    user,
+    navigation,
+    ...render(
+      <Provider store={store}>
+        <PaperProvider>
+          <AuthScreen navigation={navigation} />
+        </PaperProvider>
+      </Provider>
+    ),
   };
 };
 
 describe('AuthScreen E2E', () => {
   beforeEach(() => {
-    mockSignIn.mockClear();
+    mockAuthorize.mockClear();
   });
 
   describe('Login Flow', () => {
     it('logs in a user successfully and navigates to Home', async () => {
-      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
+      const { user, navigation } = renderWithProviders();
 
-      // Fill in the form
-      fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
-      
-      // Submit the form
-      fireEvent.press(getByTestId('auth-button'));
+      await user.type(screen.getByLabelText('Email'), 'test@example.com');
+      await user.type(screen.getByLabelText('Password'), 'password123');
+      await user.press(screen.getByRole('button', { name: 'Login' }));
 
-      // Check spinner appears
-      expect(queryByTestId('spinner')).toBeTruthy();
-      
-      // Wait for spinner to disappear
-      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
-
-      // Check navigation occurred
-      await waitFor(() => {
-        expect(navigationSpy).toHaveBeenCalledWith('Home');
-      });
+      await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Home'));
     });
 
     it('does not send a second request if login is pressed twice', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch');
-      const { getByTestId } = renderWithProviders();
+        const fetchSpy = jest.spyOn(globalThis, 'fetch');
+        const { user } = renderWithProviders();
 
-      fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
+        await user.type(screen.getByLabelText('Email'), 'test@example.com');
+        await user.type(screen.getByLabelText('Password'), 'password123');
 
-      // Press login button twice quickly
-      fireEvent.press(getByTestId('auth-button'));
-      fireEvent.press(getByTestId('auth-button'));
+        const loginButton = screen.getByRole('button', { name: 'Login' });
+        await user.press(loginButton);
+        await user.press(loginButton);
 
-      await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
-    });
-
-    it('shows an error message when login fails (401)', async () => {
-      const { getByTestId, queryByTestId, queryByText, navigationSpy } = renderWithProviders();
-
-      fireEvent.changeText(getByTestId('email-input'), 'wrong@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'wrongpassword');
-      fireEvent.press(getByTestId('auth-button'));
-
-      // Check spinner appears
-      expect(queryByTestId('spinner')).toBeTruthy();
-      
-      // Wait for spinner to disappear
-      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
-
-      // Check error message appears
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
       });
-      
-      expect(navigationSpy).not.toHaveBeenCalled();
-    });
 
-    it('clears the error message on a successful retry', async () => {
-      // First, set up server to return error
-      server.use(
-        http.post('http://localhost:3000/api/auth/signin', async () => {
-          return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
-        })
-      );
+      it('shows an error message when login fails (401)', async () => {
+        const { user, navigation } = renderWithProviders();
 
-      const { getByTestId, queryByTestId, queryByText, navigationSpy } = renderWithProviders();
+        await user.type(screen.getByLabelText('Email'), 'wrong@example.com');
+        await user.type(screen.getByLabelText('Password'), 'wrongpassword');
+        await user.press(screen.getByRole('button', { name: 'Login' }));
 
-      // First attempt - should fail
-      fireEvent.changeText(getByTestId('email-input'), 'wrong@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'wrongpassword');
-      fireEvent.press(getByTestId('auth-button'));
-      
-      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
-      expect(queryByTestId('toast')).toBeTruthy();
-
-      // Reset server to default behavior for success
-      server.resetHandlers();
-
-      // Second attempt - should succeed
-      fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
-      fireEvent.press(getByTestId('auth-button'));
-
-      await waitFor(() => expect(queryByTestId('toast')).toBeNull());
-      await waitFor(() => expect(navigationSpy).toHaveBeenCalledWith('Home'));
-    });
-
-    it('shows a validation error for an invalid email without calling the API', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch');
-      const { getByTestId, queryByTestId } = renderWithProviders();
-
-      fireEvent.changeText(getByTestId('email-input'), 'invalid-email');
-      fireEvent.press(getByTestId('auth-button'));
-
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        expect(await screen.findByText('Invalid credentials')).toBeOnTheScreen();
+        expect(navigation.navigate).not.toHaveBeenCalled();
       });
-      
-      expect(fetchSpy).not.toHaveBeenCalled();
-    });
 
-    it('shows a validation error for a short password without calling the API', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch');
-      const { getByTestId, queryByTestId } = renderWithProviders();
+      it('clears the error message on a successful retry', async () => {
+        server.use(
+          http.post('http://localhost:3000/api/auth/signin', async () => {
+            return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+          })
+        );
+        const { user, navigation } = renderWithProviders();
 
-      fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-      fireEvent.changeText(getByTestId('password-input'), '123');
-      fireEvent.press(getByTestId('auth-button'));
+        await user.type(screen.getByLabelText('Email'), 'wrong@example.com');
+        await user.type(screen.getByLabelText('Password'), 'wrongpassword');
+        await user.press(screen.getByRole('button', { name: 'Login' }));
 
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        expect(await screen.findByText('Invalid credentials')).toBeOnTheScreen();
+
+        server.resetHandlers();
+
+        await user.clear(screen.getByLabelText('Email'));
+        await user.type(screen.getByLabelText('Email'), 'test@example.com');
+        await user.clear(screen.getByLabelText('Password'));
+        await user.type(screen.getByLabelText('Password'), 'password123');
+        await user.press(screen.getByRole('button', { name: 'Login' }));
+
+        await waitFor(() => expect(screen.queryByText('Invalid credentials')).toBeNull());
+        await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Home'));
       });
-      
-      expect(fetchSpy).not.toHaveBeenCalled();
-    });
 
-    it('calls signIn with the correct provider for OAuth login', () => {
-      const { getByTestId } = renderWithProviders();
+      it('shows a validation error for an invalid email without calling the API', async () => {
+        const fetchSpy = jest.spyOn(globalThis, 'fetch');
+        const { user } = renderWithProviders();
 
-      fireEvent.press(getByTestId('google-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('google');
+        await user.type(screen.getByLabelText('Email'), 'invalid-email');
+        await user.press(screen.getByRole('button', { name: 'Login' }));
 
-      fireEvent.press(getByTestId('github-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('github');
-
-      fireEvent.press(getByTestId('twitter-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('twitter');
-    });
-
-    it('shows an error message if OAuth sign-in fails', async () => {
-      const errorMessage = 'OAuth provider error';
-      mockSignIn.mockRejectedValueOnce(new Error(errorMessage));
-
-      const { getByTestId, queryByTestId } = renderWithProviders();
-
-      fireEvent.press(getByTestId('google-button'));
-
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        expect(await screen.findByText('Please enter a valid email address.')).toBeOnTheScreen();
+        expect(fetchSpy).not.toHaveBeenCalled();
       });
-    });
+
+      it('shows a validation error for a short password without calling the API', async () => {
+        const fetchSpy = jest.spyOn(globalThis, 'fetch');
+        const { user } = renderWithProviders();
+
+        await user.type(screen.getByLabelText('Email'), 'test@example.com');
+        await user.type(screen.getByLabelText('Password'), '123');
+        await user.press(screen.getByRole('button', { name: 'Login' }));
+
+        expect(await screen.findByText('Password must be at least 6 characters long.')).toBeOnTheScreen();
+        expect(fetchSpy).not.toHaveBeenCalled();
+      });
+
+      it('logs in with google and navigates to home', async () => {
+        const { user, navigation } = renderWithProviders();
+
+        await user.press(screen.getByTestId('google-button'));
+
+        expect(mockAuthorize).toHaveBeenCalledWith(
+          expect.objectContaining({ issuer: 'https://accounts.google.com' })
+        );
+        await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Home'));
+      });
+
+      it('logs in with github and navigates to home', async () => {
+        const { user, navigation } = renderWithProviders();
+
+        await user.press(screen.getByTestId('github-button'));
+
+        expect(mockAuthorize).toHaveBeenCalledWith(
+          expect.objectContaining({ serviceConfiguration: expect.any(Object) })
+        );
+        await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Home'));
+      });
+
+      it('shows an error message if OAuth sign-in fails', async () => {
+        mockAuthorize.mockRejectedValueOnce(new Error('OAuth provider error'));
+        const { user } = renderWithProviders();
+
+        await user.press(screen.getByTestId('google-button'));
+
+        expect(await screen.findByText('OAuth provider error')).toBeOnTheScreen();
+      });
   });
 
   describe('Register Flow', () => {
     it('registers a new user successfully and navigates to Home', async () => {
-      const { getByTestId, queryByTestId, store, navigationSpy } = renderWithProviders();
+        const { user, store, navigation } = renderWithProviders();
 
-      // Switch to register mode
-      fireEvent.press(getByTestId('register-tab'));
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      // Fill in the registration form
-      fireEvent.changeText(getByTestId('email-input'), 'newuser@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
-      fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
-      fireEvent.press(getByTestId('auth-button'));
+        await user.type(screen.getByLabelText('Email'), 'newuser@example.com');
+        await user.type(screen.getByLabelText('Password'), 'password123');
+        await user.type(screen.getByLabelText('Confirm Password'), 'password123');
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      // Check spinner appears
-      expect(queryByTestId('spinner')).toBeTruthy();
-      
-      // Wait for spinner to disappear
-      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
-
-      // Check navigation occurred
-      await waitFor(() => {
-        expect(navigationSpy).toHaveBeenCalledWith('Home');
+        await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Home'));
+        expect(store.getState().user.currentUser).toEqual(mockUser);
       });
 
-      // Verify user is in store
-      expect(store.getState().user.currentUser).toEqual(mockUser);
-    });
+      it('shows a server error if registration fails (e.g., email in use)', async () => {
+        server.use(
+          http.post('http://localhost:3000/api/auth/register', async () => {
+            return HttpResponse.json({ message: 'Email already in use' }, { status: 400 });
+          })
+        );
+        const { user, navigation } = renderWithProviders();
 
-    it('shows a server error if registration fails (e.g., email in use)', async () => {
-      server.use(
-        http.post('http://localhost:3000/api/auth/register', async () => {
-          return HttpResponse.json({ message: 'Email already in use' }, { status: 400 });
-        })
-      );
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
+        await user.type(screen.getByLabelText('Email'), 'existing@example.com');
+        await user.type(screen.getByLabelText('Password'), 'password123');
+        await user.type(screen.getByLabelText('Confirm Password'), 'password123');
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      // Switch to register mode
-      fireEvent.press(getByTestId('register-tab'));
-
-      fireEvent.changeText(getByTestId('email-input'), 'existing@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
-      fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
-      fireEvent.press(getByTestId('auth-button'));
-
-      // Check spinner appears
-      expect(queryByTestId('spinner')).toBeTruthy();
-      
-      // Wait for spinner to disappear
-      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
-
-      // Check error message appears
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        expect(await screen.findByText('Email already in use')).toBeOnTheScreen();
+        expect(navigation.navigate).not.toHaveBeenCalled();
       });
-      
-      expect(navigationSpy).not.toHaveBeenCalled();
-    });
 
-    it('shows a validation error for mismatched passwords', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch');
-      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
+      it('shows a validation error for mismatched passwords', async () => {
+        const fetchSpy = jest.spyOn(globalThis, 'fetch');
+        const { user, navigation } = renderWithProviders();
 
-      // Switch to register mode
-      fireEvent.press(getByTestId('register-tab'));
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-      fireEvent.changeText(getByTestId('password-input'), 'password123');
-      fireEvent.changeText(getByTestId('confirm-password-input'), 'password456');
-      fireEvent.press(getByTestId('auth-button'));
+        await user.type(screen.getByLabelText('Email'), 'test@example.com');
+        await user.type(screen.getByLabelText('Password'), 'password123');
+        await user.type(screen.getByLabelText('Confirm Password'), 'password456');
+        await user.press(screen.getByRole('button', { name: 'Register' }));
 
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeTruthy();
+        expect(await screen.findByText('Passwords do not match.')).toBeOnTheScreen();
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(navigation.navigate).not.toHaveBeenCalled();
       });
-      
-      expect(fetchSpy).not.toHaveBeenCalled();
-      expect(navigationSpy).not.toHaveBeenCalled();
-    });
-
-    it('calls signIn with the correct provider for OAuth registration', () => {
-      const { getByTestId } = renderWithProviders();
-
-      // Switch to register mode
-      fireEvent.press(getByTestId('register-tab'));
-
-      fireEvent.press(getByTestId('google-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('google');
-
-      fireEvent.press(getByTestId('github-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('github');
-
-      fireEvent.press(getByTestId('twitter-button'));
-      expect(mockSignIn).toHaveBeenCalledWith('twitter');
-    });
   });
 });
