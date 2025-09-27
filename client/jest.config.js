@@ -7,27 +7,7 @@ module.exports = {
   },
 
   transformIgnorePatterns: [
-    'node_modules/(?!(' +
-      [
-        '@react-native',                // React Native core
-        'react-native',                 // RN main package
-        'react-clone-referenced-element',
-        '@react-navigation',
-        'react-native-url-polyfill',
-        'whatwg-url-without-unicode',
-        'react-native-gesture-handler',
-        'react-native-reanimated', 
-        'react-redux',
-        '@reduxjs/toolkit',
-        'immer',
-        '@mswjs/interceptors',
-        'msw',
-        'react-native-vector-icons',
-        '@testing-library',             // ✅ include all testing-library deps
-      ]
-        .map(pkg => `${pkg}(/.*)?`)
-        .join('|') +
-      ')/)',  // ✅ Properly closes group and regex
+    'node_modules/(?!(react-native|@react-native|react-native-paper|react-native-vector-icons|react-native-gesture-handler|@react-navigation|react-native-app-auth|react-native-base64|msw)/)',
   ],
 
   setupFilesAfterEnv: ['./jest.setup.ts'],
@@ -40,7 +20,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
 
-  clearMocks: true,
-  verbose: true,
-  testTimeout: 20000,
+ testEnvironment: 'node',
+  setupFiles: ['<rootDir>/node_modules/react-native-gesture-handler/jestSetup.js'],
 };

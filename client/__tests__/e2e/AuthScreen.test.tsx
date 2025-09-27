@@ -2,188 +2,121 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
+import { setupServer } from 'msw/native';
+import { http, HttpResponse } from 'msw';
 import AuthScreen from '../../src/screens/AuthScreen';
+import userReducer from '../../src/components/user/store/user.slice';
 
-// Mock the user slice actions
-const mockLoginUser = jest.fn();
-const mockRegisterUser = jest.fn();
-jest.mock('../../src/components/user/store/user.slice', () => ({
-  loginUser: mockLoginUser,
-  registerUser: mockRegisterUser,
-}));
+// --- MSW Handlers (Mock Server) ---
+const mockUser = { id: '1', name: 'Test User', email: 'test@example.com' };
 
-// Mock the useOAuth hook - fixed version
+const server = setupServer(
+  http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
+    const { email, password } = await request.json();
+    if (email === 'test@example.com' && password === 'password123') {
+      return HttpResponse.json({ user: mockUser, token: 'fake-token' }, { status: 200 });
+    }
+    return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+  }),
+
+  http.post('http://localhost:3000/api/auth/register', async () => {
+    return HttpResponse.json({ user: mockUser, token: 'fake-token' }, { status: 201 });
+  })
+);
+
+// --- Setup & Teardown MSW ---
+beforeAll(() => server.listen());
+afterEach(() => {
+  server.resetHandlers();
+  jest.clearAllMocks();
+});
+afterAll(() => server.close());
+
+// Mock the useOAuth hook
 const mockSignIn = jest.fn();
 jest.mock('../../src/components/common/hooks/useOAuth', () => ({
-  useOAuth: jest.fn(() => ({
+  useOAuth: () => ({
     signIn: mockSignIn,
-  })),
+  }),
 }));
 
-// Mock navigation
-const mockNavigate = jest.fn();
-const mockNavigation = {
-  navigate: mockNavigate,
-  goBack: jest.fn(),
-  dispatch: jest.fn(),
-  setParams: jest.fn(),
-  addListener: jest.fn(),
-  removeListener: jest.fn(),
-  canGoBack: jest.fn(() => false),
-  isFocused: jest.fn(() => true),
-  push: jest.fn(),
-  pop: jest.fn(),
-  popToTop: jest.fn(),
-  replace: jest.fn(),
-  reset: jest.fn(),
-};
+// --- Test Setup ---
+const Stack = createStackNavigator();
 
-// Mock the common components
-jest.mock('../../src/components/common/components/Spinner', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return ({ visible }: { visible: boolean }) =>
-    visible ? React.createElement(View, { testID: 'spinner' }) : null;
-});
+// Create a test component that tracks navigation
+const HomeScreen = () => <></>;
 
-jest.mock('../../src/components/common/components/Toast', () => {
-  const React = require('react');
-  const { Text, View } = require('react-native');
-  return ({ visible, message }: { visible: boolean; message: string }) =>
-    visible ? React.createElement(View, {testID: 'toast'}, React.createElement(Text, null, message)) : null;
-});
-
-// Mock react-native-vector-icons
-jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  const MockIcon = ({ name, size, color, onPress, testID }: any) => (
-    <Text
-      onPress={onPress}
-      testID={testID}
-      style={{ fontSize: size, color: color }}
-    >
-      {name}
-    </Text>
-  );
-  return MockIcon;
-});
-
-// Create test store that matches your user slice structure
-const createTestStore = (preloadedState = {}) => {
-  const defaultUserState = {
-    currentUser: null,
-    loading: false,
-    error: null,
-  };
-
-  return configureStore({
-    reducer: {
-      user: (state = defaultUserState, action) => {
-        switch (action.type) {
-          case 'user/loginUser/pending':
-          case 'user/registerUser/pending':
-            return { ...state, loading: true, error: null };
-          case 'user/loginUser/fulfilled':
-          case 'user/registerUser/fulfilled':
-            return {
-              ...state,
-              loading: false,
-              error: null,
-              currentUser: action.payload
-            };
-          case 'user/loginUser/rejected':
-          case 'user/registerUser/rejected':
-            return {
-              ...state,
-              loading: false,
-              error: action.payload || 'An error occurred'
-            };
-          default:
-            return state;
-        }
-      },
-    },
-    preloadedState: {
-      user: { ...defaultUserState, ...preloadedState.user },
-      ...preloadedState,
-    },
+const renderWithProviders = (initialRoute = 'Auth') => {
+  const store = configureStore({
+    reducer: { user: userReducer },
   });
-};
 
-const renderWithProviders = (
-  ui: React.ReactElement,
-  { preloadedState = {}, store = createTestStore(preloadedState) } = {}
-) => {
-  function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <Provider store={store}>
-        <PaperProvider>
-          {children}
-        </PaperProvider>
-      </Provider>
-    );
-  }
+  const navigationSpy = jest.fn();
+  
+  const TestNavigator = () => (
+    <Provider store={store}>
+      <PaperProvider>
+        <NavigationContainer>
+          <Stack.Navigator 
+            initialRouteName={initialRoute}
+            screenOptions={{ headerShown: false }}
+          >
+            <Stack.Screen name="Auth" component={AuthScreen} />
+            <Stack.Screen 
+              name="Home" 
+              component={() => {
+                navigationSpy('Home');
+                return <HomeScreen />;
+              }} 
+            />
+            <Stack.Screen name="ForgotPassword" component={() => <></>} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
+    </Provider>
+  );
 
-  return { store, ...render(ui, { wrapper: Wrapper }) };
+  return { 
+    store, 
+    navigationSpy,
+    ...render(<TestNavigator />) 
+  };
 };
 
 describe('AuthScreen E2E', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Reset the mock functions
-    mockLoginUser.mockReturnValue({ type: 'user/loginUser/pending' });
-    mockRegisterUser.mockReturnValue({ type: 'user/registerUser/pending' });
-
-    // Reset the signIn mock
     mockSignIn.mockClear();
   });
 
   describe('Login Flow', () => {
     it('logs in a user successfully and navigates to Home', async () => {
-      const store = createTestStore();
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
-      );
+      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
 
       // Fill in the form
       fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
-
+      
       // Submit the form
       fireEvent.press(getByTestId('auth-button'));
 
-      // Check that loginUser action was dispatched
-      await waitFor(() => {
-        expect(mockLoginUser).toHaveBeenCalledWith({
-          username: 'test@example.com',
-          password: 'password123',
-        });
-      });
+      // Check spinner appears
+      expect(queryByTestId('spinner')).toBeTruthy();
+      
+      // Wait for spinner to disappear
+      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
 
-      // Simulate successful login by dispatching success action
-      store.dispatch({
-        type: 'user/loginUser/fulfilled',
-        payload: { id: 1, email: 'test@example.com' },
-      });
-
+      // Check navigation occurred
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('Home');
+        expect(navigationSpy).toHaveBeenCalledWith('Home');
       });
     });
 
     it('does not send a second request if login is pressed twice', async () => {
-      const store = createTestStore();
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
-      );
-
-      // Set loading state
-      store.dispatch({ type: 'user/loginUser/pending' });
+      const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      const { getByTestId } = renderWithProviders();
 
       fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
@@ -192,161 +125,152 @@ describe('AuthScreen E2E', () => {
       fireEvent.press(getByTestId('auth-button'));
       fireEvent.press(getByTestId('auth-button'));
 
-      // Only one call should be made since button should be disabled during loading
-      expect(mockLoginUser).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     });
 
     it('shows an error message when login fails (401)', async () => {
-      const store = createTestStore();
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
-      );
+      const { getByTestId, queryByTestId, queryByText, navigationSpy } = renderWithProviders();
 
       fireEvent.changeText(getByTestId('email-input'), 'wrong@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'wrongpassword');
       fireEvent.press(getByTestId('auth-button'));
 
-      // Simulate login failure
-      store.dispatch({
-        type: 'user/loginUser/rejected',
-        payload: 'Invalid credentials',
-      });
+      // Check spinner appears
+      expect(queryByTestId('spinner')).toBeTruthy();
+      
+      // Wait for spinner to disappear
+      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
 
+      // Check error message appears
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
+      
+      expect(navigationSpy).not.toHaveBeenCalled();
     });
 
     it('clears the error message on a successful retry', async () => {
-      const store = createTestStore({
-        user: { error: 'Invalid credentials', loading: false, currentUser: null }
-      });
-
-      const { getByTestId, queryByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
+      // First, set up server to return error
+      server.use(
+        http.post('http://localhost:3000/api/auth/signin', async () => {
+          return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+        })
       );
 
-      // Error should be visible initially
+      const { getByTestId, queryByTestId, queryByText, navigationSpy } = renderWithProviders();
+
+      // First attempt - should fail
+      fireEvent.changeText(getByTestId('email-input'), 'wrong@example.com');
+      fireEvent.changeText(getByTestId('password-input'), 'wrongpassword');
+      fireEvent.press(getByTestId('auth-button'));
+      
+      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
       expect(queryByTestId('toast')).toBeTruthy();
 
-      // Second attempt - succeeds
+      // Reset server to default behavior for success
+      server.resetHandlers();
+
+      // Second attempt - should succeed
       fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
       fireEvent.press(getByTestId('auth-button'));
 
-      // Simulate successful login
-      store.dispatch({
-        type: 'user/loginUser/fulfilled',
-        payload: { id: 1, email: 'test@example.com' },
-      });
-
-      await waitFor(() => {
-        expect(queryByTestId('toast')).toBeNull();
-      });
+      await waitFor(() => expect(queryByTestId('toast')).toBeNull());
+      await waitFor(() => expect(navigationSpy).toHaveBeenCalledWith('Home'));
     });
 
     it('shows a validation error for an invalid email without calling the API', async () => {
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+      const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      const { getByTestId, queryByTestId } = renderWithProviders();
 
       fireEvent.changeText(getByTestId('email-input'), 'invalid-email');
       fireEvent.press(getByTestId('auth-button'));
 
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
-
-      expect(mockLoginUser).not.toHaveBeenCalled();
+      
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('shows a validation error for a short password without calling the API', async () => {
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+      const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      const { getByTestId, queryByTestId } = renderWithProviders();
 
       fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
       fireEvent.changeText(getByTestId('password-input'), '123');
       fireEvent.press(getByTestId('auth-button'));
 
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
-
-      expect(mockLoginUser).not.toHaveBeenCalled();
+      
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('calls signIn with the correct provider for OAuth login', async () => {
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+    it('calls signIn with the correct provider for OAuth login', () => {
+      const { getByTestId } = renderWithProviders();
 
       fireEvent.press(getByTestId('google-button'));
-
       expect(mockSignIn).toHaveBeenCalledWith('google');
+
+      fireEvent.press(getByTestId('github-button'));
+      expect(mockSignIn).toHaveBeenCalledWith('github');
+
+      fireEvent.press(getByTestId('twitter-button'));
+      expect(mockSignIn).toHaveBeenCalledWith('twitter');
     });
 
     it('shows an error message if OAuth sign-in fails', async () => {
-      // Mock signIn to throw an error
-      mockSignIn.mockRejectedValueOnce(new Error('OAuth provider error'));
+      const errorMessage = 'OAuth provider error';
+      mockSignIn.mockRejectedValueOnce(new Error(errorMessage));
 
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+      const { getByTestId, queryByTestId } = renderWithProviders();
 
       fireEvent.press(getByTestId('google-button'));
 
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
     });
   });
 
   describe('Register Flow', () => {
     it('registers a new user successfully and navigates to Home', async () => {
-      const store = createTestStore();
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
-      );
+      const { getByTestId, queryByTestId, store, navigationSpy } = renderWithProviders();
 
       // Switch to register mode
       fireEvent.press(getByTestId('register-tab'));
 
       // Fill in the registration form
-      fireEvent.changeText(getByTestId('email-input'), 'new@example.com');
+      fireEvent.changeText(getByTestId('email-input'), 'newuser@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
       fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
-
       fireEvent.press(getByTestId('auth-button'));
 
+      // Check spinner appears
+      expect(queryByTestId('spinner')).toBeTruthy();
+      
+      // Wait for spinner to disappear
+      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
+
+      // Check navigation occurred
       await waitFor(() => {
-        expect(mockRegisterUser).toHaveBeenCalledWith({
-          username: 'new@example.com',
-          email: 'new@example.com',
-          password: 'password123',
-        });
+        expect(navigationSpy).toHaveBeenCalledWith('Home');
       });
 
-      // Simulate successful registration
-      store.dispatch({
-        type: 'user/registerUser/fulfilled',
-        payload: { id: 1, email: 'new@example.com' },
-      });
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('Home');
-      });
+      // Verify user is in store
+      expect(store.getState().user.currentUser).toEqual(mockUser);
     });
 
     it('shows a server error if registration fails (e.g., email in use)', async () => {
-      const store = createTestStore();
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />,
-        { store }
+      server.use(
+        http.post('http://localhost:3000/api/auth/register', async () => {
+          return HttpResponse.json({ message: 'Email already in use' }, { status: 400 });
+        })
       );
+
+      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
 
       // Switch to register mode
       fireEvent.press(getByTestId('register-tab'));
@@ -354,52 +278,56 @@ describe('AuthScreen E2E', () => {
       fireEvent.changeText(getByTestId('email-input'), 'existing@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
       fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
-
       fireEvent.press(getByTestId('auth-button'));
 
-      // Simulate registration failure
-      store.dispatch({
-        type: 'user/registerUser/rejected',
-        payload: 'Email already in use',
-      });
+      // Check spinner appears
+      expect(queryByTestId('spinner')).toBeTruthy();
+      
+      // Wait for spinner to disappear
+      await waitFor(() => expect(queryByTestId('spinner')).toBeNull());
 
+      // Check error message appears
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
+      
+      expect(navigationSpy).not.toHaveBeenCalled();
     });
 
     it('shows a validation error for mismatched passwords', async () => {
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+      const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      const { getByTestId, queryByTestId, navigationSpy } = renderWithProviders();
 
       // Switch to register mode
       fireEvent.press(getByTestId('register-tab'));
 
       fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
       fireEvent.changeText(getByTestId('password-input'), 'password123');
-      fireEvent.changeText(getByTestId('confirm-password-input'), 'different123');
-
+      fireEvent.changeText(getByTestId('confirm-password-input'), 'password456');
       fireEvent.press(getByTestId('auth-button'));
 
       await waitFor(() => {
-        expect(getByTestId('toast')).toBeTruthy();
+        expect(queryByTestId('toast')).toBeTruthy();
       });
-
-      expect(mockRegisterUser).not.toHaveBeenCalled();
+      
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(navigationSpy).not.toHaveBeenCalled();
     });
 
-    it('calls signIn with the correct provider for OAuth registration', async () => {
-      const { getByTestId } = renderWithProviders(
-        <AuthScreen navigation={mockNavigation} />
-      );
+    it('calls signIn with the correct provider for OAuth registration', () => {
+      const { getByTestId } = renderWithProviders();
 
       // Switch to register mode
       fireEvent.press(getByTestId('register-tab'));
 
       fireEvent.press(getByTestId('google-button'));
-
       expect(mockSignIn).toHaveBeenCalledWith('google');
+
+      fireEvent.press(getByTestId('github-button'));
+      expect(mockSignIn).toHaveBeenCalledWith('github');
+
+      fireEvent.press(getByTestId('twitter-button'));
+      expect(mockSignIn).toHaveBeenCalledWith('twitter');
     });
   });
 });
