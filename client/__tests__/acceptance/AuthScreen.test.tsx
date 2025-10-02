@@ -1,42 +1,45 @@
-import React from 'react';
-import { View } from 'react-native';
-import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
-import { render, screen, userEvent } from '../test-utils';
+import * as React from 'react';
+import { Text, View } from 'react-native';
+import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { PaperProvider } from 'react-native-paper';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/native';
+import { render, screen, userEvent } from '@testing-library/react-native';
 
+import { configureStore } from '@reduxjs/toolkit';
+import type { PreloadedState } from '@reduxjs/toolkit';
+
+import userReducer, { loginUser } from '../../src/components/user/store/user.slice';
 import AuthScreen from '../../src/screens/AuthScreen';
-import * as appAuth from 'react-native-app-auth';
+import { AppStore, RootState } from '../../src/store';
 
-// Enable fake timers
-jest.useFakeTimers();
-
-// Mock react-native-app-auth
-jest.spyOn(appAuth, 'authorize').mockResolvedValue({
-  accessToken: 'fake-google-token',
-  accessTokenExpirationDate: '',
-  authorizeAdditionalParameters: {},
-  tokenType: 'Bearer',
-  idToken: 'fake-id-token',
-  scopes: [],
-  refreshToken: 'fake-refresh-token',
-});
+// Mock the useOAuth hook
+import * as oauth from '../../src/components/common/hooks/useOAuth';
 
 // --- MSW Server Setup ---
+const mockUser = { id: '1', name: 'Test User', email: 'test@example.com' };
+
 const server = setupServer(
-  http.post('http://localhost:3000/api/auth/signin', () => {
-    return HttpResponse.json({
-      token: 'fake-jwt-token',
-      user: { id: '1', name: 'Test User', email: 'test@example.com' },
-    });
+  http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
+    const body = (await request.json()) as any;
+    if (body.username === 'test@example.com' && body.password === 'password123') {
+      return HttpResponse.json({ user: mockUser, token: 'fake-token' });
+    }
+    return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
   }),
-  http.post('http://localhost:3000/api/auth/register', () => {
-    return HttpResponse.json({
-      token: 'fake-jwt-token',
-      user: { id: '2', name: 'New User', email: 'new@example.com' },
-    });
+  http.post('http://localhost:3000/api/auth/register', async ({ request }) => {
+    const body = (await request.json()) as any;
+    if (body.email === 'newuser@example.com') {
+      return HttpResponse.json(
+        { user: { ...mockUser, email: 'newuser@example.com' }, token: 'new-fake-token' },
+        { status: 201 }
+      );
+    }
+    return HttpResponse.json({ message: 'Email already in use' }, { status: 400 });
   }),
+  // Preserved from HEAD: provider-signin handler
   http.post('http://localhost:3000/api/auth/provider-signin', () => {
     return HttpResponse.json({
       token: 'fake-jwt-token',
@@ -45,14 +48,20 @@ const server = setupServer(
   })
 );
 
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+jest.useFakeTimers();
+
+// --- Navigation Test Setup ---
 const Stack = createStackNavigator();
-// Define screen components outside the navigator to prevent re-renders
-const HomeScreen = () => <View testID="home-screen" />;
-const ForgotPasswordScreen = () => <View />;
+const HomeScreen = () => <View><Text>Welcome Home</Text></View>;
+const ForgotPasswordScreen = () => <View><Text>Forgot Password</Text></View>;
 
 const TestNavigator = () => (
   <NavigationContainer>
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Auth" component={AuthScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
@@ -60,76 +69,146 @@ const TestNavigator = () => (
   </NavigationContainer>
 );
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// --- Redux Store + Render Helper ---
+let store: AppStore;
+const renderWithProviders = (preloadedState?: PreloadedState<RootState>) => {
+  store = configureStore({
+    reducer: { user: userReducer },
+    preloadedState,
+  });
 
+  return {
+    store,
+    ...render(
+      <Provider store={store}>
+        <PaperProvider>
+          <TestNavigator />
+        </PaperProvider>
+      </Provider>
+    ),
+  };
+};
 
 describe('AuthScreen E2E', () => {
-  const user = userEvent.setup();
+  let user: ReturnType<typeof userEvent.setup>;
+  let signInSpy: jest.SpyInstance;
 
-  it('logs in a user successfully and navigates to Home', async () => {
-    render(<TestNavigator />);
-
-    await user.type(screen.getByLabelText('Email'), 'test@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    // Use the unambiguous testID for the submission button
-    await user.press(screen.getByTestId('auth-button'));
-
-    expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+  beforeEach(() => {
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    signInSpy = jest.spyOn(oauth, 'useOAuth');
   });
 
-  it('shows an error message when login fails', async () => {
-      server.use(
-          http.post('http://localhost:3000/api/auth/signin', () => {
-            return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
-          })
-      );
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
-      render(<TestNavigator />);
+  test('renders login form correctly by default', () => {
+    renderWithProviders();
+    expect(screen.getAllByRole('button', { name: 'Login' })[0]).toBeOnTheScreen();
+    expect(screen.getByLabelText('Email')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Password')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Confirm Password')).not.toBeOnTheScreen();
+  });
 
+  test('switches between login and register tabs', async () => {
+    renderWithProviders();
+    await user.press(screen.getByRole('button', { name: 'Register' }));
+    expect(screen.getByLabelText('Confirm Password')).toBeOnTheScreen();
+
+    await user.press(screen.getAllByRole('button', { name: 'Login' })[0]);
+    expect(screen.queryByLabelText('Confirm Password')).not.toBeOnTheScreen();
+  });
+
+  describe('Login Flow', () => {
+    test('user can log in successfully', async () => {
+      renderWithProviders();
+      await user.type(screen.getByLabelText('Email'), 'test@example.com');
+      await user.type(screen.getByLabelText('Password'), 'password123');
+      await user.press(screen.getAllByRole('button', { name: 'Login' })[1]);
+
+      expect(await screen.findByText('Welcome Home')).toBeOnTheScreen();
+
+      const state = store.getState().user;
+      expect(state.currentUser).toEqual(mockUser);
+    });
+
+    test('shows error for incorrect credentials', async () => {
+      renderWithProviders();
       await user.type(screen.getByLabelText('Email'), 'wrong@example.com');
       await user.type(screen.getByLabelText('Password'), 'wrongpassword');
-      await user.press(screen.getByTestId('auth-button'));
+      await user.press(screen.getAllByRole('button', { name: 'Login' })[1]);
 
       expect(await screen.findByText('Invalid credentials')).toBeOnTheScreen();
+    });
+
+    test('shows validation error for invalid email', async () => {
+      renderWithProviders();
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      await user.type(screen.getByLabelText('Email'), 'invalid-email');
+      await user.press(screen.getAllByRole('button', { name: 'Login' })[1]);
+
+      expect(await screen.findByText('Please enter a valid email address.')).toBeOnTheScreen();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 
-  it('registers a new user successfully and navigates', async () => {
-      render(<TestNavigator />);
-      // Use the unambiguous testID to switch tabs
-      await user.press(screen.getByTestId('register-tab'));
-
-      await user.type(screen.getByLabelText('Email'), 'new@example.com');
-      await user.type(screen.getByLabelText('Password'), 'newpassword');
-      await user.type(screen.getByLabelText('Confirm Password'), 'newpassword');
-      await user.press(screen.getByTestId('auth-button'));
-
-      expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
-  });
-
-  it('shows a server error if registration fails', async () => {
-      server.use(
-          http.post('http://localhost:3000/api/auth/register', () => {
-            return HttpResponse.json({ message: 'Email already in use' }, { status: 400 });
-          })
-      );
-      render(<TestNavigator />);
-      await user.press(screen.getByTestId('register-tab'));
-
-      await user.type(screen.getByLabelText('Email'), 'existing@example.com');
+  describe('Register Flow', () => {
+    test('user can register successfully', async () => {
+      renderWithProviders();
+      await user.press(screen.getAllByRole('button', { name: 'Register' })[0]);
+      await user.type(screen.getByLabelText('Email'), 'newuser@example.com');
       await user.type(screen.getByLabelText('Password'), 'password123');
       await user.type(screen.getByLabelText('Confirm Password'), 'password123');
-      await user.press(screen.getByTestId('auth-button'));
+      await user.press(screen.getAllByRole('button', { name: 'Register' })[1]);
 
-      expect(await screen.findByText('Email already in use')).toBeOnTheScreen();
+      expect(await screen.findByText('Welcome Home')).toBeOnTheScreen();
+    });
+
+    test('shows error for mismatched passwords', async () => {
+      renderWithProviders();
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      await user.press(screen.getAllByRole('button', { name: 'Register' })[0]);
+      await user.type(screen.getByLabelText('Email'), 'test@example.com');
+      await user.type(screen.getByLabelText('Password'), 'password123');
+      await user.type(screen.getByLabelText('Confirm Password'), 'wrongpass');
+      await user.press(screen.getAllByRole('button', { name: 'Register' })[1]);
+
+      expect(await screen.findByText('Passwords do not match.')).toBeOnTheScreen();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 
-  it('handles google OAuth sign-in and navigates', async () => {
-    render(<TestNavigator />);
+  describe('OAuth Flow', () => {
+    test('user can sign in with mocked OAuth hook', async () => {
+      const mockSignIn = jest.fn().mockImplementation(() => {
+        store.dispatch(loginUser.fulfilled({ user: mockUser, token: 'fake-session-token' }, '', { username: 'test@example.com', password: '' }));
+        return Promise.resolve({ id_token: 'fake-oauth-token' });
+      });
+      signInSpy.mockReturnValue({ signIn: mockSignIn });
 
-    await user.press(screen.getByTestId('google-button'));
+      renderWithProviders();
+      await user.press(screen.getByLabelText('Sign in with Google'));
 
-    expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+      expect(mockSignIn).toHaveBeenCalledWith('google');
+      expect(await screen.findByText('Welcome Home')).toBeOnTheScreen();
+    });
+
+    test('handles provider-signin API fallback', async () => {
+      renderWithProviders();
+      await user.press(screen.getByLabelText('Sign in with Google'));
+      expect(await screen.findByText('Welcome Home')).toBeOnTheScreen();
+    });
+
+    test('shows error if OAuth fails', async () => {
+      const errorMessage = 'OAuth provider error';
+      const mockFail = jest.fn().mockRejectedValue(new Error(errorMessage));
+      signInSpy.mockReturnValue({ signIn: mockFail });
+
+      renderWithProviders();
+      await user.press(screen.getByLabelText('Sign in with Google'));
+      expect(await screen.findByText(errorMessage)).toBeOnTheScreen();
+    });
   });
 });
