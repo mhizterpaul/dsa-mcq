@@ -12,7 +12,7 @@ import QuizScreen from '../screens/QuizScreen';
 import SessionSummaryScreen from '../screens/SessionSummaryScreen';
 import DailyQuizSummaryScreen from '../screens/DailyQuizSummaryScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import VerificationCodeForm from '../screens/VerificationCodeForm';
+import PasswordResetScreen from '../screens/PasswordResetScreen';
 import GoalScreen from '../screens/GoalScreen';
 
 const Stack = createStackNavigator();
@@ -39,7 +39,7 @@ const AppNavigator: React.FC<NavigatorProps> = ({ initialRouteName }) => {
         <Stack.Screen name="SessionSummary" component={SessionSummaryScreen} />
         <Stack.Screen name="DailyQuizSummary" component={DailyQuizSummaryScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="VerifyCodeScreen" component={VerificationCodeForm} />
+        <Stack.Screen name="PasswordReset" component={PasswordResetScreen} />
         <Stack.Screen name="Goal" component={GoalScreen} />
       </Stack.Navigator>
     </NavigationContainer>

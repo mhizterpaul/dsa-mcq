@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from 'react-native-ui-lib';
+import { StyleSheet } from 'react-native';
+import { Button } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch } from 'react-redux';
 import { startNewSession } from '../store/learningSession.slice';
@@ -16,19 +17,33 @@ const StartQuizButton = () => {
 
   return (
     <Button
-      label="Take Quiz Now"
-      iconSource={() => <Icon name="arrow-right" size={22} color={DARK} />}
-      iconOnRight
+      mode="contained"
       onPress={handlePress}
-      backgroundColor={NEON}
-      color={DARK}
-      br20
-      paddingV-16
-      paddingH-32
-      marginT-10
-      marginB-24
-    />
+      color={NEON}
+      style={styles.button}
+      contentStyle={styles.buttonContent}
+      labelStyle={styles.buttonLabel}
+      icon={({ size }) => <Icon name="arrow-right" size={size} color={DARK} />}
+    >
+      Take Quiz Now
+    </Button>
   );
 };
+
+const styles = StyleSheet.create({
+    button: {
+        borderRadius: 20,
+        marginVertical: 24,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+    },
+    buttonContent: {
+        flexDirection: 'row-reverse', // to place icon on the right
+    },
+    buttonLabel: {
+        color: DARK,
+        fontWeight: 'bold',
+    }
+})
 
 export default StartQuizButton;

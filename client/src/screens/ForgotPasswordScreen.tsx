@@ -7,6 +7,8 @@ import {
 } from 'react-native';
 import { Button, TextInput, Text, ProgressBar, IconButton } from 'react-native-paper';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAppDispatch, useAppSelector } from '../store/hooks'; // adjust path
+import { requestPasswordReset } from '../store/userSlice'; // adjust path
 
 type RootStackParamList = {
   VerifyCodeScreen: undefined;
@@ -24,11 +26,29 @@ interface ForgotPasswordScreenProps {
 
 export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
   const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const dispatch = useAppDispatch();
+  const { loading } = useAppSelector((state) => state.user);
 
   const isValidEmail = (val: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
-  const emailIsValid = isValidEmail(email);
+  const handleContinue = async () => {
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setError('');
+    try {
+      const result = await dispatch(requestPasswordReset({ email })).unwrap();
+      if (result.success) {
+        navigation.navigate('VerifyCodeScreen');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to request password reset. Try again.');
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -55,12 +75,15 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
         value={email}
         onChangeText={setEmail}
         style={styles.input}
+        error={!!error}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Button
         mode="contained"
-        disabled={!emailIsValid}
-        onPress={() => navigation.navigate('VerifyCodeScreen')}
+        disabled={!isValidEmail(email) || loading}
+        loading={loading}
+        onPress={handleContinue}
         style={styles.continueButton}
       >
         Continue
@@ -93,32 +116,37 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212121', // color_grey10
+    color: '#212121',
   },
   headerSpacer: {
     width: 24,
   },
   progressBar: {
     height: 6,
-    borderRadius: 10, // br10
-    marginBottom: 24, // marginB-24
-    backgroundColor: '#f0f0f0', // bg-grey70
+    borderRadius: 10,
+    marginBottom: 24,
+    backgroundColor: '#f0f0f0',
   },
   instructionText: {
-    fontSize: 14, // text80
-    color: '#888', // color_grey30
-    marginBottom: 20, // marginB-20
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 20,
   },
   input: {
     marginBottom: 10,
   },
+  errorText: {
+    fontSize: 12,
+    color: 'red',
+    marginBottom: 10,
+  },
   continueButton: {
-    marginBottom: 10, // marginB-10
+    marginBottom: 10,
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0', // bg-grey70
+    backgroundColor: '#f0f0f0',
   },
   cancelButtonLabel: {
     color: '#000',
-  }
+  },
 });

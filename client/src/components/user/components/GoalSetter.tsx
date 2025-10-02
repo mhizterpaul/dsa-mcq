@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Text, Button, ProgressBar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
@@ -18,58 +18,72 @@ const goalOptions: UserGoal[] = [
   'Consistency streak',
 ];
 
+// Reusable option button
+const GoalOption = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
+  <Button
+    mode="contained"
+    onPress={onPress}
+    style={styles.goalOptionButton}
+    contentStyle={styles.goalOptionContent}
+  >
+    <View style={styles.goalOptionInnerView}>
+      <Feather name={icon} size={20} color="white" />
+      <Text style={styles.goalOptionText}>{label}</Text>
+    </View>
+  </Button>
+);
+
 interface GoalSetterProps {
-    navigation: StackNavigationProp<any>;
+  navigation: StackNavigationProp<any>;
 }
-
-const GoalOption = ({ icon, label, onPress }: { icon: string, label: string, onPress: () => void }) => {
-  return (
-    <Button
-      mode="contained"
-      onPress={onPress}
-      style={styles.goalOptionButton}
-      contentStyle={styles.goalOptionContent}
-    >
-      <View style={styles.goalOptionInnerView}>
-        <Feather name={icon} size={20} color="white" />
-        <Text style={styles.goalOptionText}>{label}</Text>
-      </View>
-    </Button>
-  );
-};
-
 
 const GoalSetter = ({ navigation }: GoalSetterProps) => {
   const [showOptions, setShowOptions] = useState(false);
   const profile = useSelector((state: UserRootState) => state.profile.profile);
   const dispatch = useDispatch();
 
-  const handleSetTarget = () => {
-    setShowOptions(true);
-  };
+  const goals = profile?.goals || [];
+  const completedGoals = goals.filter((goal: any) => goal.completed).length;
+  const progress = goals.length > 0 ? completedGoals / goals.length : 0;
+
+  const handleSetTarget = () => setShowOptions(true);
 
   const handleAddGoal = (goal: UserGoal) => {
     if (profile) {
-      const newProfile = { ...profile };
-      newProfile.goals.push(goal);
+      const newProfile: UserProfile = { ...profile, goals: [...profile.goals, { label: goal, completed: false }] };
       dispatch(setUserProfile(newProfile));
     }
     setShowOptions(false);
   };
 
   const handleContinue = () => {
-    if (navigation.canGoBack()) {
-        navigation.goBack();
-    }
+    if (navigation.canGoBack()) navigation.goBack();
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Set Your Next Goal</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Icon name="target" size={24} color="white" />
+        <Text style={styles.headerTitle}>Set Your Next Goal</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Progress Bar (same style as verification screen) */}
+      <ProgressBar
+        progress={progress}
+        color={goals.length === 0 ? '#ccc' : '#00B5D8'}
+        style={styles.progressBar}
+      />
+      <Text style={styles.progressLabel}>
+        {completedGoals} / {goals.length} goals completed
+      </Text>
+
+      {/* Actions */}
       {!showOptions && (
         <Button
           mode="contained"
-          icon={() => <Icon name="target" size={20} color={DARK} />}
+          icon={() => <Icon name="plus-circle-outline" size={20} color={DARK} />}
           onPress={handleSetTarget}
           style={styles.setTargetButton}
           labelStyle={styles.setTargetLabel}
@@ -77,18 +91,15 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
           Set Target
         </Button>
       )}
+
       {showOptions && (
-        <View>
+        <View style={{ marginTop: 20, width: '100%' }}>
           {goalOptions.map((goal, index) => (
-            <GoalOption
-              key={index}
-              icon="check-circle"
-              label={goal}
-              onPress={() => handleAddGoal(goal)}
-            />
+            <GoalOption key={index} icon="check-circle" label={goal} onPress={() => handleAddGoal(goal)} />
           ))}
         </View>
       )}
+
       <Button
         mode="contained"
         onPress={handleContinue}
@@ -105,24 +116,40 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    backgroundColor: '#333', // bg-grey20
-    borderRadius: 20, // br20
-    padding: 18, // padding-18
-    marginBottom: 18, // marginB-18
-    width: '90%',
-    alignSelf: 'center',
+    flex: 1,
+    backgroundColor: '#333',
+    padding: 20,
   },
-  title: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#444',
+  },
+  progressLabel: {
     color: 'white',
-    fontSize: 18, // text70b
-    fontWeight: 'bold', // text70b
-    marginBottom: 10, // marginB-10
+    fontSize: 12,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   setTargetButton: {
     backgroundColor: NEON,
-    borderRadius: 12, // br12
-    marginTop: 4, // marginT-4
+    borderRadius: 12,
+    marginTop: 10,
   },
   setTargetLabel: {
     color: DARK,
@@ -148,7 +175,7 @@ const styles = StyleSheet.create({
   },
   goalOptionContent: {
     padding: 8,
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
   },
   goalOptionInnerView: {
     flexDirection: 'row',
@@ -157,7 +184,7 @@ const styles = StyleSheet.create({
   goalOptionText: {
     color: 'white',
     marginLeft: 15,
-  }
+  },
 });
 
 export default GoalSetter;

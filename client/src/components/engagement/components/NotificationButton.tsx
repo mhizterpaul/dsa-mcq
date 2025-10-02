@@ -1,12 +1,12 @@
 import React from 'react';
-import { Button, View } from 'react-native-ui-lib';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { View, StyleSheet } from 'react-native';
+import { Badge, IconButton } from 'react-native-paper';
 import { useSelector, useDispatch } from 'react-redux';
 import { EngagementRootState } from '../store/store';
 import { markAsReadDb } from '../store/notification.slice';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const NEON = '#EFFF3C';
-const GRAY = '#2A2C2E';
 
 const NotificationButton = () => {
   const dispatch = useDispatch();
@@ -24,28 +24,29 @@ const NotificationButton = () => {
 
   return (
     <View>
-      <Button
-        iconSource={() => <Icon name="bell-outline" size={26} color={NEON} />}
+      <IconButton
+        icon={() => <Icon name="bell-outline" size={26} color={NEON} />}
         onPress={handlePress}
-        backgroundColor={GRAY}
-        br20
-        padding-6
+        style={styles.button}
       />
       {hasNewNotifications && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: 'red',
-          }}
-        />
+        <Badge style={styles.badge} />
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+    button: {
+        backgroundColor: '#2A2C2E',
+        borderRadius: 20,
+        padding: 6,
+    },
+    badge: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+    },
+});
 
 export default NotificationButton;

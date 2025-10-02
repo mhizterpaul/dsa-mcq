@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
-import { View, Text, Card, Button } from 'react-native-ui-lib';
+import { StyleSheet, View } from 'react-native';
+import { Card, Title, Paragraph } from 'react-native-paper';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
 import { UserRootState } from '../store';
@@ -22,18 +22,16 @@ const ThinkSmarterBanner = () => {
     }, []);
 
   return (
-    <Card marginB-40 style={styles.banner}>
-      <View centerH>
-          <View style={styles.bannerIconWrapper}>
-              <Feather name="shield" size={24} color="black" />
-          </View>
-          <Text text60BO black marginT-20>Think Smarter</Text>
-          <View row centerV marginT-20 height={50} style={styles.graph}>
-          {insight && (
-            <Text text70b>Total Quizzes Attempted: {insight.totalQuizzesAttempted}</Text>
-          )}
-          </View>
-      </View>
+    <Card style={styles.banner}>
+        <View style={styles.iconWrapper}>
+            <Feather name="shield" size={24} color="black" />
+        </View>
+        <Card.Content style={styles.content}>
+            <Title style={styles.title}>Think Smarter</Title>
+            {insight && (
+                <Paragraph style={styles.paragraph}>Total Quizzes Attempted: {insight.totalQuizzesAttempted}</Paragraph>
+            )}
+        </Card.Content>
     </Card>
   );
 };
@@ -42,29 +40,30 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: '#ADFF2F',
     borderRadius: 20,
-    padding: 20,
+    marginVertical: 40,
     alignItems: 'center',
-    width: '100%',
-    position: 'relative',
   },
-  bannerIconWrapper: {
+  iconWrapper: {
     backgroundColor: '#ADFF2F',
     borderRadius: 25,
     padding: 10,
     position: 'absolute',
-    top: -45,
+    top: -25,
     borderWidth: 2,
     borderColor: '#121212',
+    zIndex: 1,
   },
-  graph: {
-    alignItems: 'flex-end',
+  content: {
+    alignItems: 'center',
+    paddingTop: 30, // to make space for the icon
   },
-  graphBar: {
-    width: 4,
-    backgroundColor: 'black',
-    marginHorizontal: 2,
-    borderRadius: 2,
+  title: {
+      color: 'black',
+      marginTop: 20,
   },
+  paragraph: {
+      marginTop: 20,
+  }
 });
 
 export default ThinkSmarterBanner;
