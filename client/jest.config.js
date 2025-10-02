@@ -1,25 +1,11 @@
-/** @type {import('jest').Config} */
 module.exports = {
   preset: 'react-native',
-
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
-  },
-
+  setupFilesAfterEnv: ['./jest.setup.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-paper|react-native-vector-icons|react-native-gesture-handler|@react-navigation|react-native-app-auth|react-native-base64|msw)/)',
+    'node_modules/(?!(react-native|@react-native|react-redux|@reduxjs/toolkit|react-native-paper|react-native-vector-icons|react-native-app-auth|@react-navigation|react-native-gesture-handler|immer|react-native-base64)/)',
   ],
-
-  setupFilesAfterEnv: ['./jest.setup.ts'],
-
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
-
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
+      '<rootDir>/__mocks__/fileMock.js',
   },
-
- testEnvironment: 'node',
-  setupFiles: ['<rootDir>/node_modules/react-native-gesture-handler/jestSetup.js'],
 };

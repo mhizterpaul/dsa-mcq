@@ -1,12 +1,9 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { View, Text } from 'react-native-ui-lib';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
 import { LearningRootState } from '../store';
 
 const NEON = '#EFFF3C';
-const DARK = '#181A1B';
-const GRAY = '#2A2C2E';
 const CIRCLE_SIZE = 160;
 const ARC_THICKNESS = 18;
 
@@ -17,23 +14,38 @@ const QuizPerformanceIndicator = () => {
   const performance = totalQuestions > 0 ? score / totalQuestions : 0;
 
   return (
-    <View center marginT-10 marginB-18>
-      <View width={CIRCLE_SIZE} height={CIRCLE_SIZE} br100 bg-grey20 center style={{position: 'relative'}}>
-        <View absF width={CIRCLE_SIZE} height={CIRCLE_SIZE} br100 style={{borderWidth: ARC_THICKNESS, borderColor: '#333', opacity: 0.4}} />
+    <View style={styles.container}>
+      <View style={styles.circle}>
         <View
           style={[
             styles.progressArc,
             { transform: [{ rotate: `${performance * 360 - 90}deg` }] },
           ]}
         />
-        <Text color={NEON} text30b>{Math.round(performance * 100)}%</Text>
-        <Text white text70 style={{opacity: 0.7}}>Quiz Performance</Text>
+        <Text style={styles.percentage}>{Math.round(performance * 100)}%</Text>
+        <Text style={styles.label}>Quiz Performance</Text>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    marginVertical: 18,
+  },
+  circle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: ARC_THICKNESS,
+    borderColor: '#333',
+    opacity: 0.4
+  },
   progressArc: {
     position: 'absolute',
     width: CIRCLE_SIZE,
@@ -41,10 +53,21 @@ const styles = StyleSheet.create({
     borderRadius: CIRCLE_SIZE / 2,
     borderWidth: ARC_THICKNESS,
     borderColor: NEON,
+    borderTopColor: NEON,
     borderRightColor: 'transparent',
     borderBottomColor: 'transparent',
     borderLeftColor: 'transparent',
     opacity: 0.9,
+  },
+  percentage: {
+    color: NEON,
+    fontSize: 30,
+    fontWeight: 'bold',
+  },
+  label: {
+    color: 'white',
+    fontSize: 16,
+    opacity: 0.7,
   },
 });
 

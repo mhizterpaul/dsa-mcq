@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, Button, ListItem } from 'react-native-ui-lib';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { List, Text, Button, ActivityIndicator } from 'react-native-paper';
 import { useSelector, useDispatch } from 'react-redux';
 import { UserRootState } from '../store';
 import { setUserProfile } from '../store/userProfile.slice';
@@ -30,44 +30,74 @@ const BookmarkList = () => {
 
     if (!profile) {
         return (
-            <View center>
-                <Text>Loading...</Text>
-                <Button label="Add Dummy Data" onPress={handleAddDummyData} />
+            <View style={styles.centered}>
+                <ActivityIndicator animating={true} />
+                <Button onPress={handleAddDummyData}>Add Dummy Data</Button>
             </View>
         )
     }
 
   return (
-    <View>
-        <Text text80H grey40 marginB-20 uppercase>Bookmarks ({questions.length})</Text>
-        <ScrollView contentContainerStyle={{padding: 20}}>
+    <View style={styles.container}>
+        <Text style={styles.header}>Bookmarks ({profile.bookmarks.length})</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
         {profile.bookmarks.map((bookmark, index) => (
-            <ListItem key={bookmark.questionId} height={77.5} onPress={() => {}}>
-                <ListItem.Part left>
-                    <Text text70 grey10 marginR-15>{index + 1}</Text>
-                </ListItem.Part>
-                <ListItem.Part middle column>
-                    <ListItem.Part middle>
-                    <Text text70 grey10>Question ID: {bookmark.questionId}</Text>
-                    </ListItem.Part>
-                </ListItem.Part>
-                <ListItem.Part right>
-                    <Feather name="more-vertical" size={20} color="#888" />
-                </ListItem.Part>
-            </ListItem>
+            <List.Item
+                key={bookmark.questionId}
+                title={`Question ID: ${bookmark.questionId}`}
+                left={() => <Text style={styles.itemIndex}>{index + 1}</Text>}
+                right={() => <Feather name="more-vertical" size={20} color="#888" />}
+                style={styles.listItem}
+            />
         ))}
-        
+
       </ScrollView>
           <Button
-        label="Result Screen"
-        iconSource={() => <Feather name="bar-chart-2" size={20} color="black" />}
-        backgroundColor="#eee"
-        color="black"
-        style={{padding: 20, borderTopWidth: 1, borderTopColor: '#ddd'}}
-      />
+            icon={() => <Feather name="bar-chart-2" size={20} color="black" />}
+            mode="contained"
+            style={styles.footerButton}
+          >
+            Result Screen
+          </Button>
     </View>
-    
+
   );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    header: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: 'grey',
+        margin: 20,
+        textTransform: 'uppercase',
+    },
+    scrollContent: {
+        padding: 20,
+    },
+    listItem: {
+        height: 77.5,
+    },
+    itemIndex: {
+        fontSize: 16,
+        color: 'grey',
+        marginRight: 15,
+    },
+    footerButton: {
+        margin: 20,
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#ddd',
+        backgroundColor: '#eee',
+    }
+});
 
 export default BookmarkList;

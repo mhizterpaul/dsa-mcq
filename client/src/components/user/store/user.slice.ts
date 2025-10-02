@@ -1,8 +1,15 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { User } from './primitives/User';
+
+// Plain interface for the user object
+export interface UserObject {
+  id: string;
+  name: string;
+  email: string;
+  image?: string;
+}
 
 interface UserState {
-  currentUser: User | null;
+  currentUser: UserObject | null;
   loading: boolean;
   error: string | null;
 }
@@ -25,12 +32,7 @@ const API_BASE_URL = 'http://localhost:3000/api';
 // This response type should be shared with the server.
 export interface AuthResponse {
   token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    image?: string;
-  };
+  user: UserObject;
 }
 
 
@@ -97,8 +99,7 @@ export const registerUser = createAsyncThunk<
       throw new Error(errorData.message || 'Registration failed');
     }
 
-    const { user, token } = await response.json();
-    return { user: new User(user.id, user.name, user.email), token };
+    return await response.json();
   } catch (err: any) {
     return rejectWithValue(err.message || 'Registration failed');
   }
@@ -180,20 +181,8 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    setCurrentUser: (state, action: PayloadAction<{ id: string; username: string; email: string }>) => {
-      const { id, username, email } = action.payload;
-      state.currentUser = new User(id, username, email);
-    },
-    updatePreference: (state, action: PayloadAction<'easy' | 'medium' | 'hard'>) => {
-      if (state.currentUser) {
-        state.currentUser.updatePreference(action.payload);
-      }
-    },
-    updateMasteryLevel: (state, action: PayloadAction<{ categoryId: string; score: number }>) => {
-      if (state.currentUser) {
-        const { categoryId, score } = action.payload;
-        state.currentUser.updateMasteryLevel(categoryId, score);
-      }
+    setCurrentUser: (state, action: PayloadAction<UserObject>) => {
+      state.currentUser = action.payload;
     },
     logout: (state) => {
       state.currentUser = null;
@@ -217,8 +206,7 @@ const userSlice = createSlice({
     builder.addCase(loginUser.pending, setLoading);
     builder.addCase(loginUser.fulfilled, (state, action) => {
         setSuccess(state);
-        const { user } = action.payload;
-        state.currentUser = new User(user.id, user.name, user.email);
+        state.currentUser = action.payload.user;
     });
     builder.addCase(loginUser.rejected, setError);
 
@@ -226,8 +214,7 @@ const userSlice = createSlice({
     builder.addCase(loginWithProviderToken.pending, setLoading);
     builder.addCase(loginWithProviderToken.fulfilled, (state, action) => {
         setSuccess(state);
-        const { user } = action.payload;
-        state.currentUser = new User(user.id, user.name, user.email);
+        state.currentUser = action.payload.user;
         // In a real app, you would also store the session token from action.payload.token
     });
     builder.addCase(loginWithProviderToken.rejected, setError);
@@ -236,8 +223,7 @@ const userSlice = createSlice({
     builder.addCase(registerUser.pending, setLoading);
     builder.addCase(registerUser.fulfilled, (state, action) => {
         setSuccess(state);
-        const { user } = action.payload;
-        state.currentUser = new User(user.id, user.name, user.email);
+        state.currentUser = action.payload.user;
     });
     builder.addCase(registerUser.rejected, setError);
 
@@ -266,5 +252,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { setCurrentUser, updatePreference, updateMasteryLevel, logout } = userSlice.actions;
+export const { setCurrentUser, logout } = userSlice.actions;
 export default userSlice.reducer;

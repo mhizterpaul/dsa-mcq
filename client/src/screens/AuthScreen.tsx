@@ -132,6 +132,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
         <TextInput
           testID="email-input"
           label="Email"
+          accessibilityLabel="Email"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -142,6 +143,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
         <TextInput
           testID="password-input"
           label="Password"
+          accessibilityLabel="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -153,6 +155,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           <TextInput
             testID="confirm-password-input"
             label="Confirm Password"
+            accessibilityLabel="Confirm Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -195,9 +198,36 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           <View style={styles.divider} />
         </View>
         <View style={styles.socialIconsContainer}>
-          <Icon testID="google-button" name="google" size={30} color="#DB4437" onPress={() => handleOAuthSignIn('google')} />
-          <Icon testID="github-button" name="github" size={30} color="#000" onPress={() => handleOAuthSignIn('github')} />
-          <Icon testID="twitter-button" name="twitter" size={30} color="#1DA1F2" onPress={() => handleOAuthSignIn('twitter')} />
+          <Icon.Button
+            name="google"
+            backgroundColor="transparent"
+            underlayColor="transparent"
+            color="#DB4437"
+            size={30}
+            onPress={() => handleOAuthSignIn('google')}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with Google"
+          />
+          <Icon.Button
+            name="github"
+            backgroundColor="transparent"
+            underlayColor="transparent"
+            color="#000"
+            size={30}
+            onPress={() => handleOAuthSignIn('github')}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with Github"
+          />
+          <Icon.Button
+            name="twitter"
+            backgroundColor="transparent"
+            underlayColor="transparent"
+            color="#1DA1F2"
+            size={30}
+            onPress={() => handleOAuthSignIn('twitter')}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with Twitter"
+          />
         </View>
       </View>
     </KeyboardAvoidingView>
