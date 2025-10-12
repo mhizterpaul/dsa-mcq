@@ -1,58 +1,29 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAuthenticatedUser } from '../../utils/auth';
-import { verifySignature } from '../../utils/signature';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { prisma as defaultPrisma } from '../../infra/prisma/client';
+import { withAuth } from '../../utils/withAuth';
+import { withClientSignature } from '../../utils/withClientSignature';
+import { EngagementService } from '../../services/engagementService';
 import { PrismaClient } from '@prisma/client';
 
-export async function syncHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient) {
-    if (!verifySignature(req)) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const user = getAuthenticatedUser(req);
-    if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (req.method === 'POST') {
-        const clientDirtyData = req.body;
-        const syncedData: { [tableName: string]: any[] } = {};
-
-        try {
-            for (const tableName in clientDirtyData) {
-                const clientRecords = clientDirtyData[tableName];
-
-                if (tableName === 'Engagement') {
-                    for (const record of clientRecords) {
-                        // Basic security check
-                        if (record.userId !== user.id) {
-                            continue;
-                        }
-                        await prisma.engagement.upsert({
-                            where: { userId: record.userId },
-                            update: { xp: record.xp },
-                            create: { userId: record.userId, xp: record.xp },
-                        });
-                    }
-                    syncedData[tableName] = await prisma.engagement.findMany({ where: { userId: user.id } });
-                }
-                // ... handle other tables
-            }
-
-            res.status(200).json(syncedData);
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Internal Server Error' });
-        }
-    } else {
-        res.setHeader('Allow', ['POST']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
-}
-
-export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse
+async function syncHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  deps: { prisma: PrismaClient } = { prisma: defaultPrisma }
 ) {
-    const prisma = new PrismaClient();
-    return syncHandler(req, res, prisma);
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const engagementService = new EngagementService(deps.prisma);
+
+  const { actions } = req.body;
+
+  try {
+    await engagementService.logActions(actions);
+    res.status(200).json({ message: 'Sync successful' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Sync failed', error: error.message });
+  }
 }
+
+export default withAuth(withClientSignature(syncHandler));

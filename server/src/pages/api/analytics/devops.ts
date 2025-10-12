@@ -1,13 +1,20 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiResponse } from 'next';
+import { prisma as defaultPrisma } from '../../../infra/prisma/client';
+import { withAdmin } from '../../../utils/withAdmin';
+import { AuthenticatedRequest } from '../../../utils/withAuth';
 import { PrismaClient } from '@prisma/client';
 
-export async function devopsHandler(req: NextApiRequest, res: NextApiResponse, prisma: PrismaClient) {
+export async function devopsHandler(
+  req: AuthenticatedRequest,
+  res: NextApiResponse,
+  deps: { prisma: PrismaClient } = { prisma: defaultPrisma }
+) {
   if (req.method === 'GET') {
-    const metrics = await prisma.devOpsMetric.findMany();
+    const metrics = await deps.prisma.devOpsMetric.findMany();
     res.status(200).json(metrics);
   } else if (req.method === 'POST') {
     const { type, payload } = req.body;
-    const newMetric = await prisma.devOpsMetric.create({
+    const newMetric = await deps.prisma.devOpsMetric.create({
       data: {
         type,
         payload: JSON.stringify(payload),
@@ -20,10 +27,4 @@ export async function devopsHandler(req: NextApiRequest, res: NextApiResponse, p
   }
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const prisma = new PrismaClient();
-  return devopsHandler(req, res, prisma);
-}
+export default withAdmin(devopsHandler);
