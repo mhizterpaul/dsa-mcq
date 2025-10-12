@@ -1,4 +1,4 @@
-export class Category {
+export interface Category {
   id: string;
   name: string;
   masteryScore: number;
@@ -7,15 +7,22 @@ export class Category {
   color: string;
   createdAt: number;
   updatedAt: number;
-
-  constructor(id: string, name: string, masteryScore: number = 0, featured: boolean = false, icon: string = '', color: string = '') {
-    this.id = id;
-    this.name = name;
-    this.masteryScore = masteryScore;
-    this.featured = featured;
-    this.icon = icon;
-    this.color = color;
-    this.createdAt = Date.now();
-    this.updatedAt = Date.now();
-  }
 }
+
+export const createCategory = (
+  id: string,
+  name: string,
+  masteryScore: number = 0,
+  featured: boolean = false,
+  icon: string = '',
+  color: string = ''
+): Category => ({
+  id,
+  name,
+  masteryScore,
+  featured,
+  icon,
+  color,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+});

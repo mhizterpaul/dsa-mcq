@@ -28,6 +28,8 @@ const BottomNav = () => {
             onPress={() => navigation.navigate(item.navigateTo as never)}
             style={styles.navItem}
             rippleColor="rgba(0, 0, 0, .32)"
+            accessibilityLabel={item.name}
+            testID={item.name === 'Achievement' ? 'banner-achievement' : undefined}
           >
             <View style={styles.navItemContent}>
               <Icon name={item.icon} size={24} color={color} />

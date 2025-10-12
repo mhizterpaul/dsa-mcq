@@ -4180,6 +4180,11 @@ tslib@^2.4.0, tslib@^2.6.2:
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.8.1.tgz#612efe4ed235d567e8aba5f2a5fab70280ade83f"
   integrity sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==
 
+twitter-api-v2@^1.27.0:
+  version "1.27.0"
+  resolved "https://registry.yarnpkg.com/twitter-api-v2/-/twitter-api-v2-1.27.0.tgz#a646ea27ff6f94fdd141939f3e8561f935367d44"
+  integrity sha512-hbIFwzg0NeOcFOdmJqtKMCXjLjc0INff/7NwhnZ2zpnw65oku8i+0eMxo5M0iTc1hs+inD/IpDw3S0Xh2c45QQ==
+
 type-detect@4.0.8:
   version "4.0.8"
   resolved "https://registry.yarnpkg.com/type-detect/-/type-detect-4.0.8.tgz#7646fb5f18871cfbb7749e69bd39a6388eb7450c"

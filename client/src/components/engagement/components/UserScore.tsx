@@ -12,7 +12,7 @@ const UserScore = () => {
   const userId = currentUser?.id;
 
   const score = useSelector((state: RootState) =>
-    userId ? state.userEngagement.engagements[userId]?.xp_progress : 0
+    userId && state.userEngagement ? state.userEngagement.engagements[userId]?.xp_progress : 0
   );
 
   useEffect(() => {

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { FAB } from 'react-native-paper';
-import store from '../store';
-import { Provider } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../store';
+import { fetchUserProfile } from '../components/user/store/user.slice';
 import { UserComponent } from '../components/user/interface';
 import { LearningComponent } from '../components/learning/interface';
 import { EngagementComponent } from '../components/engagement/interface';
@@ -13,26 +14,56 @@ const user = new UserComponent();
 const learning = new LearningComponent();
 const engagement = new EngagementComponent();
 
-const HomeScreenContent = ({ navigation }: any) => {
+const HomeScreen = ({ navigation }: any) => {
+  const dispatch: AppDispatch = useDispatch();
+  const { currentUser, loading, error } = useSelector((state: RootState) => state.user);
+
+  useEffect(() => {
+    // if there's a user, fetch their latest profile data
+    if (currentUser) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, currentUser?.id]); // re-fetch if user id changes
+
+  useEffect(() => {
+    // if not loading and no user, redirect to auth
+    if (!loading && !currentUser) {
+      navigation.navigate('Auth');
+    }
+  }, [currentUser, loading, navigation]);
+
   const handleStartQuiz = async () => {
-    const sessionQuestionIds = await learning.startNewQuizSession();
-    navigation.navigate('Quiz', { sessionQuestionIds });
+    try {
+      const sessionQuestionIds = await learning.startNewQuizSession();
+      navigation.navigate('Quiz', { sessionQuestionIds });
+    } catch (error) {
+      console.error('Failed to start quiz session:', error);
+      // Optionally, display an error message to the user
+    }
   };
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          {user.renderUserProfileSummary("index")}
-          {engagement.renderUserScore("index")}
+          <View testID="topLeft">
+            {engagement.renderUserScore("index")}
+          </View>
+          <View testID="topRight">
+            {user.renderUserProfileSummary("index", currentUser?.fullName || '', currentUser?.xp || 0)}
+          </View>
         </View>
 
         <View>
-            {engagement.renderWeeklyKingOfQuiz("index")}
+            <View testID="banner-leaderboard">
+              {engagement.renderWeeklyKingOfQuiz("index", navigation)}
+            </View>
             {engagement.renderDailyQuizBanner("index", navigation)}
             <AdComponent />
-            {learning.renderFeaturedCategories("index")}
-            {learning.renderRecentQuizzes("index")}
+            <View testID="browse-smart">
+              {learning.renderFeaturedCategories("index")}
+            </View>
+            {learning.renderRecentQuizzes("index", navigation)}
         </View>
       </ScrollView>
 
@@ -42,6 +73,7 @@ const HomeScreenContent = ({ navigation }: any) => {
         style={styles.fab}
         icon="plus"
         onPress={handleStartQuiz}
+        testID="banner-start-quiz"
       />
     </View>
   );
@@ -67,14 +99,5 @@ const styles = StyleSheet.create({
         transform: [{ translateX: 28 }], // Center the button
     },
 });
-
-const HomeScreen = ({ navigation }: any) => {
-  return (
-    <Provider store={store}>
-      <HomeScreenContent navigation={navigation} />
-    </Provider>
-  );
-};
-
 
 export default HomeScreen;

@@ -96,6 +96,34 @@ export const loginWithProviderToken = createAsyncThunk<
   }
 });
 
+// Twitter login
+export const loginWithTwitter = createAsyncThunk<
+  AuthResponse,
+  { url: string },
+  { rejectValue: string }
+>('user/loginWithTwitter', async ({ url }, { rejectWithValue }) => {
+  try {
+    // The URL contains the token and user data from the backend
+    const decodedUrl = decodeURIComponent(url);
+    const params = new URLSearchParams(decodedUrl.split('?')[1]);
+    const token = params.get('token');
+    const user = JSON.parse(params.get('user') || '{}');
+
+    if (!token || !user) {
+      throw new Error('Invalid Twitter login data');
+    }
+
+    // Ensure the user object has the fullName property
+    if (user.name && !user.fullName) {
+      user.fullName = user.name;
+    }
+
+    return { token, user };
+  } catch (err: any) {
+    return rejectWithValue(err.message || 'Twitter login failed');
+  }
+});
+
 // Register
 export const registerUser = createAsyncThunk<
   AuthResponse,
@@ -106,7 +134,7 @@ export const registerUser = createAsyncThunk<
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: fullName, email, password }),
+      body: JSON.stringify({ fullName, email, password }),
       credentials: 'include',
     });
     if (!response.ok) {
@@ -205,6 +233,32 @@ export const fetchProfilePicture = createAsyncThunk<
   }
 });
 
+export const fetchUserProfile = createAsyncThunk<
+  UserObject,
+  void,
+  { rejectValue: string }
+>('user/fetchProfile', async (_, { dispatch, rejectWithValue }) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/profile-summary`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      // Dispatch logoutUser on failure to clear the session
+      dispatch(logoutUser());
+      const errorData = await response.json();
+      // It's good practice to reject with a serializable object
+      return rejectWithValue(errorData.message || 'Failed to fetch user profile');
+    }
+    const data = await response.json();
+    return data.user;
+  } catch (err: any) {
+    // Also dispatch logoutUser in case of network errors
+    dispatch(logoutUser());
+    return rejectWithValue(err.message || 'Failed to fetch user profile');
+  }
+});
+
 // -------------------- Slice --------------------
 const userSlice = createSlice({
   name: 'user',
@@ -248,6 +302,10 @@ const userSlice = createSlice({
       .addCase(loginWithProviderToken.fulfilled, setSuccess)
       .addCase(loginWithProviderToken.rejected, setError)
 
+      .addCase(loginWithTwitter.pending, setLoading)
+      .addCase(loginWithTwitter.fulfilled, setSuccess)
+      .addCase(loginWithTwitter.rejected, setError)
+
       .addCase(registerUser.pending, setLoading)
       .addCase(registerUser.fulfilled, setSuccess)
       .addCase(registerUser.rejected, setError)
@@ -282,7 +340,19 @@ const userSlice = createSlice({
           state.currentUser.image = action.payload.imageUrl;
         }
       })
-      .addCase(fetchProfilePicture.rejected, setError);
+      .addCase(fetchProfilePicture.rejected, setError)
+
+      .addCase(fetchUserProfile.pending, setLoading)
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        state.currentUser = action.payload;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || action.error.message || 'An error occurred';
+        state.currentUser = null;
+      });
   },
 });
 

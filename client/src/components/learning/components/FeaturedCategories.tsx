@@ -1,34 +1,24 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useSelector, useDispatch } from 'react-redux';
-import { LearningRootState } from '../store';
-import { setCategories } from '../store/category.slice';
-import { Category } from '../store/primitives/Category';
+import { useSelector } from 'react-redux';
+import { createSelector } from 'reselect';
+import { RootState } from '../../../store';
+
+const selectCategoriesEntities = (state: RootState) => state.learning.categories.entities;
+
+const selectFeaturedCategories = createSelector(
+  [selectCategoriesEntities],
+  (entities) => Object.values(entities).filter(c => c?.featured)
+);
 
 const FeaturedCategories = () => {
-  const categories = useSelector((state: LearningRootState) => Object.values(state.categories.entities));
-  const featuredCategories = categories.filter((c) => c.featured);
-  const dispatch = useDispatch();
+  const featuredCategories = useSelector(selectFeaturedCategories);
 
   const handleSelectCategory = (categoryName: string) => {
     console.log('Selected category:', categoryName);
   };
-
-  const handleAddDummyData = () => {
-    const dummyCategories: Category[] = [
-      new Category('1', 'SPORTS', 0, true, 'basketball', '#FF7A3C'),
-      new Category('2', 'SPACE', 0, true, 'rocket', '#7B61FF'),
-      new Category('3', 'ART', 0, true, 'palette', '#2EC4B6'),
-      new Category('4', 'SCIENCE', 0, true, 'flask', '#FFBE0B'),
-    ];
-    dispatch(setCategories(dummyCategories));
-  };
-
-  useEffect(() => {
-    handleAddDummyData();
-  }, [dispatch]);
 
   return (
     <View style={styles.container}>

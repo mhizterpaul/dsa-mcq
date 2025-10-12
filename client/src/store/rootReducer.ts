@@ -6,20 +6,26 @@ import questionReducer from '../components/learning/store/question.slice';
 import userQuestionDataReducer from '../components/learning/store/userQuestionData.slice';
 import learningSessionReducer from '../components/learning/store/learningSession.slice';
 
+import recentQuizzesReducer from '../components/learning/store/recentQuizzes.slice';
+
 const learningRootReducer = combineReducers({
   categories: categoryReducer,
   questions: questionReducer,
   userQuestionData: userQuestionDataReducer,
   learningSession: learningSessionReducer,
+  recentQuizzes: recentQuizzesReducer,
 });
 
 // Engagement Component Reducers
 import userEngagementReducer from '../components/engagement/store/userEngagement.slice';
 import notificationReducer from '../components/engagement/store/notification.slice';
 
+import globalEngagementReducer from '../components/engagement/store/globalEngagement.slice';
+
 const engagementRootReducer = combineReducers({
   userEngagement: userEngagementReducer,
   notifications: notificationReducer,
+  globalEngagement: globalEngagementReducer,
 });
 
 // Analytics Component Reducers

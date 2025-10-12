@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text, Button, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector, useDispatch } from 'react-redux';
-import { EngagementRootState } from '../../engagement/store/store';
+import { RootState } from '../../../store';
 import { setDailyQuiz } from '../../engagement/store/globalEngagement.slice';
 import { DailyQuiz } from '../../engagement/store/primitives/globalEngagement';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -16,7 +16,7 @@ interface DailyQuizBannerProps {
 }
 
 const DailyQuizBanner: React.FC<DailyQuizBannerProps> = ({ navigation }) => {
-  const dailyQuiz = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.dailyQuiz);
+  const dailyQuiz = useSelector((state: RootState) => state.engagement.globalEngagement.engagement.dailyQuiz);
   const dispatch = useDispatch();
 
   const handleAddDummyData = () => {
@@ -28,26 +28,28 @@ const DailyQuizBanner: React.FC<DailyQuizBannerProps> = ({ navigation }) => {
     dispatch(setDailyQuiz(dummyQuiz));
   };
 
-  useEffect(() => {
-    handleAddDummyData();
-  }, [dispatch]);
 
   const handleJoinQuiz = () => {
     navigation.navigate('DailyQuiz');
   };
 
+  if (!dailyQuiz) {
+    return null;
+  }
+
   return (
     <Card style={styles.card}>
       <Card.Content style={styles.cardContent}>
         <View>
-          <Text style={styles.title}>{dailyQuiz?.title}</Text>
-          <Text style={styles.description}>{dailyQuiz?.description}</Text>
+          <Text style={styles.title}>{dailyQuiz.title}</Text>
+          <Text style={styles.description}>{dailyQuiz.description}</Text>
           <Button
             mode="contained"
             onPress={handleJoinQuiz}
             style={styles.button}
             labelStyle={styles.buttonLabel}
             compact
+            testID="dailyQuizJoin"
           >
             Join a quiz
           </Button>
