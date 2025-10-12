@@ -171,36 +171,6 @@ const compileSessionSummary = (
     return { strengths, weaknesses };
 };
 
-const getCategoryRecommendations = (
-  categories: Category[],
-): CategoryRecommendation[] => {
-  return categories.map((category) => {
-    const { id, masteryScore } = category;
-    let recommendationLevel: 'High' | 'Medium' | 'Low' | 'None';
-    let explanation: string;
-
-    if (masteryScore === 0) {
-      recommendationLevel = 'High';
-      explanation = 'New category with no attempts, needs exposure';
-    } else if (masteryScore < 0.4) {
-      recommendationLevel = 'High';
-      explanation = 'Struggling category, focus recommended';
-    } else if (masteryScore < 0.8) {
-      recommendationLevel = 'Medium';
-      explanation = 'Partial mastery, reinforcement suggested';
-    } else {
-      recommendationLevel = 'Low';
-      explanation = 'Mastered categories deprioritized';
-    }
-
-    return {
-      categoryId: id,
-      recommendationLevel,
-      explanation,
-    };
-  });
-};
-
 export const API_BASE_URL = 'http://localhost:3000/api';
 
 const getFeaturedCategories = async (): Promise<Category[]> => {
@@ -234,5 +204,4 @@ export const learningService = {
     startNewSession,
     processAnswer,
     compileSessionSummary,
-    getCategoryRecommendations,
 };

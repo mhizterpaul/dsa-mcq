@@ -14,7 +14,7 @@ import { setWeeklyKingOfQuiz } from './store/globalEngagement.slice';
 import { AppDispatch } from '../mediator/store';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-type RootStackParamList = { DailyQuiz: undefined; };
+type RootStackParamList = { DailyQuiz: undefined; Leaderboard: undefined; };
 type NavigationProp = StackNavigationProp<RootStackParamList, 'DailyQuiz'>;
 
 export interface IEngagementComponent {
@@ -28,9 +28,9 @@ export interface IEngagementComponent {
   renderReminders(screen: string): React.ReactElement;
   renderMotivationCard(screen: string): React.ReactElement;
   renderNotificationButton(screen: string, onPress: () => void): React.ReactElement;
-  renderUserScore(screen: string, score: number): React.ReactElement;
-  renderWeeklyKingOfQuiz(screen: string): React.ReactElement;
-  renderDailyQuizBanner(screen: string, navigation: NavigationProp): React.ReactElement;
+  renderUserScore(screen: string): React.ReactElement;
+  renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement;
+  renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement;
 }
 
 export class EngagementComponent implements IEngagementComponent {
@@ -79,11 +79,11 @@ export class EngagementComponent implements IEngagementComponent {
         return <UserScore />;
     }
 
-    renderWeeklyKingOfQuiz(screen: string): React.ReactElement {
-        return <WeeklyKingOfQuiz />;
+    renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement {
+        return <WeeklyKingOfQuiz navigation={navigation} />;
     }
 
-    renderDailyQuizBanner(screen: string, navigation: NavigationProp): React.ReactElement {
+    renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement {
         return <DailyQuizBanner navigation={navigation} />;
     }
 

@@ -22,8 +22,8 @@ export interface ILearningComponent {
   renderQuizPerformanceIndicator(screen: string, performance: number): React.ReactElement;
   renderStartQuizButton(screen: string, onPress: () => void): React.ReactElement;
   renderGameModes(screen: string): React.ReactElement;
-  renderFeaturedCategories(screen: string, onSelectCategory: (category: string) => void): React.ReactElement;
-  renderRecentQuizzes(screen: string): React.ReactElement;
+  renderFeaturedCategories(screen: string): React.ReactElement;
+  renderRecentQuizzes(screen: string, navigation: any): React.ReactElement;
   renderQuizView(screen: string): React.ReactElement;
 }
 
@@ -75,8 +75,8 @@ export class LearningComponent implements ILearningComponent {
       return <FeaturedCategories  />;
     }
 
-    renderRecentQuizzes(screen: string): React.ReactElement {
-      return <RecentQuizzes />;
+    renderRecentQuizzes(screen: string, navigation: any): React.ReactElement {
+      return <RecentQuizzes navigation={navigation} />;
     }
 
     renderQuizView(screen: string): React.ReactElement {

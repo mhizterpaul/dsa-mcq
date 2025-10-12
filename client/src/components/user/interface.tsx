@@ -10,7 +10,7 @@ import { User } from './store/primitives/User';
 
 export interface IUserComponent {
     hydrateUser(): Promise<User | null>;
-    renderUserProfileSummary(screen: string): React.ReactElement;
+    renderUserProfileSummary(screen: string, fullName: string, xp: number): React.ReactElement;
     renderBookmarkList(screen: string): React.ReactElement;
     renderUserProfile(screen: string): React.ReactElement;
     renderResetPasswordForm(screen: string): React.ReactElement;
@@ -23,8 +23,8 @@ export class UserComponent implements IUserComponent {
         return await userService.hydrateUser();
     }
 
-    renderUserProfileSummary(screen: string): React.ReactElement {
-        return <UserProfileSummary />;
+    renderUserProfileSummary(screen: string, fullName: string, xp: number): React.ReactElement {
+        return <UserProfileSummary fullName={fullName} xp={xp} />;
     }
 
 

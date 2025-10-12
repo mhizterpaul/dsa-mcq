@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { GlobalEngagement, DailyQuiz, Player, KingOfQuiz } from './primitives/globalEngagement';
+import { GlobalEngagement, DailyQuiz, Player, KingOfQuiz, initialGlobalEngagement } from './primitives/globalEngagement';
 import { API_BASE_URL } from '../../learning/services/learningService'; // Re-using this constant
 
 export const fetchLeaderboard = createAsyncThunk<Player[]>(
@@ -15,10 +15,14 @@ export const fetchLeaderboard = createAsyncThunk<Player[]>(
 
 interface GlobalEngagementState {
   engagement: GlobalEngagement;
+  loading: boolean;
+  error: string | null;
 }
 
 const initialState: GlobalEngagementState = {
-  engagement: new GlobalEngagement(),
+  engagement: initialGlobalEngagement,
+  loading: false,
+  error: null,
 };
 
 const globalEngagementSlice = createSlice({
@@ -36,9 +40,19 @@ const globalEngagementSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(fetchLeaderboard.fulfilled, (state, action: PayloadAction<Player[]>) => {
-        state.engagement.leaderboard = action.payload;
-    });
+    builder
+        .addCase(fetchLeaderboard.pending, (state) => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(fetchLeaderboard.fulfilled, (state, action: PayloadAction<Player[]>) => {
+            state.engagement.leaderboard = action.payload;
+            state.loading = false;
+        })
+        .addCase(fetchLeaderboard.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.error.message || 'Failed to fetch leaderboard';
+        });
   },
 });
 

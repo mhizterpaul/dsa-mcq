@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { Menu, IconButton, Divider } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -7,10 +7,14 @@ type MenuKey = 'coinHistory' | 'profileDetails' | 'weeklyGifts' | 'questions';
 
 export type UserProfileSummaryProps = {
   containerStyle?: object;
+  fullName: string;
+  xp: number;
 };
 
 const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
   containerStyle,
+  fullName,
+  xp,
 }) => {
   const [visible, setVisible] = useState(false);
 
@@ -34,6 +38,10 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
+      <View style={styles.greetingContainer}>
+        <Text style={styles.greetingText}>Hello, {fullName}</Text>
+        <Text style={styles.xpText}>{xp} XP</Text>
+      </View>
       <Menu
         visible={visible}
         onDismiss={closeMenu}
@@ -43,6 +51,7 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
             size={18}
             onPress={openMenu}
             style={styles.menuButton}
+            testID="userAvatar"
           />
         }>
         {menuItems.map((item, idx) => (
@@ -66,6 +75,18 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
+  },
+  greetingContainer: {
+    alignItems: 'flex-end',
+    marginRight: 10,
+  },
+  greetingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  xpText: {
+    fontSize: 14,
   },
   menuButton: {
     width: 28,

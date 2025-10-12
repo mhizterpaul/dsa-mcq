@@ -1,40 +1,35 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text, Avatar, Button, Card } from 'react-native-paper';
+import { Text, Avatar, Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useSelector, useDispatch } from 'react-redux';
-import { EngagementRootState } from '../store/store';
-import { setWeeklyKingOfQuiz } from '../store/globalEngagement.slice';
-import { KingOfQuiz } from '../store/primitives/globalEngagement';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../store';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const WeeklyKingOfQuiz = () => {
-  const king = useSelector((state: EngagementRootState) => state.globalEngagement.engagement.weeklyKingOfQuiz);
-  const dispatch = useDispatch();
+type RootStackParamList = { Leaderboard: undefined; };
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Leaderboard'>;
 
-  const handleAddDummyData = () => {
-    const dummyKing: KingOfQuiz = {
-      name: 'Moktum Talukdar',
-      avatar: 'https://randomuser.me/api/portraits/men/35.jpg',
-      score: 12000,
-    };
-    dispatch(setWeeklyKingOfQuiz(dummyKing));
-  };
+interface WeeklyKingOfQuizProps {
+    navigation: NavigationProp;
+}
 
-  useEffect(() => {
-    handleAddDummyData();
-  }, [dispatch]);
+const WeeklyKingOfQuiz: React.FC<WeeklyKingOfQuizProps> = ({ navigation }) => {
+  const king = useSelector((state: RootState) => state.engagement.globalEngagement.engagement.weeklyKingOfQuiz);
 
   if (!king) {
     return (
         <View style={styles.loadingContainer}>
             <Text>Loading...</Text>
-            <Button onPress={handleAddDummyData}>Add Dummy Data</Button>
         </View>
     )
   }
 
+  const handlePress = () => {
+    navigation.navigate('Leaderboard');
+  };
+
   return (
-    <Card style={styles.card}>
+    <Card style={styles.card} testID="weeklyKing" onPress={handlePress}>
       <Card.Content style={styles.cardContent}>
         <View style={styles.textContainer}>
           <Text style={styles.title}>This week's</Text>

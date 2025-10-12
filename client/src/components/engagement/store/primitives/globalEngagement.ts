@@ -19,14 +19,14 @@ export interface KingOfQuiz {
     score: number;
 }
 
-export class GlobalEngagement {
+export interface GlobalEngagement {
     dailyQuiz: DailyQuiz | null;
     leaderboard: Player[];
     weeklyKingOfQuiz: KingOfQuiz | null;
-
-    constructor() {
-        this.dailyQuiz = null;
-        this.leaderboard = [];
-        this.weeklyKingOfQuiz = null;
-    }
 }
+
+export const initialGlobalEngagement: GlobalEngagement = {
+    dailyQuiz: null,
+    leaderboard: [],
+    weeklyKingOfQuiz: null,
+};

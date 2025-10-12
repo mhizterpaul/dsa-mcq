@@ -1,7 +1,7 @@
 import { createSlice, createEntityAdapter, PayloadAction } from '@reduxjs/toolkit';
 import { RecentQuiz } from './primitives/RecentQuiz';
 
-const recentQuizzesAdapter = createEntityAdapter<RecentQuiz>();
+export const recentQuizzesAdapter = createEntityAdapter<RecentQuiz>();
 
 const recentQuizzesSlice = createSlice({
   name: 'recentQuizzes',
