@@ -4,7 +4,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/.next/'],
   modulePaths: ['<rootDir>/node_modules'],
   moduleNameMapper: {
-    '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
+    '\\.(css|less|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
     '^pages/(.*)$': '<rootDir>/src/pages/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
