@@ -10,16 +10,15 @@
     "test": "yarn prisma:generate && jest --runInBand",
     "test:watch": "yarn prisma:generate && jest --watch --runInBand",
     "test:coverage": "yarn prisma:generate && jest --coverage",
-
     "prisma:pregenerate": "cat src/infra/prisma/schema.header.prisma src/models/*.prisma > src/infra/prisma/schema.prisma",
     "prisma:generate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma generate --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma migrate dev --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate-deploy": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma migrate deploy --schema ./src/infra/prisma/schema.prisma",
-   
-
-    "seed": "yarn prisma:pregenerate && ts-node --transpile-only ./src/infra/prisma/seed.ts",
-    "seed:prod": "cross-env NODE_ENV=production prisma db seed"
-
+    "seed": "yarn prisma:pregenerate && node --loader ts-node/esm src/infra/prisma/seed.ts",
+    "seed:prod": "cross-env NODE_ENV=production prisma db seed --schema ./src/infra/prisma/schema.prisma "
+  }, 
+  "prisma": {
+    "seed": "node --loader ts-node/esm src/infra/prisma/seed.ts"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^2.1.0",
@@ -46,7 +45,7 @@
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/lru-cache": "7.10.10",
-    "@types/node": "20.12.12",
+    "@types/node": "^24.7.2",
     "@types/node-cron": "^3.0.0",
     "@types/nodemailer": "^6.4.19",
     "@types/react": "18.3.2",
@@ -64,6 +63,6 @@
     "prismock": "^1.22.0",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "5.4.5"
+    "typescript": "^5.9.3"
   }
 }
