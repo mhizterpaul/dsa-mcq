@@ -3,11 +3,25 @@ import { parse } from 'csv-parse';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
-
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL,
+    },
+  },
+});
+async function ensureConnection() {
+  try {
+    console.log("🔌 Connecting to database...");
+    await prisma.$connect();
+    console.log("✅ Database connected successfully.");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err);
+    process.exit(1);
+  }
+}
 async function main() {
   console.log(`🌱 Starting seed in ${process.env.NODE_ENV || "development"} mode...`);
-
   // ✅ Skip seeding if questions already exist
   const existingCount = await prisma.question.count();
   if (existingCount > 0) {
@@ -83,6 +97,7 @@ async function main() {
   console.log('✅ Seed completed successfully');
 }
 
+ensureConnection();
 main()
   .catch(e => {
     console.error('❌ Seeding failed:', e);
