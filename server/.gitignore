@@ -15,8 +15,7 @@ yarn-error.log
 
 # development
 .env
-.env.local
-.env.production
+.env.*
 .vscode/
 
 # next.js

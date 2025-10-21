@@ -2,6 +2,7 @@
   "name": "auth-server",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,11 +13,12 @@
     "test:coverage": "yarn prisma:generate && jest --coverage",
     "prisma:pregenerate": "cat src/infra/prisma/schema.header.prisma src/models/*.prisma > src/infra/prisma/schema.prisma",
     "prisma:generate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma generate --schema ./src/infra/prisma/schema.prisma",
+    "prisma:generate:prod": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma generate --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma migrate dev --schema ./src/infra/prisma/schema.prisma",
     "prisma:generate:prod": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma generate --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate-deploy": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma migrate deploy --schema ./src/infra/prisma/schema.prisma",
     "seed": "yarn prisma:pregenerate && node --loader ts-node/esm src/infra/prisma/seed.ts",
-    "seed:prod": "yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts"
+    "seed:prod": "yarn prisma:migrate-deploy && yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts"
   },
   "prisma": {
     "seed": "ts-node src/infra/prisma/seed.ts"

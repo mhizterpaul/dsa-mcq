@@ -1,27 +1,25 @@
+
 import { PrismaClient } from '@prisma/client';
 import { parse } from 'csv-parse';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DIRECT_URL,
-    },
-  },
+// ES Module equivalent for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL,
+    },
+  },
 });
-async function ensureConnection() {
-  try {
-    console.log("🔌 Connecting to database...");
-    await prisma.$connect();
-    console.log("✅ Database connected successfully.");
-  } catch (err) {
-    console.error("❌ Database connection failed:", err);
-    process.exit(1);
-  }
-}
+
 async function main() {
   console.log(`🌱 Starting seed in ${process.env.NODE_ENV || "development"} mode...`);
+
   // ✅ Skip seeding if questions already exist
   const existingCount = await prisma.question.count();
   if (existingCount > 0) {
@@ -30,7 +28,7 @@ async function main() {
   }
 
   // ✅ Pick CSV path
-  const csvFilePath = path.resolve(__dirname, '../../mcq_dataset_enriched.csv');
+  const csvFilePath = path.resolve(__dirname, '../../../mcq_dataset_enriched.csv');
 
   const parser = fs
     .createReadStream(csvFilePath)
@@ -74,7 +72,7 @@ async function main() {
       data: {
         title: question,
         body: `${question}\nOptions: A) ${a}, B) ${b}, C) ${c}, D) ${d}`,
-        difficulty: difficulty.toUpperCase(),
+        difficulty: difficulty ? difficulty.toUpperCase() : 'EASY',
         categoryId: categoryRecord.id,
         tagsText: tagNames,
 
@@ -97,7 +95,6 @@ async function main() {
   console.log('✅ Seed completed successfully');
 }
 
-ensureConnection();
 main()
   .catch(e => {
     console.error('❌ Seeding failed:', e);
@@ -106,3 +103,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
