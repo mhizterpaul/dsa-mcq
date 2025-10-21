@@ -2,8 +2,19 @@ import { PrismaClient } from '@prisma/client';
 import { parse } from 'csv-parse';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
-const prisma = new PrismaClient();
+// ES Module equivalent for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL,
+    },
+  },
+});
 
 async function main() {
   console.log(`🌱 Starting seed in ${process.env.NODE_ENV || "development"} mode...`);
@@ -16,7 +27,7 @@ async function main() {
   }
 
   // ✅ Pick CSV path
-  const csvFilePath = path.resolve(__dirname, '../../mcq_dataset_enriched.csv');
+  const csvFilePath = path.resolve(__dirname, '../../../mcq_dataset_enriched.csv');
 
   const parser = fs
     .createReadStream(csvFilePath)
@@ -60,7 +71,7 @@ async function main() {
       data: {
         title: question,
         body: `${question}\nOptions: A) ${a}, B) ${b}, C) ${c}, D) ${d}`,
-        difficulty: difficulty.toUpperCase(),
+        difficulty: difficulty ? difficulty.toUpperCase() : 'EASY',
         categoryId: categoryRecord.id,
         tagsText: tagNames,
 
