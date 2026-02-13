@@ -249,4 +249,28 @@ describe('QuizScreen E2E', () => {
     await user.press(screen.getByText('Cancel'));
     expect(screen.queryByTestId('exit-modal')).not.toBeOnTheScreen();
   });
+
+  test('progress bar and title block update correctly', async () => {
+    renderWithProviders(initialLoggedInState);
+
+    await waitFor(() => expect(screen.getByTestId('question-count')).toBeOnTheScreen());
+
+    // Before start
+    expect(screen.getByText('0 out of 2 questions')).toBeOnTheScreen();
+    const progressBarFill = screen.getByTestId('progress-bar-fill');
+    expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '0%' }));
+
+    await user.press(screen.getByText('Start Quiz'));
+
+    // Question 1
+    expect(screen.getByText('Questions 1 of 2')).toBeOnTheScreen();
+    expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '50%' }));
+
+    await user.press(screen.getByText(mockQuestions[0].options[0].text));
+    await user.press(screen.getByText('Next →'));
+
+    // Question 2
+    expect(await screen.findByText('Questions 2 of 2')).toBeOnTheScreen();
+    expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '100%' }));
+  });
 });

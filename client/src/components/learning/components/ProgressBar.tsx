@@ -10,8 +10,11 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ current, total }) => {
     const progress = total > 0 ? current / total : 0;
 
     return (
-        <View style={styles.container}>
-            <View style={[styles.bar, { width: `${progress * 100}%` }]} />
+        <View style={styles.container} testID="progress-bar-container">
+            <View
+                style={[styles.bar, { width: `${progress * 100}%` }]}
+                testID="progress-bar-fill"
+            />
         </View>
     );
 };
