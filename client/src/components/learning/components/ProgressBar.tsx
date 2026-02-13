@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 interface ProgressBarProps {
     current: number;
@@ -7,23 +7,26 @@ interface ProgressBarProps {
 }
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ current, total }) => {
+    const progress = total > 0 ? current / total : 0;
+
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>
-                Question {current} of {total}
-            </Text>
+            <View style={[styles.bar, { width: `${progress * 100}%` }]} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        padding: 10,
-        alignItems: 'center',
+        height: 4,
+        width: '100%',
+        backgroundColor: '#E0E0E0',
+        borderRadius: 2,
+        overflow: 'hidden',
     },
-    text: {
-        fontSize: 16,
-        fontWeight: 'bold',
+    bar: {
+        height: '100%',
+        backgroundColor: '#6200EE', // Purple color from image
     },
 });
 

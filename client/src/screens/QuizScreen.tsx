@@ -5,8 +5,6 @@ import { RouteProp } from '@react-navigation/native';
 
 import { LearningComponent } from '../components/learning/interface';
 import learningService from '../components/learning/services/learningService';
-import BackButton from '../components/common/components/BackButton';
-import BottomNav from '../components/common/components/BottomNav';
 
 type RootStackParamList = {
     Home: undefined;
@@ -33,11 +31,9 @@ const QuizScreen: React.FC<ScreenProps> = ({ navigation, route }) => {
 
     return (
         <View style={styles.container}>
-            <BackButton navigation={navigation} />
             <View style={styles.content}>
                 {learningComponent.renderQuiz('quiz', sessionQuestionIds, navigation, handleQuizComplete)}
             </View>
-            {/* No BottomNav on Quiz Screen as per instructions */}
         </View>
     );
 };

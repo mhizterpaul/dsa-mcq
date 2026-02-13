@@ -11,11 +11,11 @@ import { render, screen, userEvent, act, waitFor, fireEvent, within } from '@tes
 import { configureStore } from '@reduxjs/toolkit';
 import type { PreloadedState } from '@reduxjs/toolkit';
 
-import rootReducer from '../../src/store/rootReducer';
-import { initialGlobalEngagement } from '../../src/components/engagement/store/primitives/globalEngagement';
-import { recentQuizzesAdapter } from '../../src/components/learning/store/recentQuizzes.slice';
-import IndexScreen from '../../src/screens/index';
-import { AppStore, RootState } from '../../src/store';
+import rootReducer from '../../store/rootReducer';
+import { initialGlobalEngagement } from '../../components/engagement/store/primitives/globalEngagement';
+import { recentQuizzesAdapter } from '../../components/learning/store/recentQuizzes.slice';
+import IndexScreen from '../../screens/index';
+import { AppStore, RootState } from '../../store';
 
 // --- MSW Server Setup ---
 const mockUser = { id: '1', fullName: 'Test User', username: 'testuser', email: 'test@example.com' };
@@ -56,13 +56,13 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-jest.mock('../../src/components/learning/services/feedbackService', () => ({
+jest.mock('../../components/learning/services/feedbackService', () => ({
   __esModule: true,
   default: { getFeedback: jest.fn(async () => ({ feedback: 'Mock feedback' })) },
   getFeedback: jest.fn(async () => ({ feedback: 'Mock feedback' })),
 }));
 
-jest.mock('../../src/components/learning/services/learningService', () => ({
+jest.mock('../../components/learning/services/learningService', () => ({
     startNewSession: jest.fn().mockResolvedValue({ questionIds: ['1', '2', '3'] }),
     getFeaturedCategories: jest.fn().mockResolvedValue([]),
 }));

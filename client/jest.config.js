@@ -6,7 +6,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
-      '<rootDir>/__mocks__/fileMock.js',
-    'react-native-ui-lib': '<rootDir>/__mocks__/react-native-ui-lib.js',
+      '<rootDir>/src/__mocks__/fileMock.js',
+    'react-native-ui-lib': '<rootDir>/src/__mocks__/react-native-ui-lib.js',
   },
 };

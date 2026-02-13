@@ -11,12 +11,12 @@ import { render, screen, userEvent, within } from '@testing-library/react-native
 import { configureStore } from '@reduxjs/toolkit';
 import type { PreloadedState } from '@reduxjs/toolkit';
 
-import userReducer, { loginUser } from '../../src/components/user/store/user.slice';
-import AuthScreen from '../../src/screens/AuthScreen';
-import { AppStore, RootState } from '../../src/store';
+import userReducer, { loginUser } from '../../components/user/store/user.slice';
+import AuthScreen from '../../screens/AuthScreen';
+import { AppStore, RootState } from '../../store';
 
 // Mock the useOAuth hook
-import * as oauth from '../../src/components/common/hooks/useOAuth';
+import * as oauth from '../../components/common/hooks/useOAuth';
 
 // --- MSW Server Setup ---
 const mockUser = { id: '1', name: 'Test User', email: 'test@example.com' };
