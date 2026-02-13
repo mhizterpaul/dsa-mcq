@@ -141,30 +141,36 @@ describe('QuizScreen E2E', () => {
   test('renders header elements correctly', async () => {
     renderWithProviders(initialLoggedInState);
 
-    await waitFor(() => expect(screen.getByTestId('quiz-title')).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId('quiz-header-title')).toBeOnTheScreen());
 
     expect(screen.getByTestId('back-button')).toBeOnTheScreen();
     expect(screen.getByText('Aptitude Test')).toBeOnTheScreen();
     expect(screen.getByTestId('timer-text')).toHaveTextContent('2:00');
   });
 
-  test('renders initial state before quiz starts', async () => {
+  test('renders title block and question count block correctly before start', async () => {
     renderWithProviders(initialLoggedInState);
 
-    await waitFor(() => expect(screen.getByTestId('question-count')).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId('quiz-type')).toBeOnTheScreen());
 
+    // Title Block (Quiz Category)
+    expect(screen.getByText('ALGORITHMS')).toBeOnTheScreen();
+
+    // Question Count Block
     expect(screen.getByText('0 out of 2 questions')).toBeOnTheScreen();
+
     expect(screen.getByText('Ready to start the quiz?')).toBeOnTheScreen();
     expect(screen.getByText('Start Quiz')).toBeOnTheScreen();
   });
 
-  test('starts countdown when Start Quiz is pressed', async () => {
+  test('starts countdown and updates question count when Start Quiz is pressed', async () => {
     renderWithProviders(initialLoggedInState);
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
 
     await user.press(screen.getByText('Start Quiz'));
 
+    // Question Count Block updates
     expect(screen.getByText('Questions 1 of 2')).toBeOnTheScreen();
 
     // Advance timers by 1 second
@@ -250,26 +256,25 @@ describe('QuizScreen E2E', () => {
     expect(screen.queryByTestId('exit-modal')).not.toBeOnTheScreen();
   });
 
-  test('progress bar and title block update correctly', async () => {
+  test('progress bar updates correctly', async () => {
     renderWithProviders(initialLoggedInState);
 
-    await waitFor(() => expect(screen.getByTestId('question-count')).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId('progress-bar-fill')).toBeOnTheScreen());
 
-    // Before start
-    expect(screen.getByText('0 out of 2 questions')).toBeOnTheScreen();
     const progressBarFill = screen.getByTestId('progress-bar-fill');
+
+    // Before start: 0%
     expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '0%' }));
 
     await user.press(screen.getByText('Start Quiz'));
 
-    // Question 1
-    expect(screen.getByText('Questions 1 of 2')).toBeOnTheScreen();
+    // Question 1: 50%
     expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '50%' }));
 
     await user.press(screen.getByText(mockQuestions[0].options[0].text));
     await user.press(screen.getByText('Next →'));
 
-    // Question 2
+    // Question 2: 100%
     expect(await screen.findByText('Questions 2 of 2')).toBeOnTheScreen();
     expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '100%' }));
   });

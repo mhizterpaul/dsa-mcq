@@ -48,9 +48,6 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
             intervalId = setInterval(() => {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
-        } else if (timeLeft === 0) {
-            // Auto-advance or complete if time runs out?
-            // For now just keep it at 0 or handle as needed.
         }
         return () => clearInterval(intervalId);
     }, [isStarted, timeLeft]);
@@ -73,7 +70,6 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
         const correctAnswer = question.options.find(o => o.isCorrect)?.text;
         const isCorrect = selectedOption === correctAnswer;
 
-        // We'll process the answer in Redux but keep local state for the session
         const newAnswers = { ...sessionAnswers, [question.id]: { answer: selectedOption || '', isCorrect } };
         setSessionAnswers(newAnswers);
 
@@ -117,7 +113,7 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
                 <TouchableOpacity onPress={handleBack} testID="back-button">
                     <Icon name="chevron-left" size={30} color="#000" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle} testID="quiz-title">Aptitude Test</Text>
+                <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
                 <View style={styles.timerContainer}>
                     <Icon name="clock-outline" size={20} color="#000" />
                     <Text style={styles.timerText} testID="timer-text">{formatTime(timeLeft)}</Text>
@@ -127,6 +123,9 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
             <ProgressBar current={isStarted ? currentQuestionIndex + 1 : 0} total={questions.length} />
 
             <View style={styles.content}>
+                <Text style={styles.quizType} testID="quiz-type">
+                    {questions[0]?.category?.toUpperCase() || 'ALGORITHMS'}
+                </Text>
                 <Text style={styles.questionCount} testID="question-count">
                     {isStarted ? `Questions ${currentQuestionIndex + 1} of ${questions.length}` : `0 out of ${questions.length} questions`}
                 </Text>
@@ -214,10 +213,16 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 20,
     },
+    quizType: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#666',
+        marginTop: 20,
+    },
     questionCount: {
         fontSize: 14,
         color: '#6200EE',
-        marginTop: 20,
+        marginTop: 4,
         marginBottom: 10,
     },
     startState: {
