@@ -1,36 +1,44 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Question } from '../services/learningService';
 
 interface QuestionCardProps {
     question: Question;
+    selectedOption: string | null;
     onSelectAnswer: (answer: string) => void;
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, onSelectAnswer }) => {
-    const [selectedOption, setSelectedOption] = useState<string | null>(null);
-
-    const handleSelect = (optionText: string) => {
-        setSelectedOption(optionText);
-        onSelectAnswer(optionText);
-    };
-
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, selectedOption, onSelectAnswer }) => {
     return (
         <View style={styles.card}>
             <Text style={styles.questionText}>{question.question}</Text>
             <View style={styles.optionsContainer}>
-                {question.options.map((option, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={[
-                            styles.option,
-                            selectedOption === option.text && styles.selectedOption,
-                        ]}
-                        onPress={() => handleSelect(option.text)}
-                    >
-                        <Text style={styles.optionText}>{option.text}</Text>
-                    </TouchableOpacity>
-                ))}
+                {question.options.map((option, index) => {
+                    const isSelected = selectedOption === option.text;
+                    return (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.option,
+                                isSelected ? styles.selectedOption : styles.unselectedOption,
+                            ]}
+                            onPress={() => onSelectAnswer(option.text)}
+                            testID={`option-${index}`}
+                        >
+                            <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
+                                {option.text}
+                            </Text>
+                            <Icon
+                                name={isSelected ? "check-circle-outline" : "circle"}
+                                size={24}
+                                color={isSelected ? "#6200EE" : "#BDBDBD"}
+                                style={styles.icon}
+                                testID={isSelected ? `selected-icon-${index}` : `unselected-icon-${index}`}
+                            />
+                        </TouchableOpacity>
+                    );
+                })}
             </View>
         </View>
     );
@@ -38,37 +46,45 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, onSelectAnswer })
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: 'white',
-        borderRadius: 10,
         padding: 20,
-        margin: 10,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 1.41,
     },
     questionText: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
-        marginBottom: 20,
+        marginBottom: 24,
+        color: '#000',
     },
     optionsContainer: {
-        // styles for the container of options
+        gap: 12,
     },
     option: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 15,
-        marginBottom: 10,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+    },
+    unselectedOption: {
+        borderColor: '#E0E0E0',
+        backgroundColor: '#fff',
     },
     selectedOption: {
-        backgroundColor: '#d3eaff',
-        borderColor: '#007bff',
+        borderColor: '#6200EE',
+        backgroundColor: '#F5F0FF',
     },
     optionText: {
         fontSize: 16,
+        color: '#000',
+        flex: 1,
+    },
+    selectedOptionText: {
+        color: '#6200EE',
+        fontWeight: '500',
+    },
+    icon: {
+        marginLeft: 8,
     },
 });
 

@@ -205,3 +205,5 @@ export const learningService = {
     processAnswer,
     compileSessionSummary,
 };
+
+export default learningService;
