@@ -32,7 +32,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, selectedOption, o
                             <Icon
                                 name={isSelected ? "check-circle-outline" : "circle"}
                                 size={24}
-                                color={isSelected ? "#6200EE" : "#BDBDBD"}
+                                color={isSelected ? "#6200EE" : "#E0E0E0"}
                                 style={styles.icon}
                                 testID={isSelected ? `selected-icon-${index}` : `unselected-icon-${index}`}
                             />
