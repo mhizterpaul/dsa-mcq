@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { UserQuestionData } from '../store/primitives/UserQuestionData';
-import { updateUserQuestionData } from '../store/userQuestionData.slice';
+import { processAnswerAndUpdate, nextSubset } from '../store/learningSession.slice';
 import { LearningRootState } from '../store';
-import learningService, { Question } from '../services/learningService';
+import { learningService, Question } from '../services/learningService';
 import ProgressBar from '../components/ProgressBar';
 import QuestionCard from '../components/QuestionCard';
 
@@ -17,22 +17,30 @@ interface QuizProps {
 
 const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigation }) => {
     const dispatch = useDispatch();
-    const userQuestionData = useSelector((state: any) => state.learning.userQuestionData.entities);
     const { currentUser } = useSelector((state: any) => state.user);
+    const session = useSelector((state: any) => state.learning.learningSession.session);
+    const recentQuizzesEntities = useSelector((state: any) => state.learning.recentQuizzes.entities);
+    const recentQuizzes = useMemo(() => Object.values(recentQuizzesEntities), [recentQuizzesEntities]);
 
     const [isStarted, setIsStarted] = useState(false);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
-    const [sessionAnswers, setSessionAnswers] = useState<{ [questionId: string]: { answer: string; isCorrect: boolean } }>({});
     const [timeLeft, setTimeLeft] = useState(120); // 2:00 mins
     const [showExitModal, setShowExitModal] = useState(false);
+    const [subsetCount, setSubsetCount] = useState(1);
+    const [showPrevFeedback, setShowPrevFeedback] = useState(false);
+
+    // Current question IDs should come from the session in store if available
+    const activeQuestionIds = useMemo(() => {
+        return session?.questionIds || sessionQuestionIds;
+    }, [session, sessionQuestionIds]);
 
     useEffect(() => {
         const fetchQuestions = async () => {
-            if (sessionQuestionIds.length > 0) {
+            if (activeQuestionIds.length > 0) {
                 try {
-                    const fetchedQuestions = await learningService.getQuestionsByIds(sessionQuestionIds.map(id => parseInt(id, 10)));
+                    const fetchedQuestions = await learningService.getQuestionsByIds(activeQuestionIds.map(id => parseInt(id, 10)));
                     setQuestions(fetchedQuestions);
                 } catch (error) {
                     console.error('Error fetching questions:', error);
@@ -40,17 +48,41 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
             }
         };
         fetchQuestions();
-    }, [sessionQuestionIds]);
+    }, [activeQuestionIds]);
+
+    // Check for previous session feedback on mount
+    useEffect(() => {
+        if (recentQuizzes.length > 0) {
+            const lastQuiz: any = recentQuizzes[recentQuizzes.length - 1];
+            if (lastQuiz.completedAt) {
+                const lastCompleted = new Date(lastQuiz.completedAt).getTime();
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (lastCompleted <= yesterday.getTime()) {
+                    setShowPrevFeedback(true);
+                }
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        const question = questions[currentQuestionIndex];
+        if (question && session?.answers[String(question.id)]) {
+            setSelectedOption(session.answers[String(question.id)].answer);
+        } else {
+            setSelectedOption(null);
+        }
+    }, [currentQuestionIndex, questions, session?.answers]);
 
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
-        if (isStarted && timeLeft > 0) {
+        if (isStarted && timeLeft > 0 && !showPrevFeedback) {
             intervalId = setInterval(() => {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
         }
         return () => clearInterval(intervalId);
-    }, [isStarted, timeLeft]);
+    }, [isStarted, timeLeft, showPrevFeedback]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -58,7 +90,12 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
+        if (showPrevFeedback) {
+            setShowPrevFeedback(false);
+            return;
+        }
+
         if (!isStarted) {
             setIsStarted(true);
             return;
@@ -69,23 +106,44 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
 
         const correctAnswer = question.options.find(o => o.isCorrect)?.text;
         const isCorrect = selectedOption === correctAnswer;
+        const quality = isCorrect ? 5 : 2;
 
-        const newAnswers = { ...sessionAnswers, [question.id]: { answer: selectedOption || '', isCorrect } };
-        setSessionAnswers(newAnswers);
+        await dispatch(processAnswerAndUpdate({
+            userId: currentUser.id,
+            questionId: String(question.id),
+            answer: selectedOption || '',
+            isCorrect,
+            quality
+        }) as any);
 
         if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
             setSelectedOption(null);
         } else {
-            onQuizComplete(newAnswers);
+            // End of subset
+            if (subsetCount < 4) {
+                setSubsetCount(prev => prev + 1);
+                const resultAction = await dispatch(nextSubset({ subsetSize: questions.length }) as any);
+                if (nextSubset.fulfilled.match(resultAction)) {
+                    setCurrentQuestionIndex(0);
+                    setSelectedOption(null);
+                }
+            } else {
+                // End of session
+                if (session) {
+                    onQuizComplete(session.answers);
+                } else {
+                    onQuizComplete({});
+                }
+            }
         }
     };
 
     const handleBack = () => {
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(prev => prev - 1);
-            const prevQuestionId = questions[currentQuestionIndex - 1].id;
-            setSelectedOption(sessionAnswers[prevQuestionId]?.answer || null);
+            // In a real app we'd retrieve the previous answer from store
+            setSelectedOption(null);
         } else {
             setShowExitModal(true);
         }
@@ -106,28 +164,65 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
 
     const currentQuestion = questions[currentQuestionIndex];
 
+    if (showPrevFeedback) {
+        const lastQuiz: any = recentQuizzes[recentQuizzes.length - 1];
+        return (
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} testID="back-button">
+                        <Icon name="close" size={30} color="#000" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Previous Session Review</Text>
+                    <View style={{ width: 30 }} />
+                </View>
+                <ScrollView style={styles.content}>
+                    <Text style={styles.feedbackTitle} testID="prev-feedback-title">Welcome back!</Text>
+                    <Text style={styles.feedbackText}>Here is how you did in your last session:</Text>
+                    <View style={styles.feedbackCard}>
+                        <Text style={styles.feedbackScore}>Score: {lastQuiz.score}/{lastQuiz.totalQuestions}</Text>
+                        <Text style={styles.feedbackSummary}>Strengths: {lastQuiz.strengths?.join(', ') || 'N/A'}</Text>
+                        <Text style={styles.feedbackSummary}>Weaknesses: {lastQuiz.weaknesses?.join(', ') || 'N/A'}</Text>
+                    </View>
+                </ScrollView>
+                <View style={styles.footer}>
+                    <TouchableOpacity style={styles.nextButton} onPress={handleNext} testID="continue-to-quiz">
+                        <Text style={styles.nextButtonText}>Continue to Quiz</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={handleBack} testID="back-button">
-                    <Icon name="chevron-left" size={30} color="#000" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
-                <View style={styles.timerContainer}>
-                    <Icon name="clock-outline" size={20} color="#000" />
-                    <Text style={styles.timerText} testID="timer-text">{formatTime(timeLeft)}</Text>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={handleBack} testID="back-button">
+                        <Icon name="chevron-left" size={30} color="#000" />
+                    </TouchableOpacity>
+                    <View style={styles.timerContainer}>
+                        <Icon name="clock-outline" size={20} color="#000" />
+                        <Text style={styles.timerText} testID="timer-text">{formatTime(timeLeft)}</Text>
+                    </View>
                 </View>
+                <View style={styles.headerCenter}>
+                    <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
+                </View>
+                <View style={styles.headerRight} />
             </View>
 
-            <ProgressBar current={isStarted ? currentQuestionIndex + 1 : 0} total={questions.length} />
+            <ProgressBar
+                current={isStarted ? ((subsetCount - 1) * questions.length + currentQuestionIndex + 1) : 0}
+                total={session?.allQuestionIds?.length || sessionQuestionIds.length}
+            />
 
             <View style={styles.content}>
                 <Text style={styles.quizType} testID="quiz-type">
                     {questions[0]?.category?.toUpperCase() || 'ALGORITHMS'}
                 </Text>
                 <Text style={styles.questionCount} testID="question-count">
-                    {isStarted ? `Questions ${currentQuestionIndex + 1} of ${questions.length}` : `0 out of ${questions.length} questions`}
+                    {isStarted ? `Questions ${currentQuestionIndex + 1} of ${questions.length} (Subset ${subsetCount} of 4)` : `0 out of ${session?.allQuestionIds?.length || sessionQuestionIds.length} questions`}
                 </Text>
 
                 {isStarted ? (
@@ -149,7 +244,7 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
                     onPress={handleNext}
                     testID="next-button"
                 >
-                    <Text style={styles.nextButtonText}>{isStarted ? (currentQuestionIndex === questions.length - 1 ? 'Finish' : 'Next →') : 'Start Quiz'}</Text>
+                    <Text style={styles.nextButtonText}>{isStarted ? (currentQuestionIndex === questions.length - 1 && subsetCount === 4 ? 'Finish' : 'Next →') : 'Start Quiz'}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -191,10 +286,21 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingTop: 40,
         paddingBottom: 10,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: 100,
+    },
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerRight: {
+        width: 100,
     },
     headerTitle: {
         fontSize: 18,
@@ -203,6 +309,7 @@ const styles = StyleSheet.create({
     timerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginLeft: 8,
         gap: 4,
     },
     timerText: {
@@ -285,11 +392,36 @@ const styles = StyleSheet.create({
         color: '#6200EE',
     },
     exitButton: {
-        // styles for exit button if needed
     },
     exitButtonText: {
         color: '#FF3B30',
     },
+    feedbackTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginTop: 40,
+        marginBottom: 10,
+    },
+    feedbackText: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 20,
+    },
+    feedbackCard: {
+        backgroundColor: '#F5F5F5',
+        borderRadius: 12,
+        padding: 20,
+    },
+    feedbackScore: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    feedbackSummary: {
+        fontSize: 14,
+        color: '#444',
+        marginBottom: 5,
+    }
 });
 
 export default Quiz;

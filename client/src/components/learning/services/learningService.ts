@@ -2,6 +2,10 @@
  * @file Implements the business logic for the Learning component, including the SM-2 spaced repetition algorithm.
  */
 
+import { UserQuestionData } from '../store/primitives/UserQuestionData';
+import { LearningSession } from '../store/primitives/LearningSession';
+import { Category } from '../store/primitives/Category';
+
 /**
  * Represents the core data for the SM-2 algorithm.
  */
@@ -67,10 +71,6 @@ const updateSM2Data = (
   };
 };
 
-import { UserQuestionData } from '../store/primitives/UserQuestionData';
-import { LearningSession } from '../store/primitives/LearningSession';
-import { Category } from '../store/primitives/Category';
-
 // This should be in a shared types package
 export interface Question {
     id: number;
@@ -89,15 +89,19 @@ interface QuestionRecommendation {
 }
 
 const getTopKQuestionRecommendations = (
+  allQuestionIds: string[],
   userQuestionData: UserQuestionData[],
   k: number,
   beta: number = 1.0,
 ): QuestionRecommendation[] => {
-  const recommendations = userQuestionData.map((uqd) => {
-    const masteryScore = uqd.recallStrength;
+  const uqdMap = new Map(userQuestionData.map(u => [u.questionId, u]));
+
+  const recommendations = allQuestionIds.map((id) => {
+    const uqd = uqdMap.get(id);
+    const masteryScore = uqd ? uqd.recallStrength : 0;
     const recommendationScore = Math.exp(-beta * masteryScore);
     return {
-      questionId: uqd.questionId,
+      questionId: id,
       recommendationScore,
     };
   });
@@ -107,17 +111,67 @@ const getTopKQuestionRecommendations = (
   return recommendations.slice(0, k);
 };
 
-interface CategoryRecommendation {
+export interface CategoryRecommendation {
   categoryId: string;
   recommendationLevel: 'High' | 'Medium' | 'Low' | 'None';
   explanation: string;
 }
 
+const getCategoryRecommendations = (
+  categories: Category[],
+  userQuestionData: UserQuestionData[]
+): CategoryRecommendation[] => {
+  // Group UQD by category
+  // This is a bit simplified as UQD doesn't store category
+  // In a real app we'd join with questions
+  return categories.map(category => {
+    // For now let's just assume we can find them or use dummy logic
+    const categoryQuestions = userQuestionData; // Simplified
+
+    const avgMastery = categoryQuestions.length > 0
+        ? categoryQuestions.reduce((acc, uqd) => acc + uqd.recallStrength, 0) / categoryQuestions.length
+        : 0;
+
+    const totalAttempts = categoryQuestions.reduce((acc, uqd) => acc + uqd.totalAttempts, 0);
+
+    if (totalAttempts === 0) {
+        return {
+            categoryId: category.id,
+            recommendationLevel: 'High',
+            explanation: 'New category with no attempts, needs exposure'
+        };
+    } else if (avgMastery < 0.4) {
+        return {
+            categoryId: category.id,
+            recommendationLevel: 'High',
+            explanation: 'Struggling category, focus recommended'
+        };
+    } else if (avgMastery < 0.8) {
+        return {
+            categoryId: category.id,
+            recommendationLevel: 'Medium',
+            explanation: 'Partial mastery, reinforcement suggested'
+        };
+    } else {
+        return {
+            categoryId: category.id,
+            recommendationLevel: 'Low',
+            explanation: 'Mastered categories deprioritized'
+        };
+    }
+  });
+};
+
 const getTopKQuestionsForSession = (
+  allQuestionIds: string[],
   userQuestionData: UserQuestionData[],
   k: number,
+  beta: number = 1.0,
+  excludeIds: string[] = []
 ): string[] => {
-  const recommendations = getTopKQuestionRecommendations(userQuestionData, k);
+  const filteredIds = allQuestionIds.filter(id => !excludeIds.includes(id));
+  const pool = filteredIds.length >= k ? filteredIds : allQuestionIds;
+  const recommendations = getTopKQuestionRecommendations(pool, userQuestionData, k, beta);
   return recommendations.map(r => r.questionId);
 };
 
@@ -128,7 +182,7 @@ const startNewSession = (
   subsetSize: number
 ): LearningSession => {
   const newSession = new LearningSession('session1', userId, allQuestionIds);
-  const nextSubset = getTopKQuestionsForSession(userQuestionData, subsetSize);
+  const nextSubset = getTopKQuestionsForSession(allQuestionIds, userQuestionData, subsetSize);
   newSession.questionIds = nextSubset;
   newSession.subsetHistory.push(nextSubset);
   return newSession;
@@ -201,6 +255,7 @@ export const learningService = {
     updateSM2Data,
     getTopKQuestionRecommendations,
     getTopKQuestionsForSession,
+    getCategoryRecommendations,
     startNewSession,
     processAnswer,
     compileSessionSummary,

@@ -1,17 +1,16 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { LearningSession } from './primitives/LearningSession';
 import { learningService } from '../services/learningService';
-import { LearningRootState } from '.';
 import { UserQuestionData } from './primitives/UserQuestionData';
 
-import { setUserQuestionDataDb } from './userQuestionData.slice'; // Assuming this will be the DB version
+import { setUserQuestionDataDb } from './userQuestionData.slice';
 import { sqliteService } from '../../common/services/sqliteService';
-import { fetchBatchFeedback } from './question.slice'; // To be created in a later step
+import { fetchBatchFeedback } from './question.slice';
 
 
 // --- STATE AND INITIAL STATE ---
 interface LearningSessionState {
-  session: LearningSession | null;
+  session: any | null;
   recommendations: { /* ... */ } | null;
   loading: 'idle' | 'pending' | 'succeeded' | 'failed';
 }
@@ -35,13 +34,14 @@ const stringifySession = (session: LearningSession) => ({
 
 
 const parseSession = (dbSession: any): LearningSession => {
-  const session = new LearningSession(dbSession.id, dbSession.userId, JSON.parse(dbSession.allQuestionIds || '[]'));
+  const allQuestionIds = typeof dbSession.allQuestionIds === 'string' ? JSON.parse(dbSession.allQuestionIds || '[]') : (dbSession.allQuestionIds || []);
+  const session = new LearningSession(dbSession.id, dbSession.userId, allQuestionIds);
   return Object.assign(session, {
     ...dbSession,
-    questionIds: JSON.parse(dbSession.questionIds || '[]'),
-    subsetHistory: JSON.parse(dbSession.subsetHistory || '[]'),
-    answers: JSON.parse(dbSession.answers || '{}'),
-    summary: JSON.parse(dbSession.summary || '{"strengths":[],"weaknesses":[]}'),
+    questionIds: typeof dbSession.questionIds === 'string' ? JSON.parse(dbSession.questionIds || '[]') : (dbSession.questionIds || []),
+    subsetHistory: typeof dbSession.subsetHistory === 'string' ? JSON.parse(dbSession.subsetHistory || '[]') : (dbSession.subsetHistory || []),
+    answers: typeof dbSession.answers === 'string' ? JSON.parse(dbSession.answers || '{}') : (dbSession.answers || {}),
+    summary: typeof dbSession.summary === 'string' ? JSON.parse(dbSession.summary || '{"strengths":[],"weaknesses":[]}') : (dbSession.summary || {strengths:[], weaknesses:[]}),
   });
 };
 
@@ -49,12 +49,12 @@ const parseSession = (dbSession: any): LearningSession => {
 
 // --- ASYNC THUNKS ---
 
-export const hydrateLearningSession = createAsyncThunk<LearningSession | null>(
+export const hydrateLearningSession = createAsyncThunk<any | null>(
   'learningSession/hydrate',
   async () => {
 
     const sessions = await sqliteService.getAll('learning_sessions');
-    if (sessions.length > 0) return parseSession(sessions[sessions.length - 1]);
+    if (sessions.length > 0) return JSON.parse(JSON.stringify(parseSession(sessions[sessions.length - 1])));
 
     return null;
   },
@@ -66,33 +66,42 @@ export const saveSessionDb = createAsyncThunk(
 
         await sqliteService.create('learning_sessions', stringifySession(session));
 
-        return session;
+        return JSON.parse(JSON.stringify(session));
     }
 );
 
 export const startNewSession = createAsyncThunk(
     'learningSession/startNewSession',
     async ({ userId, allQuestionIds, subsetSize }: { userId: string, allQuestionIds: string[], subsetSize: number }, { getState, dispatch }) => {
-        const state = getState() as LearningRootState;
-        const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
+        const state = getState() as any;
+        const learningState = state.learning || state;
+        const userQuestionDataEntities = learningState.userQuestionData?.entities || {};
+
+        const userQuestionData = Object.values(userQuestionDataEntities)
+            .filter((uqd): uqd is any => !!uqd)
+            .map(uqd => {
+                const instance = new UserQuestionData(uqd.userId, uqd.questionId);
+                return Object.assign(instance, uqd);
+            });
+
         const newSession = learningService.startNewSession(userId, allQuestionIds, userQuestionData, subsetSize);
 
         dispatch(saveSessionDb(newSession));
-        return newSession;
+        return JSON.parse(JSON.stringify(newSession));
     }
 );
 
 export const processAnswerAndUpdate = createAsyncThunk(
     'learningSession/processAnswer',
     async ({ userId, questionId, answer, isCorrect, quality, techniqueIds }: { userId: string, questionId: string, answer: string, isCorrect: boolean, quality: number, techniqueIds?: string[] }, { getState, dispatch }) => {
-        const state = getState() as LearningRootState;
-
+        const state = getState() as any;
+        const learningState = state.learning || state;
 
         // Update UserQuestionData
         dispatch(setUserQuestionDataDb({ userId, questionId, isCorrect, quality, techniqueIds }));
 
         // Update session and check for feedback batching
-        const currentSession = state.learningSession.session;
+        const currentSession = learningState.learningSession?.session;
         let batchesNeeded = 0;
         if (currentSession) {
             const answeredCount = Object.keys(currentSession.answers).length + 1; // +1 for the current answer
@@ -101,15 +110,11 @@ export const processAnswerAndUpdate = createAsyncThunk(
             batchesNeeded = Math.floor(answeredCount / threshold);
 
             if (batchesNeeded > currentSession.feedbackBatchesGenerated) {
-                const startIndex = currentSession.feedbackBatchesGenerated * threshold;
-                const endIndex = startIndex + threshold;
-                const questionIdsForFeedback = Object.keys(currentSession.answers).slice(startIndex, endIndex);
-                // Also include the current question if not already in answers
+                const questionIdsForFeedback = Object.keys(currentSession.answers);
                 if (!questionIdsForFeedback.includes(questionId)) {
                     questionIdsForFeedback.push(questionId);
                 }
 
-                // Dispatch action to fetch feedback for this batch
                 dispatch(fetchBatchFeedback(questionIdsForFeedback));
             }
         }
@@ -121,27 +126,59 @@ export const processAnswerAndUpdate = createAsyncThunk(
 export const endCurrentSession = createAsyncThunk(
     'learningSession/endCurrentSession',
     async (_, { getState, dispatch }) => {
-        const state = getState() as LearningRootState;
-        const session = state.learningSession.session;
+        const state = getState() as any;
+        const learningState = state.learning || state;
+        const session = learningState.learningSession?.session;
         if (session) {
             const summary = learningService.compileSessionSummary(session.answers);
             const finalSession = { ...session, summary, endTime: Date.now() };
-            dispatch(saveSessionDb(finalSession));
+            dispatch(saveSessionDb(finalSession as any));
             return summary;
         }
         return { strengths: [], weaknesses: [] };
     }
 );
 
-// ... (generateRecommendations thunk remains the same)
+export const nextSubset = createAsyncThunk(
+    'learningSession/nextSubset',
+    async ({ subsetSize }: { subsetSize: number }, { getState, dispatch }) => {
+        const state = getState() as any;
+        const learningState = state.learning || state;
+        const session = learningState.learningSession?.session;
+        if (!session) throw new Error('No active session');
+
+        const userQuestionDataEntities = learningState.userQuestionData?.entities || {};
+        const userQuestionData = Object.values(userQuestionDataEntities)
+            .filter((uqd): uqd is any => !!uqd)
+            .map(uqd => {
+                const instance = new UserQuestionData(uqd.userId, uqd.questionId);
+                return Object.assign(instance, uqd);
+            });
+
+        const answeredIds = Object.keys(session.answers);
+        const nextSubsetIds = learningService.getTopKQuestionsForSession(session.allQuestionIds, userQuestionData, subsetSize, 1.0, answeredIds);
+
+        return nextSubsetIds;
+    }
+);
+
 export const generateRecommendations = createAsyncThunk(
   'learningSession/generateRecommendations',
   async (_, { getState }) => {
-    const state = getState() as LearningRootState;
-    const userQuestionData = Object.values(state.userQuestionData.entities).filter(Boolean) as UserQuestionData[];
-    const categories = Object.values(state.categories.entities).filter(Boolean);
-    const questionRecommendations = learningService.getTopKQuestionRecommendations(userQuestionData, 3);
-    const categoryRecommendations = learningService.getCategoryRecommendations(categories);
+    const state = getState() as any;
+    const learningState = state.learning || state;
+    const userQuestionDataEntities = learningState.userQuestionData?.entities || {};
+    const userQuestionData = Object.values(userQuestionDataEntities)
+        .filter((uqd): uqd is any => !!uqd)
+        .map(uqd => {
+            const instance = new UserQuestionData(uqd.userId, uqd.questionId);
+            return Object.assign(instance, uqd);
+        });
+
+    const allQuestionIds = Array.from({ length: 20 }, (_, i) => String(i + 1)); // This should ideally come from a questions slice
+    const categories = Object.values(learningState.categories?.entities || {}).filter(Boolean);
+    const questionRecommendations = learningService.getTopKQuestionRecommendations(allQuestionIds, userQuestionData, 3);
+    const categoryRecommendations = learningService.getCategoryRecommendations(categories as any[], userQuestionData);
     return {
       questions: questionRecommendations,
       categories: categoryRecommendations,
@@ -177,16 +214,19 @@ const learningSessionSlice = createSlice({
             if (batchesNeeded > state.session.feedbackBatchesGenerated) {
                 state.session.feedbackBatchesGenerated = batchesNeeded;
             }
-            // Trigger save to DB after state update
-            // This could be a separate listener/middleware in a more complex app
-            saveSessionDb(state.session);
+          }
+      })
+      .addCase(nextSubset.fulfilled, (state, action) => {
+          if (state.session) {
+              state.session.questionIds = action.payload;
+              state.session.subsetHistory.push(action.payload);
+              state.session.currentQuestionIndex = 0;
           }
       })
       .addCase(endCurrentSession.fulfilled, (state, action) => {
           if (state.session) {
               state.session.summary = action.payload;
               state.session.endTime = Date.now();
-              saveSessionDb(state.session);
           }
       })
       // Recommendations reducers
