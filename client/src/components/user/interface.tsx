@@ -1,6 +1,6 @@
 import React from 'react';
 import UserProfileSummary from './components/UserProfileSummary';
-import UserProfile from './screens/UserProfile';
+import UserProfileContent from './screens/UserProfile';
 import BookmarkList from './components/BookmarkList';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import UserSettings from './components/UserSettings';
@@ -33,7 +33,7 @@ export class UserComponent implements IUserComponent {
     }
 
     renderUserProfile(screen: string): React.ReactElement {
-        return <UserProfile />;
+        return <UserProfileContent />;
     }
 
     renderResetPasswordForm(screen: string): React.ReactElement {
