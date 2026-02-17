@@ -151,16 +151,24 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByText('Start Quiz')).toBeOnTheScreen();
   });
 
-  test('Next button is disabled until an option is selected', async () => {
+  test('Next button is disabled until an option is selected for all questions', async () => {
     renderWithProviders();
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
     const nextButton = screen.getByTestId('next-button');
-    expect(nextButton).toBeDisabled();
 
+    // Question 1
+    expect(nextButton).toBeDisabled();
     await user.press(screen.getByText('Option A'));
+    expect(nextButton).not.toBeDisabled();
+    await user.press(nextButton);
+
+    // Question 2
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(nextButton).toBeDisabled();
+    await user.press(screen.getByText('Option C'));
     expect(nextButton).not.toBeDisabled();
   });
 

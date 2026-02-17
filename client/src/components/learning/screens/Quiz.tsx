@@ -240,8 +240,12 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
 
             <View style={styles.footer}>
                 <TouchableOpacity
-                    style={styles.nextButton}
+                    style={[
+                        styles.nextButton,
+                        (isStarted && !selectedOption) && styles.disabledButton
+                    ]}
                     onPress={handleNext}
+                    disabled={isStarted && !selectedOption}
                     testID="next-button"
                 >
                     <Text style={styles.nextButtonText}>{isStarted ? (currentQuestionIndex === questions.length - 1 && subsetCount === 4 ? 'Finish' : 'Next →') : 'Start Quiz'}</Text>
@@ -350,6 +354,9 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         paddingVertical: 16,
         alignItems: 'center',
+    },
+    disabledButton: {
+        backgroundColor: '#CCC',
     },
     nextButtonText: {
         color: '#fff',
