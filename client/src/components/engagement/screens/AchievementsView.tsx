@@ -1,77 +1,346 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../mediator/store';
-// I will create these thunks in the next step
-// import { fetchLeaderboard, fetchAllAchievements, fetchUserEngagement } from '../store/engagement.slice';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 
-// This mapping is needed because of how React Native handles images
-const badgeImages = {
-    '1': require('../components/mockup/original-6b0784cb19d1d688a7a939d8d3dd637f.jpg'),
-    '2': require('../components/mockup/original-8bf8b040d429a7eae1f920adc3433a8f.jpg'),
-    '3': require('../components/mockup/original-af5e61cf6a92f060da2c694cce4c4786.jpg'),
-    '4': require('../components/mockup/original-d4a9845ef5ffa9f933d21a2ae9d1e48e.jpg'),
-};
-
-interface AchievementsViewProps {
-    navigation: any; // Use a proper navigation type
-}
-
-const AchievementsView: React.FC<AchievementsViewProps> = ({ navigation }) => {
+const AchievementsView: React.FC = () => {
+    const navigation = useNavigation<any>();
     const [activeTab, setActiveTab] = useState<'Badges' | 'Leaderboard' | 'Stats'>('Badges');
-    const dispatch: AppDispatch = useDispatch();
 
-    // These selectors will be properly implemented once the slices are updated
-    const allAchievements = useSelector((state: RootState) => state.engagement.allAchievements);
-    const userEngagement = useSelector((state: RootState) => state.engagement.userEngagement);
-    const leaderboard = useSelector((state: RootState) => state.engagement.leaderboard);
-
-    useEffect(() => {
-        // dispatch(fetchAllAchievements());
-        // dispatch(fetchUserEngagement('user-123')); // Hardcoded user id for now
-        // dispatch(fetchLeaderboard());
-    }, [dispatch]);
-
-    const handleBadgePress = (badgeId: string) => {
-        navigation.push('Achievement', { badgeId });
-    };
-
-    // ... renderBadges, renderLeaderboard, renderStats methods would be here, using the data from selectors ...
-    // For brevity, I will just show the structure. The full implementation would be similar to the previous mocked version.
-
-    const renderBadges = () => (
-        <View style={styles.tabContent}>
-            {/* Map over allAchievements and check against userEngagement.unlockedAchievementIds */}
+    const renderHeader = () => (
+        <View style={styles.header}>
+            <TouchableOpacity
+                testID="gear-button"
+                onPress={() => navigation.navigate('Settings')}
+                style={styles.iconButton}
+            >
+                <Icon name="cog" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Achievements</Text>
+            <TouchableOpacity
+                testID="back-button"
+                onPress={() => navigation.goBack()}
+                style={styles.iconButton}
+            >
+                <Icon name="chevron-left" size={24} color="#333" />
+            </TouchableOpacity>
         </View>
     );
-     const renderLeaderboard = () => (
-        <View style={styles.tabContent}>
-            {/* Map over leaderboard data */}
+
+    const renderTabs = () => (
+        <View style={styles.tabContainer}>
+            {(['Badges', 'Leaderboard', 'Stats'] as const).map((tab) => (
+                <TouchableOpacity
+                    key={tab}
+                    testID={`tab-${tab.toLowerCase()}`}
+                    onPress={() => setActiveTab(tab)}
+                    style={[styles.tab, activeTab === tab && styles.activeTab]}
+                >
+                    <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+                </TouchableOpacity>
+            ))}
         </View>
     );
-     const renderStats = () => (
-        <View style={styles.tabContent}>
-            {/* Display stats from userEngagement */}
+
+    const renderBadgesTab = () => (
+        <View style={styles.tabContent} testID="badges-tab-content">
+            <View style={styles.badgesSummary}>
+                <Text style={styles.badgesCountText}>81</Text>
+                <Text style={styles.badgesSubText}>Badges Unlocked</Text>
+            </View>
+
+            <View style={styles.badgesGrid}>
+                <View style={styles.badgeItem}>
+                    <View style={styles.badgeIconContainer}>
+                        <Icon name="dumbbell" size={30} color="#333" />
+                    </View>
+                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
+                    <Text style={styles.badgeName}>Fitness God</Text>
+                </View>
+                <View style={styles.badgeItem}>
+                    <View style={styles.badgeIconContainer}>
+                        <Text style={styles.badgeTextIcon}>97</Text>
+                    </View>
+                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
+                    <Text style={styles.badgeName}>Max Sets</Text>
+                </View>
+                <View style={styles.badgeItem}>
+                    <View style={styles.badgeIconContainer}>
+                        <Icon name="robot" size={30} color="#333" />
+                    </View>
+                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
+                    <Text style={styles.badgeName}>AI Enthusiast</Text>
+                </View>
+            </View>
+
+            <View style={styles.nextBadgeSection}>
+                <View style={styles.nextBadgeHeader}>
+                    <Text style={styles.sectionTitle}>Your Next Badge</Text>
+                    <TouchableOpacity><Text style={styles.seeAllText}>See All</Text></TouchableOpacity>
+                </View>
+
+                <View style={styles.nextBadgeItem}>
+                    <View style={styles.nextBadgeIcon}>
+                        <Icon name="help-circle-outline" size={24} color="#999" />
+                    </View>
+                    <View style={styles.nextBadgeInfo}>
+                        <Text style={styles.nextBadgeTitle}>10 Day Streak</Text>
+                        <Text style={styles.nextBadgeDescription}>Open app for 10 days</Text>
+                    </View>
+                    <View style={styles.progressCircle}>
+                         <Text style={styles.progressText}>60%</Text>
+                    </View>
+                </View>
+
+                <View style={styles.nextBadgeItem}>
+                    <View style={styles.nextBadgeIcon}>
+                        <Icon name="help-circle-outline" size={24} color="#999" />
+                    </View>
+                    <View style={styles.nextBadgeInfo}>
+                        <Text style={styles.nextBadgeTitle}>5,000 Calorie Burn</Text>
+                        <Text style={styles.nextBadgeDescription}>Burn 5K Calories total</Text>
+                    </View>
+                    <View style={styles.progressCircle}>
+                         <Text style={styles.progressText}>32%</Text>
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+
+    const renderLeaderboardTab = () => (
+        <View style={styles.tabContent} testID="leaderboard-tab-content">
+            <View style={styles.userRankCard}>
+                <View style={styles.userRankHeader}>
+                    <View style={[styles.rankIconCircle, { backgroundColor: '#FFD700' }]}>
+                         <Icon name="cog" size={16} color="#fff" />
+                    </View>
+                    <Image source={{ uri: 'https://via.placeholder.com/100' }} style={styles.profileImage} />
+                    <View style={[styles.rankIconCircle, { backgroundColor: '#FF8C00' }]}>
+                         <Icon name="chart-bar" size={16} color="#fff" />
+                    </View>
+                </View>
+                <Text style={styles.userPoints}>4,878</Text>
+                <Text style={styles.userRankLabel}>The Infiltrator • 🏆 3rd Place</Text>
+                <TouchableOpacity style={styles.viewStatsButton}>
+                    <Icon name="chart-line" size={16} color="#FF8C00" style={{ marginRight: 5 }} />
+                    <Text style={styles.viewStatsText}>View Stats</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.leaderboardSection}>
+                <View style={styles.nextBadgeHeader}>
+                    <Text style={styles.sectionTitle}>All Leaderboards</Text>
+                    <TouchableOpacity><Text style={styles.seeAllText}>See All</Text></TouchableOpacity>
+                </View>
+
+                <View style={styles.leaderboardItem}>
+                    <Text style={styles.rankNumber}>1</Text>
+                    <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.avatarSmall} />
+                    <View style={styles.leaderboardUserInfo}>
+                        <Text style={styles.userName}>Azunyan U. Wu</Text>
+                        <Text style={styles.userMeta}>118,487pts • Lvl 10</Text>
+                    </View>
+                    <View style={styles.rankBadge}>
+                        <Text style={styles.rankBadgeText}>80</Text>
+                    </View>
+                </View>
+
+                <View style={styles.leaderboardItem}>
+                    <Text style={styles.rankNumber}>2</Text>
+                    <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.avatarSmall} />
+                    <View style={styles.leaderboardUserInfo}>
+                        <Text style={styles.userName}>Champagne S. Nova</Text>
+                        <Text style={styles.userMeta}>58,123pts • Lvl 8</Text>
+                    </View>
+                    <View style={styles.rankBadge}>
+                        <Icon name="dumbbell" size={16} color="#fff" />
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+
+    const renderStatsTab = () => (
+        <View style={styles.tabContent} testID="stats-tab-content">
+            <View style={styles.statsCard}>
+                <Text style={styles.statsHeader}>High Score</Text>
+                <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Longest Streak</Text>
+                    <Text style={styles.statsValue}>10 min, 21sec</Text>
+                </View>
+                <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Longest Exercise</Text>
+                    <Text style={styles.statsValue}>7min</Text>
+                </View>
+                <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Longest Reps</Text>
+                    <Text style={styles.statsValue}>38min, 21sec</Text>
+                </View>
+                <View style={styles.statsRow}>
+                    <Text style={styles.statsLabel}>Longest Sets</Text>
+                    <Text style={styles.statsValue}>6h</Text>
+                </View>
+            </View>
         </View>
     );
 
     return (
         <ScrollView style={styles.container}>
-            {/* Profile Summary */}
-            <View style={styles.tabContainer}>
-                {/* Tabs */}
-            </View>
-            {activeTab === 'Badges' && renderBadges()}
-            {activeTab === 'Leaderboard' && renderLeaderboard()}
-            {activeTab === 'Stats' && renderStats()}
+            {renderHeader()}
+            {renderTabs()}
+            {activeTab === 'Badges' && renderBadgesTab()}
+            {activeTab === 'Leaderboard' && renderLeaderboardTab()}
+            {activeTab === 'Stats' && renderStatsTab()}
         </ScrollView>
     );
 };
 
-// Styles would be the same as before
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
-    // ... all other styles
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 20,
+    },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+    iconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 1,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F3F5',
+        borderRadius: 25,
+        marginHorizontal: 20,
+        padding: 5,
+        marginBottom: 20,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 20,
+    },
+    activeTab: { backgroundColor: '#fff' },
+    tabText: { color: '#999', fontWeight: '600' },
+    activeTabText: { color: '#333' },
+    tabContent: { paddingHorizontal: 20 },
+    badgesSummary: { alignItems: 'center', marginVertical: 20 },
+    badgesCountText: { fontSize: 48, fontWeight: 'bold', color: '#333' },
+    badgesSubText: { fontSize: 16, color: '#999' },
+    badgesGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
+    badgeItem: { alignItems: 'center', width: '30%' },
+    badgeIconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#EEE',
+    },
+    badgeTextIcon: { fontSize: 20, fontWeight: 'bold' },
+    badgeDate: { fontSize: 10, color: '#999' },
+    badgeName: { fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+    nextBadgeSection: { marginTop: 10 },
+    nextBadgeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    sectionTitle: { fontSize: 18, fontWeight: 'bold' },
+    seeAllText: { color: '#FF8C00', fontWeight: 'bold' },
+    nextBadgeItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 15,
+        marginBottom: 10,
+    },
+    nextBadgeIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F8F9FA',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 15,
+    },
+    nextBadgeInfo: { flex: 1 },
+    nextBadgeTitle: { fontSize: 16, fontWeight: 'bold' },
+    nextBadgeDescription: { fontSize: 12, color: '#999' },
+    progressCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        borderWidth: 3,
+        borderColor: '#FF8C00',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    progressText: { fontSize: 10, fontWeight: 'bold' },
+    userRankCard: { alignItems: 'center', marginVertical: 20 },
+    userRankHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+    rankIconCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+    profileImage: { width: 80, height: 80, borderRadius: 40, marginHorizontal: 20 },
+    userPoints: { fontSize: 32, fontWeight: 'bold' },
+    userRankLabel: { fontSize: 14, color: '#999', marginVertical: 5 },
+    viewStatsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF4E5',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginTop: 10,
+    },
+    viewStatsText: { color: '#FF8C00', fontWeight: 'bold' },
+    leaderboardSection: { marginTop: 20 },
+    leaderboardItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 15,
+        marginBottom: 10,
+    },
+    rankNumber: { fontSize: 16, fontWeight: 'bold', width: 25 },
+    avatarSmall: { width: 40, height: 40, borderRadius: 20, marginRight: 15 },
+    leaderboardUserInfo: { flex: 1 },
+    userName: { fontSize: 16, fontWeight: 'bold' },
+    userMeta: { fontSize: 12, color: '#999' },
+    rankBadge: {
+        width: 30,
+        height: 30,
+        borderRadius: 5,
+        backgroundColor: '#333',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankBadgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+    statsCard: { backgroundColor: '#fff', borderRadius: 15, padding: 20, marginTop: 10 },
+    statsHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F3F5',
+    },
+    statsLabel: { fontSize: 14, color: '#666' },
+    statsValue: { fontSize: 14, fontWeight: 'bold', color: '#333' },
 });
 
 export default AchievementsView;
