@@ -114,9 +114,11 @@ const TestNavigator = () => (
   </NavigationContainer>
 );
 
-const renderWithProviders = () => {
-  const store = configureStore({
+let store: any;
+const renderWithProviders = (preloadedState?: any) => {
+  store = configureStore({
     reducer: rootReducer,
+    preloadedState
   });
 
   return render(
@@ -136,7 +138,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('renders all daily quiz UI elements correctly', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
     await waitFor(() => expect(screen.getByTestId('quiz-header-title')).toBeOnTheScreen());
 
@@ -152,7 +154,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('Next button is disabled until an option is selected for all questions', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
@@ -173,7 +175,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('timer counts down after starting', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
@@ -185,7 +187,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
 
   test('back button does not exit the quiz', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
 
     await user.press(screen.getByTestId('back-button'));
@@ -194,7 +196,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('completes quiz and shows summary with leaderboard', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
@@ -223,7 +225,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('handles real-time participant updates via SSE', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
 
     // Trigger SSE event
@@ -243,5 +245,21 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     // but the UI mainly shows AvatarGroup from the initial session.
     // If we wanted to show scores in real-time we'd need more UI.
     // For now, let's just ensure it doesn't crash.
+  });
+
+  test('can bookmark a question during daily quiz', async () => {
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    const bookmarkButton = screen.getByTestId('bookmark-button');
+    await user.press(bookmarkButton);
+
+    expect(store.getState().profile.profile?.bookmarks).toHaveLength(1);
+    expect(store.getState().profile.profile?.bookmarks[0].questionId).toBe('1');
+
+    // Toggle off
+    await user.press(bookmarkButton);
+    expect(store.getState().profile.profile?.bookmarks).toHaveLength(0);
   });
 });

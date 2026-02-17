@@ -173,6 +173,9 @@ describe('QuizScreen Acceptance Tests', () => {
             loading: false,
             error: null,
         },
+        profile: {
+            profile: { bookmarks: [] }
+        },
         learning: {
             categories: { ids: [], entities: {}, loading: 'idle' },
             questions: { ids: [], entities: {} },
@@ -381,5 +384,21 @@ describe('QuizScreen Acceptance Tests', () => {
     expect(await screen.findByTestId('prev-feedback-title')).toBeOnTheScreen();
     await user.press(screen.getByTestId('continue-to-quiz'));
     expect(screen.queryByTestId('prev-feedback-title')).not.toBeOnTheScreen();
+  });
+
+  test('can bookmark a question during quiz', async () => {
+    renderWithProviders(initialLoggedInState(), ['1']);
+    await user.press(await screen.findByText('Start Quiz'));
+
+    const bookmarkButton = screen.getByTestId('bookmark-button');
+    await user.press(bookmarkButton);
+
+    const state = store.getState() as RootState;
+    expect(state.profile.profile?.bookmarks).toHaveLength(1);
+    expect(state.profile.profile?.bookmarks[0].questionId).toBe('1');
+
+    // Toggle off
+    await user.press(bookmarkButton);
+    expect(store.getState().profile.profile?.bookmarks).toHaveLength(0);
   });
 });
