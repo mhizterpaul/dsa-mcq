@@ -227,6 +227,19 @@ describe('QuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
   });
 
+  test('Next button is disabled until an option is selected', async () => {
+    renderWithProviders(initialLoggedInState(), ['1']);
+
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    const nextButton = screen.getByTestId('next-button');
+    expect(nextButton).toBeDisabled();
+
+    await user.press(screen.getByText('Use a hash map'));
+    expect(nextButton).not.toBeDisabled();
+  });
+
   test('option selection highlights the option and shows correct icon', async () => {
     renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
     await user.press(await screen.findByText('Start Quiz'));
