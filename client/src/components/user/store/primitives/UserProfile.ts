@@ -81,6 +81,11 @@ export class UserProfile {
   globalRanking: number; // rank/level derived from XP
   highestAchievement: AchievementBadge;
   settings: UserSettings;
+  preferredQuizTime: string;
+  performanceTarget: string;
+  habitPlan: string[];
+  gamingDays: string[];
+  isGoalSet: boolean;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -92,5 +97,10 @@ export class UserProfile {
     this.globalRanking = NaN;
     this.highestAchievement = null;
     this.settings = new UserSettings();
+    this.preferredQuizTime = '08:00';
+    this.performanceTarget = '';
+    this.habitPlan = [];
+    this.gamingDays = [];
+    this.isGoalSet = false;
   }
 }

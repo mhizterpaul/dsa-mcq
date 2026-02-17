@@ -42,7 +42,7 @@ const analyticsRootReducer = combineReducers({
 });
 
 // User Component Reducer
-import userReducer from '../components/user/store/user.slice';
+import userReducer from '../components/user/store';
 
 // Mediator Component Reducer
 import sharedStateReducer from './sharedState.slice';
