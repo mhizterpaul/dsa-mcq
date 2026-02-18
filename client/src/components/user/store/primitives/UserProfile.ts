@@ -42,6 +42,37 @@ export type UserGoal =
   | 'Daily learning habit'
   | 'Compete with friends';
 
+export enum GoalType {
+    LEADERBOARD_PERCENTILE = 'LEADERBOARD_PERCENTILE',
+    INTUITION_GAIN = 'INTUITION_GAIN',
+    INTERVIEW_PREP = 'INTERVIEW_PREP',
+    COURSE_PASS = 'COURSE_PASS',
+    COMPETITIVE_PROGRAMMING = 'COMPETITIVE_PROGRAMMING'
+}
+
+export interface PerformanceGoal {
+    type: GoalType;
+    targetMetric: number | string;
+    deadline: string; // ISO date string
+}
+
+export interface PreferredTimeBlock {
+    day: string; // 'Monday', 'Tuesday', etc.
+    start: string; // 'HH:mm'
+    end: string; // 'HH:mm'
+}
+
+export interface QuizSession {
+    date: string;
+    time: string;
+    difficulty: string;
+    topic: string;
+}
+
+export interface QuizSchedule {
+    sessions: QuizSession[];
+}
+
 // Achievement badges (gamification system)
 export type AchievementBadge =
   | 'First Quiz Completed'
@@ -87,6 +118,11 @@ export class UserProfile {
   gamingDays: string[];
   isGoalSet: boolean;
 
+  // New fields for the advanced goal system
+  activePerformanceGoal?: PerformanceGoal;
+  preferredTimeBlocks: PreferredTimeBlock[];
+  quizSchedule?: QuizSchedule;
+
   constructor(userId: string) {
     this.userId = userId;
     this.bookmarks = [];
@@ -102,5 +138,6 @@ export class UserProfile {
     this.habitPlan = [];
     this.gamingDays = [];
     this.isGoalSet = false;
+    this.preferredTimeBlocks = [];
   }
 }
