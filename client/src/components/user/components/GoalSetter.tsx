@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Text, Button, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
@@ -19,11 +19,23 @@ import mediatorService from '../../../services/mediatorService';
 const NEON = '#EFFF3C';
 const DARK = '#121212';
 const GRAY = '#1E1E1E';
-const LIGHT_GRAY = '#B0B0B0';
+const LIGHT_GRAY = '#666';
 
 interface GoalSetterProps {
   navigation: StackNavigationProp<any>;
 }
+
+const StyledButton = ({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) => (
+  <TouchableOpacity onPress={onPress} style={styles.customButton} testID={testID}>
+    <View style={styles.buttonCheckCircle}>
+        <Feather name="check" size={14} color="black" />
+    </View>
+    <Text style={styles.buttonText}>{label}</Text>
+    <View style={styles.buttonChevrons}>
+        <Feather name="chevrons-right" size={20} color={LIGHT_GRAY} />
+    </View>
+  </TouchableOpacity>
+);
 
 const GoalSetter = ({ navigation }: GoalSetterProps) => {
   const dispatch = useDispatch();
@@ -158,8 +170,8 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
       // Inject metrics back to engagement component via Mediator
       if (currentUser?.id) {
           mediatorService.injectUserMetrics(currentUser.id, {
-              avgResponseTime: 120.5, // Mocked value to inject
-              badges: ['1', '2'] // Mocked badges
+              avgResponseTime: engagementMetrics?.avgResponseTime || 120.5,
+              badges: engagementMetrics?.badges || []
           });
       }
 
@@ -184,14 +196,14 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
             generatePlan();
         } catch(e) {}
     }
-  }, [selectedDays]);
+  }, [selectedDays, step]);
 
   const renderStep0 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconCircle}>
         <Feather name="clock" size={24} color="white" />
       </View>
-      <Text style={styles.stepTitle}>Preferred Quiz Time?</Text>
+      <Text style={styles.stepTitle}>Your Wake Time?</Text>
       <View style={styles.timePicker}>
         {times.map((time) => (
           <TouchableOpacity
@@ -212,7 +224,7 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
       <View style={styles.iconCircle}>
         <Feather name="target" size={24} color="white" />
       </View>
-      <Text style={styles.stepTitle}>Performance Goal?</Text>
+      <Text style={styles.stepTitle}>Your Goal Target?</Text>
       <View style={styles.targetList}>
         {goalTypes.map((g) => (
           <TouchableOpacity
@@ -222,7 +234,9 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
             testID={`goal-type-${g.type}`}
           >
             <View style={styles.targetCardInner}>
-                <Feather name={g.icon} size={20} color={goalType === g.type ? DARK : 'white'} />
+                <View style={[styles.targetIconCircle, goalType === g.type && { backgroundColor: DARK }]}>
+                    <Feather name={g.icon} size={18} color={goalType === g.type ? NEON : 'white'} />
+                </View>
                 <Text style={[styles.targetText, goalType === g.type && styles.selectedText]}>{g.label}</Text>
             </View>
           </TouchableOpacity>
@@ -294,24 +308,29 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
                     </TouchableOpacity>
                 ))}
             </View>
-            <Button mode="text" color={NEON} onPress={() => setShowDaySelector(false)}>Done</Button>
+            <TouchableOpacity onPress={() => setShowDaySelector(false)}>
+                <Text style={{ color: NEON, marginTop: 10, fontWeight: 'bold' }}>Done</Text>
+            </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.summaryContent}>
             <View style={styles.progressCircleContainer}>
-                <View style={styles.progressCircle}>
+                <View style={[styles.progressCircleInner, { borderTopColor: NEON, borderRightColor: NEON, borderBottomColor: progressPercentage > 50 ? NEON : GRAY, borderLeftColor: progressPercentage > 75 ? NEON : GRAY }]}>
                     <Text style={styles.progressCircleText} testID="progress-percentage">{progressPercentage}%</Text>
                     <Text style={styles.progressSubText}>Habit</Text>
                 </View>
             </View>
 
             <Text style={styles.planStatusText}>
-                {generatedSchedule?.sessions.length} sessions generated based on your goal.
+                {generatedSchedule?.sessions.length} sessions generated.
             </Text>
 
             <ScrollView style={styles.miniScheduleScroll}>
-                {generatedSchedule?.sessions.slice(0, 5).map((session, index) => (
+                {generatedSchedule?.sessions.slice(0, 3).map((session, index) => (
                 <View key={index} style={styles.miniHabitItem}>
+                    <View style={styles.miniHabitIcon}>
+                        <Feather name="zap" size={14} color="white" />
+                    </View>
                     <Text style={styles.miniHabitText}>{session.date} @ {session.time}</Text>
                 </View>
                 ))}
@@ -351,15 +370,11 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
       </View>
 
       <View style={styles.footer}>
-        <Button
-          mode="contained"
+        <StyledButton
+          label={step === 3 ? 'Complete' : (isEditMode ? 'Edit' : 'Continue')}
           onPress={handleContinue}
-          style={styles.continueButton}
-          labelStyle={styles.continueLabel}
           testID="continue-button"
-        >
-          {step === 3 ? 'Complete' : (isEditMode ? 'Edit' : 'Continue')}
-        </Button>
+        />
       </View>
     </View>
   );
@@ -423,16 +438,18 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: GRAY,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   stepTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 30,
+    marginBottom: 40,
     textAlign: 'center',
   },
   daySelector: {
@@ -467,17 +484,17 @@ const styles = StyleSheet.create({
   },
   timeOption: {
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   selectedOption: {
     backgroundColor: NEON,
-    borderRadius: 25,
+    borderRadius: 30,
   },
   timeText: {
-    fontSize: 24,
-    color: LIGHT_GRAY,
+    fontSize: 28,
+    color: 'rgba(255, 255, 255, 0.3)',
   },
   selectedText: {
     color: DARK,
@@ -488,9 +505,9 @@ const styles = StyleSheet.create({
   },
   targetCard: {
     backgroundColor: GRAY,
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 15,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   selectedCard: {
     backgroundColor: NEON,
@@ -499,10 +516,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  targetIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
   targetText: {
-    fontSize: 16,
+    fontSize: 18,
     color: 'white',
-    marginLeft: 15,
   },
   inputContainer: {
     width: '100%',
@@ -526,52 +551,73 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   progressCircleContainer: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 12,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 20,
     borderColor: GRAY,
-    borderTopColor: NEON,
-    borderRightColor: NEON,
-    borderBottomColor: NEON,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
+    position: 'relative',
   },
-  progressCircle: {
+  progressCircleInner: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 20,
+    borderColor: 'transparent',
+    position: 'absolute',
+    justifyContent: 'center',
     alignItems: 'center',
+    transform: [{ rotate: '-45deg' }],
   },
   progressCircleText: {
-    fontSize: 40,
-    fontWeight: 'bold',
+    fontSize: 50,
+    fontWeight: '800',
     color: 'white',
+    transform: [{ rotate: '45deg' }],
   },
   progressSubText: {
-    fontSize: 16,
+    fontSize: 18,
     color: LIGHT_GRAY,
+    transform: [{ rotate: '45deg' }],
   },
   planStatusText: {
     color: 'white',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    fontSize: 14,
   },
   miniScheduleScroll: {
     width: '100%',
-    maxHeight: 150,
+    maxHeight: 180,
   },
   miniHabitItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: GRAY,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: GRAY,
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 10,
+  },
+  miniHabitIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
   miniHabitText: {
-    color: LIGHT_GRAY,
+    color: 'white',
     fontSize: 14,
   },
   daySelectorSummary: {
     width: '100%',
     backgroundColor: GRAY,
-    borderRadius: 20,
+    borderRadius: 25,
     padding: 20,
     alignItems: 'center',
   },
@@ -581,19 +627,39 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   footer: {
-    padding: 20,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  continueButton: {
-    backgroundColor: NEON,
-    borderRadius: 30,
-    height: 60,
-    justifyContent: 'center',
+  customButton: {
+    backgroundColor: 'black',
+    borderRadius: 35,
+    height: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  continueLabel: {
-    color: DARK,
+  buttonCheckCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  buttonChevrons: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
