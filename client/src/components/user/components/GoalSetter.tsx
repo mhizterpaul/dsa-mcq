@@ -26,7 +26,6 @@ interface GoalSetterProps {
 }
 
 const GoalSetter = ({ navigation }: GoalSetterProps) => {
-  // Use explicit typing for the state
   const profile = useSelector((state: { user: UserRootState }) => state.user?.profile?.profile);
   const dispatch = useDispatch();
 
@@ -40,6 +39,7 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   // Preferred Time State
   const [selectedTime, setSelectedTime] = useState(profile?.preferredQuizTime || '08:00');
   const [selectedDays, setSelectedDays] = useState<string[]>(profile?.gamingDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  const [showDaySelector, setShowDaySelector] = useState(false);
 
   // Generated Plan
   const [generatedSchedule, setGeneratedSchedule] = useState<QuizSchedule | null>(profile?.quizSchedule || null);
@@ -57,14 +57,17 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   ];
 
   const totalSteps = 4;
-  const progress = (step + 1) / totalSteps;
 
   const handleContinue = () => {
-    if (step === 2) {
-        // Before moving to step 3, generate the plan
+    if (step === 1) {
+        // Goal set, move to deadline
+        setStep(2);
+    } else if (step === 2) {
+        // Deadline set, generate plan and show list
         generatePlan();
-    } else if (step < totalSteps - 1) {
-        setStep(step + 1);
+        setStep(3);
+    } else if (step === 0) {
+        setStep(1);
     } else {
         handleComplete();
     }
@@ -80,8 +83,6 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
             deadline: deadline
         };
 
-        // Integration fix: Use selectedTime for time blocks
-        // We set start/end such that selectedTime is the midpoint
         const [hour, minute] = selectedTime.split(':').map(Number);
         const startTime = `${(hour - 1).toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         const endTime = `${(hour + 1).toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
@@ -94,9 +95,9 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
         const schedule = HabitPlanGenerator.generateSchedule(performanceGoal, timeBlocks, profile);
         setGeneratedSchedule(schedule);
-        setStep(3);
     } catch (error: any) {
         Alert.alert('Infeasible Goal', error.message);
+        throw error;
     }
   };
 
@@ -125,33 +126,27 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   };
 
   const toggleDay = (day: string) => {
-    if (selectedDays.includes(day)) {
-        setSelectedDays(selectedDays.filter(d => d !== day));
-    } else {
-        setSelectedDays([...selectedDays, day]);
-    }
+    const newDays = selectedDays.includes(day)
+        ? selectedDays.filter(d => d !== day)
+        : [...selectedDays, day];
+    setSelectedDays(newDays);
   };
+
+  useEffect(() => {
+    if (step === 3 && selectedDays.length > 0) {
+        // Automatically re-generate plan if days change in summary step
+        try {
+            generatePlan();
+        } catch(e) {}
+    }
+  }, [selectedDays]);
 
   const renderStep0 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconCircle}>
         <Feather name="clock" size={24} color="white" />
       </View>
-      <Text style={styles.stepTitle}>Preferred Quiz Time & Days</Text>
-
-      <View style={styles.daySelector}>
-        {dayNames.map(day => (
-            <TouchableOpacity
-                key={day}
-                style={[styles.dayButton, selectedDays.includes(day) && styles.selectedDayButton]}
-                onPress={() => toggleDay(day)}
-                testID={`day-option-${day}`}
-            >
-                <Text style={[styles.dayText, selectedDays.includes(day) && styles.selectedDayText]}>{day}</Text>
-            </TouchableOpacity>
-        ))}
-      </View>
-
+      <Text style={styles.stepTitle}>Preferred Quiz Time?</Text>
       <View style={styles.timePicker}>
         {times.map((time) => (
           <TouchableOpacity
@@ -229,24 +224,55 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
-      {/* Calendar icon above create habit plan as requested */}
-      <View style={styles.iconCircle}>
+      <TouchableOpacity
+        style={styles.iconCircle}
+        onPress={() => setShowDaySelector(!showDaySelector)}
+        testID="summary-calendar-icon"
+      >
         <Feather name="calendar" size={24} color="white" />
-      </View>
-      <Text style={styles.stepTitle}>Your Auto-Generated Habit Plan</Text>
-      <ScrollView style={styles.scheduleScroll}>
-        {generatedSchedule?.sessions.map((session, index) => (
-          <View key={index} style={styles.habitItem}>
-            <View style={styles.habitIcon}>
-                <Feather name="check-circle" size={16} color={NEON} />
+      </TouchableOpacity>
+
+      <Text style={styles.stepTitle}>Create Habit Plan</Text>
+
+      {showDaySelector ? (
+        <View style={styles.daySelectorSummary}>
+            <Text style={styles.daySelectorTitle}>Modify Gaming Days</Text>
+            <View style={styles.daySelector}>
+                {dayNames.map(day => (
+                    <TouchableOpacity
+                        key={day}
+                        style={[styles.dayButton, selectedDays.includes(day) && styles.selectedDayButton]}
+                        onPress={() => toggleDay(day)}
+                        testID={`summary-day-option-${day}`}
+                    >
+                        <Text style={[styles.dayText, selectedDays.includes(day) && styles.selectedDayText]}>{day}</Text>
+                    </TouchableOpacity>
+                ))}
             </View>
-            <View>
-                <Text style={styles.habitText}>{session.date} at {session.time}</Text>
-                <Text style={styles.habitSubText}>{session.difficulty} • {session.topic}</Text>
+            <Button mode="text" color={NEON} onPress={() => setShowDaySelector(false)}>Done</Button>
+        </View>
+      ) : (
+        <View style={styles.summaryContent}>
+            <View style={styles.progressCircleContainer}>
+                <View style={styles.progressCircle}>
+                    <Text style={styles.progressCircleText}>80%</Text>
+                    <Text style={styles.progressSubText}>Habit</Text>
+                </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+
+            <Text style={styles.planStatusText}>
+                {generatedSchedule?.sessions.length} sessions generated based on your goal.
+            </Text>
+
+            <ScrollView style={styles.miniScheduleScroll}>
+                {generatedSchedule?.sessions.slice(0, 5).map((session, index) => (
+                <View key={index} style={styles.miniHabitItem}>
+                    <Text style={styles.miniHabitText}>{session.date} @ {session.time}</Text>
+                </View>
+                ))}
+            </ScrollView>
+        </View>
+      )}
     </View>
   );
 
@@ -342,10 +368,6 @@ const styles = StyleSheet.create({
   activeStepDot: {
     backgroundColor: NEON,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
   stepContainer: {
     flex: 1,
     width: '100%',
@@ -409,7 +431,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   timeText: {
-    fontSize: 20,
+    fontSize: 24,
     color: LIGHT_GRAY,
   },
   selectedText: {
@@ -454,34 +476,64 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
-  scheduleScroll: {
-    width: '100%',
-    flex: 1,
-  },
-  habitItem: {
-    flexDirection: 'row',
+  summaryContent: {
     alignItems: 'center',
-    backgroundColor: GRAY,
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
+    width: '100%',
   },
-  habitIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  progressCircleContainer: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 12,
+    borderColor: GRAY,
+    borderTopColor: NEON, // Simplified representation of 80%
+    borderRightColor: NEON,
+    borderBottomColor: NEON,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginBottom: 20,
   },
-  habitText: {
+  progressCircle: {
+    alignItems: 'center',
+  },
+  progressCircleText: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  progressSubText: {
     fontSize: 16,
+    color: LIGHT_GRAY,
+  },
+  planStatusText: {
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  miniScheduleScroll: {
+    width: '100%',
+    maxHeight: 150,
+  },
+  miniHabitItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: GRAY,
+  },
+  miniHabitText: {
+    color: LIGHT_GRAY,
+    fontSize: 14,
+  },
+  daySelectorSummary: {
+    width: '100%',
+    backgroundColor: GRAY,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+  },
+  daySelectorTitle: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  habitSubText: {
-    fontSize: 14,
-    color: LIGHT_GRAY,
+    marginBottom: 15,
   },
   footer: {
     padding: 20,

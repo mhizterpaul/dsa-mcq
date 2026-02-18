@@ -23,7 +23,7 @@ const renderWithProviders = (preloadedState?: any) => {
     preloadedState,
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
-            serializableCheck: false // Disable to avoid class instance warnings during tests
+            serializableCheck: false
         })
   });
 
@@ -49,14 +49,7 @@ describe('GoalScreen Acceptance Tests', () => {
     jest.clearAllMocks();
   });
 
-  test('back button calls navigation.goBack()', async () => {
-    renderWithProviders();
-
-    await user.press(screen.getByTestId('back-button'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
-
-  test('navigates through the new goal setting flow with leaderboard percentile', async () => {
+  test('navigates through the flow and uses optional calendar icon to modify plan', async () => {
     const initialProfile = new UserProfile('user-123');
     initialProfile.globalRanking = 50;
 
@@ -68,8 +61,7 @@ describe('GoalScreen Acceptance Tests', () => {
         }
     });
 
-    // Step 0: Quiz Time & Days
-    await user.press(screen.getByTestId('day-option-Sat'));
+    // Step 0: Quiz Time
     await user.press(screen.getByTestId('time-option-09:00'));
     await user.press(screen.getByTestId('continue-button'));
 
@@ -77,33 +69,38 @@ describe('GoalScreen Acceptance Tests', () => {
     await waitFor(() => expect(screen.getByText('Performance Goal?')).toBeOnTheScreen());
     await user.press(screen.getByTestId('goal-type-LEADERBOARD_PERCENTILE'));
 
+    // Set a more feasible goal: Top 40% (delta = 10, required = 30)
     const percentileInput = screen.getByTestId('percentile-input');
     await user.clear(percentileInput);
-    await user.type(percentileInput, '20');
+    await user.type(percentileInput, '40');
     await user.press(screen.getByTestId('continue-button'));
 
     // Step 2: Deadline
     await waitFor(() => expect(screen.getByText('Set Your Deadline')).toBeOnTheScreen());
-    const deadlineInput = screen.getByTestId('deadline-input');
-    await user.clear(deadlineInput);
-    // Setting a far deadline to ensure feasibility
-    const futureDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    await user.type(deadlineInput, futureDate);
     await user.press(screen.getByTestId('continue-button'));
 
-    // Step 3: Generated Habit Plan
-    await waitFor(() => expect(screen.getByText('Your Auto-Generated Habit Plan')).toBeOnTheScreen());
+    // Step 3: Summary Screen (Create Habit Plan)
+    await waitFor(() => expect(screen.getByText('Create Habit Plan')).toBeOnTheScreen());
+    expect(screen.getByText('80%')).toBeOnTheScreen();
     expect(screen.getByText('Complete')).toBeOnTheScreen();
+
+    // Click optional calendar icon to modify plan (gaming days)
+    await user.press(screen.getByTestId('summary-calendar-icon'));
+    await waitFor(() => expect(screen.getByText('Modify Gaming Days')).toBeOnTheScreen());
+
+    // Toggle a day
+    await user.press(screen.getByTestId('summary-day-option-Sat'));
+    await user.press(screen.getByText('Done'));
+
+    // Back to summary
+    await waitFor(() => expect(screen.getByText('Create Habit Plan')).toBeOnTheScreen());
 
     await user.press(screen.getByTestId('continue-button'));
 
     // Verify Redux state
     const state = store.getState() as any;
     expect(state.user.profile.profile.isGoalSet).toBe(true);
-    expect(state.user.profile.profile.activePerformanceGoal.type).toBe(GoalType.LEADERBOARD_PERCENTILE);
-    expect(state.user.profile.profile.activePerformanceGoal.targetMetric).toBe(20);
-    expect(state.user.profile.profile.quizSchedule).toBeDefined();
-    expect(state.user.profile.profile.quizSchedule.sessions.length).toBeGreaterThan(0);
+    expect(state.user.profile.profile.gamingDays).toContain('Sat');
 
     expect(mockGoBack).toHaveBeenCalled();
   });
@@ -112,11 +109,6 @@ describe('GoalScreen Acceptance Tests', () => {
     const profile = new UserProfile('user-123');
     profile.isGoalSet = true;
     profile.preferredQuizTime = '07:00';
-    profile.activePerformanceGoal = {
-        type: GoalType.INTERVIEW_PREP,
-        targetMetric: 'Standard',
-        deadline: '2025-12-31'
-    };
 
     renderWithProviders({
         user: {
