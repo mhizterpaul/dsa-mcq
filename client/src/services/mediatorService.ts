@@ -24,8 +24,20 @@ const getEarnedBadgesForSession = async (sessionId: string): Promise<Badge[]> =>
     return mockBadges;
 };
 
+const getUserProgress = async (userId: string): Promise<any> => {
+    const engagementComponent = new EngagementComponent();
+    return await engagementComponent.getUserMetrics(userId);
+};
+
+const injectUserMetrics = async (userId: string, metrics: any): Promise<void> => {
+    const engagementComponent = new EngagementComponent();
+    await engagementComponent.injectMetrics(userId, metrics);
+};
+
 const mediatorService = {
     getEarnedBadgesForSession,
+    getUserProgress,
+    injectUserMetrics
 };
 
 export default mediatorService;

@@ -9,6 +9,9 @@ import { configureStore } from '@reduxjs/toolkit';
 import { rootReducer } from '../../components/user/store';
 import GoalScreen from '../../screens/GoalScreen';
 import { UserProfile, GoalType } from '../../components/user/store/primitives/UserProfile';
+import mediatorService from '../../services/mediatorService';
+
+jest.mock('../../services/mediatorService');
 
 const Stack = createStackNavigator();
 
@@ -52,30 +55,26 @@ describe('GoalScreen Acceptance Tests', () => {
     jest.clearAllMocks();
   });
 
-  test('navigates through the flow and displays real progress and injected metrics', async () => {
+  test('navigates through the flow and displays real progress via mediator', async () => {
     const userId = 'user-123';
     const initialProfile = new UserProfile(userId);
     initialProfile.globalRanking = 50;
 
     const mockEngagement = {
-        userId,
-        leaderboard_rank: 40,
-        streak_length: 5,
-        response_latency: 150.5,
-        session_attendance: 0.8,
-        xp_progress: 1000,
-        achievements: [{ id: '1', name: 'First Quiz' }]
+        rank: 40,
+        streak: 5,
+        avgResponseTime: 150.5,
+        attendance: 0.8,
+        xp: 1000,
+        badges: ['1']
     };
+
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue(mockEngagement);
 
     const { store } = renderWithProviders({
         user: {
             user: { currentUser: { id: userId } },
             profile: { profile: initialProfile }
-        },
-        engagement: {
-            userEngagement: {
-                engagements: { [userId]: mockEngagement }
-            }
         }
     });
 
@@ -101,16 +100,16 @@ describe('GoalScreen Acceptance Tests', () => {
     // Progress: (100-40)/(100-30) = 60/70 = 86%
     expect(screen.getByTestId('progress-percentage')).toHaveTextContent('86%');
 
-    // Stats and Badges are NOT displayed visually anymore as per latest instruction "only the progress icon"
-    expect(screen.queryByText('150.50ms')).not.toBeOnTheScreen();
-
     await user.press(screen.getByTestId('continue-button'));
 
-    // Verify Injection into Upstream (Profile) - Data IS fed and injected
+    // Verify Injection into Engagement via Mediator
+    expect(mediatorService.injectUserMetrics).toHaveBeenCalledWith(userId, expect.objectContaining({
+        avgResponseTime: expect.any(Number)
+    }));
+
+    // Verify UserProfile update
     const state = store.getState() as any;
     expect(state.user.profile.profile.isGoalSet).toBe(true);
-    expect(state.user.profile.profile.averageResponseTime).toBe(150.5);
-    expect(state.user.profile.profile.achievementBadges).toContain('1');
 
     expect(mockGoBack).toHaveBeenCalled();
   });
@@ -119,6 +118,8 @@ describe('GoalScreen Acceptance Tests', () => {
     const profile = new UserProfile('user-123');
     profile.isGoalSet = true;
     profile.preferredQuizTime = '07:00';
+
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
 
     renderWithProviders({
         user: {

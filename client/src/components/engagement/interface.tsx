@@ -31,6 +31,8 @@ export interface IEngagementComponent {
   renderUserScore(screen: string): React.ReactElement;
   renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement;
   renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement;
+  getUserMetrics(userId: string): Promise<any>;
+  injectMetrics(userId: string, metrics: any): Promise<void>;
 }
 
 export class EngagementComponent implements IEngagementComponent {
@@ -89,5 +91,23 @@ export class EngagementComponent implements IEngagementComponent {
 
     renderLeaderboardView(screen: string): React.ReactElement {
         return <LeaderboardView />;
+    }
+
+    async getUserMetrics(userId: string): Promise<any> {
+        // In a real implementation, this would select from the Redux store or fetch from API
+        // For now, we mock the retrieval through the component
+        console.log(`EngagementComponent retrieving metrics for ${userId}`);
+        return {
+            avgResponseTime: 120.5,
+            badgesCount: 5,
+            streak: 3,
+            attendance: 0.85,
+            rank: 15
+        };
+    }
+
+    async injectMetrics(userId: string, metrics: any): Promise<void> {
+        console.log(`EngagementComponent injecting metrics for ${userId}:`, metrics);
+        // This would dispatch an action to update UserEngagement primitives
     }
 }

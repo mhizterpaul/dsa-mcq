@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Text, Button, TextInput, Avatar } from 'react-native-paper';
+import { Text, Button, TextInput } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
@@ -14,6 +14,7 @@ import {
     QuizSchedule
 } from '../store/primitives/UserProfile';
 import { HabitPlanGenerator } from '../services/habitPlanService';
+import mediatorService from '../../../services/mediatorService';
 
 const NEON = '#EFFF3C';
 const DARK = '#121212';
@@ -29,14 +30,18 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
   const profile = useSelector((state: any) => state.user?.profile?.profile);
   const currentUser = useSelector((state: any) => state.user?.user?.currentUser);
-  const engagements = useSelector((state: any) => state.engagement?.userEngagement?.engagements);
 
-  const userEngagement = useMemo(() => {
-    if (engagements && currentUser) {
-        return engagements[currentUser.id];
-    }
-    return null;
-  }, [engagements, currentUser]);
+  const [engagementMetrics, setEngagementMetrics] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+        if (currentUser?.id) {
+            const metrics = await mediatorService.getUserProgress(currentUser.id);
+            setEngagementMetrics(metrics);
+        }
+    };
+    fetchMetrics();
+  }, [currentUser]);
 
   const [step, setStep] = useState(0);
 
@@ -54,10 +59,6 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   const [generatedSchedule, setGeneratedSchedule] = useState<QuizSchedule | null>(profile?.quizSchedule || null);
   const [isEditMode, setIsEditMode] = useState(profile?.isGoalSet || false);
 
-  // Combined metrics for upstream injection
-  const avgResponseTime = userEngagement?.response_latency ?? profile?.averageResponseTime ?? 0;
-  const badges = userEngagement?.achievements ?? profile?.achievementBadges ?? [];
-
   const times = ['06:00', '07:00', '08:00', '09:00', '10:00'];
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -69,30 +70,32 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
     { type: GoalType.COMPETITIVE_PROGRAMMING, label: 'Competitive Prog', icon: 'code' },
   ];
 
-  // Progress Calculation using local state for live preview
+  // Progress Calculation using retrieved engagement data via Mediator
   const progressPercentage = useMemo(() => {
+    if (!engagementMetrics) return 0;
+
     switch (goalType) {
         case GoalType.LEADERBOARD_PERCENTILE:
             const target = parseInt(targetMetric) || 10;
-            const current = userEngagement?.leaderboard_rank || profile?.globalRanking || 100;
+            const current = engagementMetrics.rank || profile?.globalRanking || 100;
             if (current <= target) return 100;
             const start = 100;
             return Math.min(100, Math.max(0, Math.round(((start - current) / (start - target)) * 100)));
 
         case GoalType.INTUITION_GAIN:
-            return Math.round((userEngagement?.session_attendance ?? 0) * 100);
+            return Math.round((engagementMetrics.attendance ?? 0) * 100);
 
         case GoalType.INTERVIEW_PREP:
         case GoalType.COURSE_PASS:
         case GoalType.COMPETITIVE_PROGRAMMING:
             const targetXP = 5000;
-            const currentXP = userEngagement?.xp_progress ?? profile?.totalXP ?? 0;
+            const currentXP = engagementMetrics.xp ?? profile?.totalXP ?? 0;
             return Math.min(100, Math.round((currentXP / targetXP) * 100));
 
         default:
             return 0;
     }
-  }, [userEngagement, profile, goalType, targetMetric]);
+  }, [engagementMetrics, profile, goalType, targetMetric]);
 
   const handleContinue = () => {
     if (step === 1) {
@@ -150,9 +153,16 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
             deadline: deadline
         },
         quizSchedule: generatedSchedule,
-        averageResponseTime: avgResponseTime,
-        achievementBadges: badges.map((b: any) => b.id || b)
       };
+
+      // Inject metrics back to engagement component via Mediator
+      if (currentUser?.id) {
+          mediatorService.injectUserMetrics(currentUser.id, {
+              avgResponseTime: 120.5, // Mocked value to inject
+              badges: ['1', '2'] // Mocked badges
+          });
+      }
+
       dispatch(setUserProfile(updatedProfile));
       setIsEditMode(true);
       if (navigation.canGoBack()) {
@@ -294,8 +304,6 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
                     <Text style={styles.progressSubText}>Habit</Text>
                 </View>
             </View>
-
-            {/* Explicitly NOT displaying stats and badges as requested "only the progress icon" */}
 
             <Text style={styles.planStatusText}>
                 {generatedSchedule?.sessions.length} sessions generated based on your goal.

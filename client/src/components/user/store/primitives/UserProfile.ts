@@ -122,8 +122,6 @@ export class UserProfile {
   activePerformanceGoal?: PerformanceGoal;
   preferredTimeBlocks: PreferredTimeBlock[];
   quizSchedule?: QuizSchedule;
-  averageResponseTime: number;
-  achievementBadges: string[];
 
   constructor(userId: string) {
     this.userId = userId;
@@ -141,7 +139,5 @@ export class UserProfile {
     this.gamingDays = [];
     this.isGoalSet = false;
     this.preferredTimeBlocks = [];
-    this.averageResponseTime = 0;
-    this.achievementBadges = [];
   }
 }
