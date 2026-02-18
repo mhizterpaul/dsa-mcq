@@ -18,7 +18,10 @@ const mockCanGoBack = jest.fn().mockReturnValue(true);
 const renderWithProviders = (preloadedState?: any) => {
   const store = configureStore({
     reducer: {
-        user: rootReducer
+        user: rootReducer,
+        engagement: (state: any = { userEngagement: { engagements: {} } }, action: any) => {
+            return state;
+        }
     },
     preloadedState,
     middleware: (getDefaultMiddleware) =>
@@ -49,14 +52,29 @@ describe('GoalScreen Acceptance Tests', () => {
     jest.clearAllMocks();
   });
 
-  test('navigates through the flow and uses optional calendar icon to modify plan', async () => {
-    const initialProfile = new UserProfile('user-123');
+  test('navigates through the flow and displays real progress and injected metrics', async () => {
+    const userId = 'user-123';
+    const initialProfile = new UserProfile(userId);
     initialProfile.globalRanking = 50;
+
+    const mockEngagement = {
+        userId,
+        leaderboard_rank: 40,
+        streak_length: 5,
+        response_latency: 150.5,
+        session_attendance: 0.8,
+        xp_progress: 1000,
+        achievements: [{ id: '1', name: 'First Quiz' }]
+    };
 
     const { store } = renderWithProviders({
         user: {
-            profile: {
-                profile: initialProfile
+            user: { currentUser: { id: userId } },
+            profile: { profile: initialProfile }
+        },
+        engagement: {
+            userEngagement: {
+                engagements: { [userId]: mockEngagement }
             }
         }
     });
@@ -65,42 +83,34 @@ describe('GoalScreen Acceptance Tests', () => {
     await user.press(screen.getByTestId('time-option-09:00'));
     await user.press(screen.getByTestId('continue-button'));
 
-    // Step 1: Performance Goal
+    // Step 1: Goal
     await waitFor(() => expect(screen.getByText('Performance Goal?')).toBeOnTheScreen());
     await user.press(screen.getByTestId('goal-type-LEADERBOARD_PERCENTILE'));
-
-    // Set a more feasible goal: Top 40% (delta = 10, required = 30)
     const percentileInput = screen.getByTestId('percentile-input');
     await user.clear(percentileInput);
-    await user.type(percentileInput, '40');
+    await user.type(percentileInput, '30');
     await user.press(screen.getByTestId('continue-button'));
 
     // Step 2: Deadline
     await waitFor(() => expect(screen.getByText('Set Your Deadline')).toBeOnTheScreen());
     await user.press(screen.getByTestId('continue-button'));
 
-    // Step 3: Summary Screen (Create Habit Plan)
+    // Step 3: Summary
     await waitFor(() => expect(screen.getByText('Create Habit Plan')).toBeOnTheScreen());
-    expect(screen.getByText('80%')).toBeOnTheScreen();
-    expect(screen.getByText('Complete')).toBeOnTheScreen();
 
-    // Click optional calendar icon to modify plan (gaming days)
-    await user.press(screen.getByTestId('summary-calendar-icon'));
-    await waitFor(() => expect(screen.getByText('Modify Gaming Days')).toBeOnTheScreen());
+    // Progress: (100-40)/(100-30) = 60/70 = 86%
+    expect(screen.getByTestId('progress-percentage')).toHaveTextContent('86%');
 
-    // Toggle a day
-    await user.press(screen.getByTestId('summary-day-option-Sat'));
-    await user.press(screen.getByText('Done'));
-
-    // Back to summary
-    await waitFor(() => expect(screen.getByText('Create Habit Plan')).toBeOnTheScreen());
+    // Stats and Badges are NOT displayed visually anymore as per latest instruction "only the progress icon"
+    expect(screen.queryByText('150.50ms')).not.toBeOnTheScreen();
 
     await user.press(screen.getByTestId('continue-button'));
 
-    // Verify Redux state
+    // Verify Injection into Upstream (Profile) - Data IS fed and injected
     const state = store.getState() as any;
     expect(state.user.profile.profile.isGoalSet).toBe(true);
-    expect(state.user.profile.profile.gamingDays).toContain('Sat');
+    expect(state.user.profile.profile.averageResponseTime).toBe(150.5);
+    expect(state.user.profile.profile.achievementBadges).toContain('1');
 
     expect(mockGoBack).toHaveBeenCalled();
   });

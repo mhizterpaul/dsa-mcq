@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Text, Button, ProgressBar, TextInput } from 'react-native-paper';
+import { Text, Button, TextInput, Avatar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { UserRootState } from '../store';
 import { setUserProfile } from '../store/userProfile.slice';
 import {
     UserProfile,
@@ -26,8 +25,18 @@ interface GoalSetterProps {
 }
 
 const GoalSetter = ({ navigation }: GoalSetterProps) => {
-  const profile = useSelector((state: { user: UserRootState }) => state.user?.profile?.profile);
   const dispatch = useDispatch();
+
+  const profile = useSelector((state: any) => state.user?.profile?.profile);
+  const currentUser = useSelector((state: any) => state.user?.user?.currentUser);
+  const engagements = useSelector((state: any) => state.engagement?.userEngagement?.engagements);
+
+  const userEngagement = useMemo(() => {
+    if (engagements && currentUser) {
+        return engagements[currentUser.id];
+    }
+    return null;
+  }, [engagements, currentUser]);
 
   const [step, setStep] = useState(0);
 
@@ -45,6 +54,10 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   const [generatedSchedule, setGeneratedSchedule] = useState<QuizSchedule | null>(profile?.quizSchedule || null);
   const [isEditMode, setIsEditMode] = useState(profile?.isGoalSet || false);
 
+  // Combined metrics for upstream injection
+  const avgResponseTime = userEngagement?.response_latency ?? profile?.averageResponseTime ?? 0;
+  const badges = userEngagement?.achievements ?? profile?.achievementBadges ?? [];
+
   const times = ['06:00', '07:00', '08:00', '09:00', '10:00'];
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -56,14 +69,35 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
     { type: GoalType.COMPETITIVE_PROGRAMMING, label: 'Competitive Prog', icon: 'code' },
   ];
 
-  const totalSteps = 4;
+  // Progress Calculation using local state for live preview
+  const progressPercentage = useMemo(() => {
+    switch (goalType) {
+        case GoalType.LEADERBOARD_PERCENTILE:
+            const target = parseInt(targetMetric) || 10;
+            const current = userEngagement?.leaderboard_rank || profile?.globalRanking || 100;
+            if (current <= target) return 100;
+            const start = 100;
+            return Math.min(100, Math.max(0, Math.round(((start - current) / (start - target)) * 100)));
+
+        case GoalType.INTUITION_GAIN:
+            return Math.round((userEngagement?.session_attendance ?? 0) * 100);
+
+        case GoalType.INTERVIEW_PREP:
+        case GoalType.COURSE_PASS:
+        case GoalType.COMPETITIVE_PROGRAMMING:
+            const targetXP = 5000;
+            const currentXP = userEngagement?.xp_progress ?? profile?.totalXP ?? 0;
+            return Math.min(100, Math.round((currentXP / targetXP) * 100));
+
+        default:
+            return 0;
+    }
+  }, [userEngagement, profile, goalType, targetMetric]);
 
   const handleContinue = () => {
     if (step === 1) {
-        // Goal set, move to deadline
         setStep(2);
     } else if (step === 2) {
-        // Deadline set, generate plan and show list
         generatePlan();
         setStep(3);
     } else if (step === 0) {
@@ -115,7 +149,9 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
             targetMetric: goalType === GoalType.LEADERBOARD_PERCENTILE ? parseInt(targetMetric) : targetMetric,
             deadline: deadline
         },
-        quizSchedule: generatedSchedule
+        quizSchedule: generatedSchedule,
+        averageResponseTime: avgResponseTime,
+        achievementBadges: badges.map((b: any) => b.id || b)
       };
       dispatch(setUserProfile(updatedProfile));
       setIsEditMode(true);
@@ -134,7 +170,6 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
   useEffect(() => {
     if (step === 3 && selectedDays.length > 0) {
-        // Automatically re-generate plan if days change in summary step
         try {
             generatePlan();
         } catch(e) {}
@@ -255,10 +290,12 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
         <View style={styles.summaryContent}>
             <View style={styles.progressCircleContainer}>
                 <View style={styles.progressCircle}>
-                    <Text style={styles.progressCircleText}>80%</Text>
+                    <Text style={styles.progressCircleText} testID="progress-percentage">{progressPercentage}%</Text>
                     <Text style={styles.progressSubText}>Habit</Text>
                 </View>
             </View>
+
+            {/* Explicitly NOT displaying stats and badges as requested "only the progress icon" */}
 
             <Text style={styles.planStatusText}>
                 {generatedSchedule?.sessions.length} sessions generated based on your goal.
@@ -486,7 +523,7 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     borderWidth: 12,
     borderColor: GRAY,
-    borderTopColor: NEON, // Simplified representation of 80%
+    borderTopColor: NEON,
     borderRightColor: NEON,
     borderBottomColor: NEON,
     justifyContent: 'center',
