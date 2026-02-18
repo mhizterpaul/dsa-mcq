@@ -167,14 +167,6 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
         quizSchedule: generatedSchedule,
       };
 
-      // Inject metrics back to engagement component via Mediator
-      if (currentUser?.id) {
-          mediatorService.injectUserMetrics(currentUser.id, {
-              avgResponseTime: engagementMetrics?.avgResponseTime || 120.5,
-              badges: engagementMetrics?.badges || []
-          });
-      }
-
       dispatch(setUserProfile(updatedProfile));
       setIsEditMode(true);
       if (navigation.canGoBack()) {

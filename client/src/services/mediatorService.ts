@@ -29,15 +29,9 @@ const getUserProgress = async (userId: string): Promise<any> => {
     return await engagementComponent.getUserMetrics(userId);
 };
 
-const injectUserMetrics = async (userId: string, metrics: any): Promise<void> => {
-    const engagementComponent = new EngagementComponent();
-    await engagementComponent.injectMetrics(userId, metrics);
-};
-
 const mediatorService = {
     getEarnedBadgesForSession,
     getUserProgress,
-    injectUserMetrics
 };
 
 export default mediatorService;

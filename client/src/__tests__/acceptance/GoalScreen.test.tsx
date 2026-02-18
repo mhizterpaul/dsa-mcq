@@ -55,23 +55,23 @@ describe('GoalScreen Acceptance Tests', () => {
     jest.clearAllMocks();
   });
 
-  test('navigates through the flow and verifies mockup-styled elements', async () => {
+  test('navigates through the flow and verifies high-fidelity elements via mediator', async () => {
     const userId = 'user-123';
     const initialProfile = new UserProfile(userId);
     initialProfile.globalRanking = 50;
 
     const mockEngagement = {
         rank: 40,
-        streak: 5,
-        avgResponseTime: 150.5,
-        attendance: 0.8,
+        streak_length: 5,
+        average_response_time: 150.5,
+        session_attendance: 0.8,
         xp: 1000,
         badges: ['1']
     };
 
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue(mockEngagement);
 
-    renderWithProviders({
+    const { store } = renderWithProviders({
         user: {
             user: { currentUser: { id: userId } },
             profile: { profile: initialProfile }
@@ -101,7 +101,7 @@ describe('GoalScreen Acceptance Tests', () => {
     // Check Calendar Icon at the top
     expect(screen.getByTestId('summary-calendar-icon')).toBeOnTheScreen();
 
-    // Check Progress Component
+    // Check Progress Component (Progress: (100-40)/(100-30) = 60/70 = 86%)
     expect(screen.getByTestId('progress-percentage')).toHaveTextContent('86%');
     expect(screen.getByText('Habit')).toBeOnTheScreen();
 
@@ -110,7 +110,13 @@ describe('GoalScreen Acceptance Tests', () => {
 
     await user.press(screen.getByTestId('continue-button'));
 
-    // Verify goBack was called upon completion
+    // Verify UserProfile update
+    const state = store.getState() as any;
+    expect(state.user.profile.profile.isGoalSet).toBe(true);
+
+    // Verification: mediator was used to fetch data
+    expect(mediatorService.getUserProgress).toHaveBeenCalledWith(userId);
+
     expect(mockGoBack).toHaveBeenCalled();
   });
 
