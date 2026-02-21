@@ -250,6 +250,96 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByText('4 members in session')).toBeOnTheScreen();
   });
 
+  test('handles tie scores on the leaderboard', async () => {
+    const tiedResults = {
+        ...mockResults,
+        leaderboard: [
+            { id: 'user1', name: 'Alice', score: 100, avatar: '...' },
+            { id: 'user2', name: 'Bob', score: 100, avatar: '...' },
+            { id: 'user3', name: 'Charlie', score: 60, avatar: '...' },
+        ]
+    };
+    server.use(
+        http.get('http://localhost:3000/api/daily-quiz/results', () => {
+            return HttpResponse.json(tiedResults);
+        })
+    );
+
+    renderWithProviders();
+    await user.press(await screen.findByText('Start Quiz'));
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+
+    // Both Alice and Bob should have crowns
+    const crowns = screen.getAllByTestId('winner-crown');
+    expect(crowns.length).toBe(2);
+  });
+
+  test('handles maximum (5) participants and UI scales', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+
+    act(() => {
+        mockSseListeners['message']({
+            data: JSON.stringify({
+                type: 'participant_update',
+                payload: [
+                    { userId: 'u1', name: 'A', avatarUrl: '...' },
+                    { userId: 'u2', name: 'B', avatarUrl: '...' },
+                    { userId: 'u3', name: 'C', avatarUrl: '...' },
+                    { userId: 'u4', name: 'D', avatarUrl: '...' },
+                    { userId: 'u5', name: 'E', avatarUrl: '...' },
+                ]
+            })
+        });
+    });
+
+    expect(screen.getByText('5 members in session')).toBeOnTheScreen();
+    // AvatarGroup should show +2 if it slices at 3
+    expect(screen.getByText('+2')).toBeOnTheScreen();
+  });
+
+  test('handles participant leaving mid-quiz', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    expect(screen.getByText('3 members in session')).toBeOnTheScreen();
+
+    // Trigger SSE event with 2 participants (one left)
+    act(() => {
+        mockSseListeners['message']({
+            data: JSON.stringify({
+                type: 'participant_update',
+                payload: [
+                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                ]
+            })
+        });
+    });
+
+    expect(screen.getByText('2 members in session')).toBeOnTheScreen();
+  });
+
+  test('timer expiration auto-advances to next question', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    expect(screen.getByText('Daily Question 1')).toBeOnTheScreen();
+
+    // Advance timer by 120 seconds
+    act(() => {
+        jest.advanceTimersByTime(120000);
+    });
+
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+  });
+
   test('summary screen buttons work as required', async () => {
     renderWithProviders();
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());

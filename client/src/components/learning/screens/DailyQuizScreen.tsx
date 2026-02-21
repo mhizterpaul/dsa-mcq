@@ -93,6 +93,8 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
             intervalId = setInterval(() => {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
+        } else if (isStarted && timeLeft === 0) {
+            handleNext();
         }
         return () => clearInterval(intervalId);
     }, [isStarted, timeLeft]);

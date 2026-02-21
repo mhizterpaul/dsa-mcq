@@ -227,6 +227,19 @@ describe('QuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
   });
 
+  test('timer expiration auto-advances to next question', async () => {
+    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await user.press(await screen.findByText('Start Quiz'));
+
+    expect(screen.getByText(mockQuestions[0].question)).toBeOnTheScreen();
+
+    act(() => {
+      jest.advanceTimersByTime(120000);
+    });
+
+    expect(await screen.findByText(mockQuestions[1].question)).toBeOnTheScreen();
+  });
+
   test('Next button is disabled until an option is selected', async () => {
     renderWithProviders(initialLoggedInState(), ['1']);
 

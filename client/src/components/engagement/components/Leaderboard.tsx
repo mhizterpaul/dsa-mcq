@@ -87,19 +87,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players: propPlayers, hideFil
       {topPlayers.length > 0 && (
         <View style={styles.topPlayersContainer}>
           {topPlayers.map((player, index) => {
-            const isFirstPlace = (topPlayers.length > 1 && index === 1) || (topPlayers.length === 1 && index === 0);
+            const isTopScore = activePlayers.length > 0 && player.score === activePlayers[0].score;
+            const isCenterPosition = (topPlayers.length > 1 && index === 1) || (topPlayers.length === 1 && index === 0);
+
             return (
               <View key={player.id} style={styles.topPlayer}>
-                {isFirstPlace && <Icon name="crown" size={24} color="#FFBE0B" style={styles.crownIcon} testID="winner-crown" />}
+                {isTopScore && <Icon name="crown" size={24} color="#FFBE0B" style={styles.crownIcon} testID="winner-crown" />}
                 <Avatar.Image
-                    size={isFirstPlace ? 70 : 54}
+                    size={isCenterPosition ? 70 : 54}
                     source={{ uri: player.avatar || 'https://i.pravatar.cc/150' }}
                     style={getPlayerRank(index, topPlayers.length)}
                 />
                 <Text style={styles.playerName}>{player.name}</Text>
-                <View style={[styles.scoreContainer, isFirstPlace ? styles.firstPlaceScore : styles.otherTopScore]}>
-                  <Icon name="diamond" size={14} color={isFirstPlace ? '#fff' : '#B0B0B0'} />
-                  <Text style={[styles.scoreText, isFirstPlace ? styles.firstPlaceScoreText : styles.otherTopScoreText]}>{player.score}</Text>
+                <View style={[styles.scoreContainer, isTopScore ? styles.firstPlaceScore : styles.otherTopScore]}>
+                  <Icon name="diamond" size={14} color={isTopScore ? '#fff' : '#B0B0B0'} />
+                  <Text style={[styles.scoreText, isTopScore ? styles.firstPlaceScoreText : styles.otherTopScoreText]}>{player.score}</Text>
                 </View>
               </View>
             );
