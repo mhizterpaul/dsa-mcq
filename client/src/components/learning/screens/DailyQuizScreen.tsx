@@ -199,7 +199,10 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                     <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
                 </View>
                 <View style={styles.headerRight}>
-                    <TouchableOpacity onPress={handleToggleBookmark} testID="bookmark-button">
+                    <TouchableOpacity
+                        onPress={handleToggleBookmark}
+                        testID={isBookmarked ? "daily-bookmark-icon-active" : "daily-bookmark-icon"}
+                    >
                         <Icon
                             name={isBookmarked ? "bookmark" : "bookmark-outline"}
                             size={28}

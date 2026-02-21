@@ -64,8 +64,17 @@ afterAll(() => server.close());
 const Stack = createStackNavigator();
 
 const TestNavigator = () => (
-  <NavigationContainer>
+  <NavigationContainer
+    initialState={{
+      index: 1,
+      routes: [
+        { name: 'Home' },
+        { name: 'Bookmark' },
+      ],
+    }}
+  >
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Home" component={() => <View><Text testID="home-screen">Home</Text></View>} />
       <Stack.Screen name="Bookmark" component={BookmarkScreen} />
     </Stack.Navigator>
   </NavigationContainer>
@@ -111,7 +120,7 @@ describe('BookmarkScreen Acceptance Tests', () => {
             error: null,
         },
         profile: {
-            profile: profile
+            profile: JSON.parse(JSON.stringify(profile)) // Ensure it's a plain object
         }
     } as any;
   };
@@ -120,6 +129,19 @@ describe('BookmarkScreen Acceptance Tests', () => {
     renderWithProviders(getInitialState());
     expect(screen.getByTestId('back-button')).toBeOnTheScreen();
     expect(screen.getByTestId('screen-title')).toHaveTextContent('Bookmarks');
+  });
+
+  test('back button returns user to previous screen', async () => {
+    renderWithProviders(getInitialState());
+
+    // Should be on Bookmark screen due to initialState
+    await waitFor(() => expect(screen.getByTestId('screen-title')).toBeOnTheScreen());
+
+    fireEvent.press(screen.getByTestId('back-button'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('home-screen')).toBeOnTheScreen()
+    );
   });
 
   test('displays bookmarked items', async () => {
@@ -131,6 +153,12 @@ describe('BookmarkScreen Acceptance Tests', () => {
 
     await waitFor(() => expect(screen.getByText(/What does UI stand for/)).toBeOnTheScreen());
     expect(screen.getByText(/Which aspect of UI design/)).toBeOnTheScreen();
+  });
+
+  test('shows empty state when no bookmarks exist', async () => {
+    renderWithProviders(getInitialState([]));
+
+    expect(await screen.findByText(/no bookmarks yet/i)).toBeOnTheScreen();
   });
 
   test('searching bookmarks filters the list', async () => {
@@ -167,13 +195,42 @@ describe('BookmarkScreen Acceptance Tests', () => {
     expect(screen.getByText('User Integration')).toBeOnTheScreen();
     expect(screen.getByText('User Interface')).toBeOnTheScreen();
 
-    // Verify last selection is highlighted (by testID or style if possible,
-    // but here we check if the selected-inner-circle would be there if we had testIDs for it,
-    // let's check the option container)
     const selectedOption = screen.getByTestId('option-0-1'); // User Interface is index 1
-    // In our implementation, selectedOption has a specific style.
-    // Since we mocked MaterialIcons as 'Icon', it might render as <Icon name="check-circle" />
     expect(within(selectedOption).getByTestId('status-icon')).toBeDefined();
+  });
+
+  test('tapping expanded item collapses it', async () => {
+    const bookmarks = [
+      new QuestionResponse('1', 'User Interface', true, 'easy')
+    ];
+
+    renderWithProviders(getInitialState(bookmarks));
+
+    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+
+    await user.press(screen.getByTestId('bookmark-item-0'));
+    expect(await screen.findByTestId('expanded-view-0')).toBeOnTheScreen();
+
+    await user.press(screen.getByTestId('bookmark-item-0'));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('expanded-view-0')).not.toBeOnTheScreen()
+    );
+  });
+
+  test('expanded view retains user last selected option', async () => {
+    const bookmarks = [
+      new QuestionResponse('1', 'User Interface', true, 'easy')
+    ];
+
+    renderWithProviders(getInitialState(bookmarks));
+
+    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+
+    await user.press(screen.getByTestId('bookmark-item-0'));
+
+    const selectedOption = await screen.findByTestId('option-0-1');
+    expect(within(selectedOption).getByTestId('status-icon')).toBeOnTheScreen();
   });
 
   test('three dots menu is present on collapsed view', async () => {

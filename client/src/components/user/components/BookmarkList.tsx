@@ -152,6 +152,10 @@ const BookmarkList = () => {
 
             {loading && Object.keys(questions).length === 0 ? (
                 <ActivityIndicator animating={true} style={{ marginTop: 20 }} />
+            ) : filteredBookmarks.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No bookmarks yet</Text>
+                </View>
             ) : (
                 <FlatList
                     data={filteredBookmarks}
@@ -289,7 +293,17 @@ const styles = StyleSheet.create({
     },
     statusIcon: {
         marginLeft: 10,
-    }
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 50,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: 'grey',
+    },
 });
 
 export default BookmarkList;

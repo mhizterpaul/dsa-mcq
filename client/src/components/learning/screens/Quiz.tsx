@@ -233,7 +233,10 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
                     <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
                 </View>
                 <View style={styles.headerRight}>
-                    <TouchableOpacity onPress={handleToggleBookmark} testID="bookmark-button">
+                    <TouchableOpacity
+                        onPress={handleToggleBookmark}
+                        testID={isBookmarked ? "bookmark-icon-active" : "bookmark-icon"}
+                    >
                         <Icon
                             name={isBookmarked ? "bookmark" : "bookmark-outline"}
                             size={28}

@@ -174,7 +174,17 @@ describe('QuizScreen Acceptance Tests', () => {
             error: null,
         },
         profile: {
-            profile: { bookmarks: [] }
+            profile: {
+                userId: 'user1',
+                bookmarks: [],
+                goals: [],
+                totalXP: 0,
+                correctAnswers: 0,
+                completedQuizzes: 0,
+                globalRanking: 0,
+                highestAchievement: null,
+                settings: { theme: 'system', notificationsEnabled: true, language: 'en', soundEffects: true }
+            }
         },
         learning: {
             categories: { ids: [], entities: {}, loading: 'idle' },
@@ -386,19 +396,61 @@ describe('QuizScreen Acceptance Tests', () => {
     expect(screen.queryByTestId('prev-feedback-title')).not.toBeOnTheScreen();
   });
 
-  test('can bookmark a question during quiz', async () => {
+  test('user can bookmark a question during active quiz', async () => {
     renderWithProviders(initialLoggedInState(), ['1']);
     await user.press(await screen.findByText('Start Quiz'));
 
-    const bookmarkButton = screen.getByTestId('bookmark-button');
-    await user.press(bookmarkButton);
+    await waitFor(() =>
+        expect(screen.getByText(/Two Sum/)).toBeOnTheScreen()
+    );
 
+    const bookmarkIcon = screen.getByTestId('bookmark-icon');
+    await user.press(bookmarkIcon);
+
+    // Icon should visually toggle (testID change)
+    expect(screen.getByTestId('bookmark-icon-active')).toBeOnTheScreen();
+
+    // Store should update
     const state = store.getState() as RootState;
     expect(state.profile.profile?.bookmarks).toHaveLength(1);
-    expect(state.profile.profile?.bookmarks[0].questionId).toBe('1');
+    expect(state.profile.profile?.bookmarks?.[0].questionId).toBe('1');
+  });
 
-    // Toggle off
-    await user.press(bookmarkButton);
-    expect(store.getState().profile.profile?.bookmarks).toHaveLength(0);
+  test('user can unbookmark during active quiz', async () => {
+    renderWithProviders(initialLoggedInState(), ['1']);
+    await user.press(await screen.findByText('Start Quiz'));
+
+    await waitFor(() =>
+        expect(screen.getByText(/Two Sum/)).toBeOnTheScreen()
+    );
+
+    const bookmarkIcon = screen.getByTestId('bookmark-icon');
+
+    await user.press(bookmarkIcon);
+    expect(screen.getByTestId('bookmark-icon-active')).toBeOnTheScreen();
+
+    await user.press(screen.getByTestId('bookmark-icon-active'));
+    expect(screen.getByTestId('bookmark-icon')).toBeOnTheScreen();
+
+    const state = store.getState() as RootState;
+    expect(state.profile.profile?.bookmarks).toHaveLength(0);
+  });
+
+  test('bookmarking same question twice does not duplicate', async () => {
+    renderWithProviders(initialLoggedInState(), ['1']);
+    await user.press(await screen.findByText('Start Quiz'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Two Sum/)).toBeOnTheScreen()
+    );
+
+    const bookmarkIcon = screen.getByTestId('bookmark-icon');
+
+    await user.press(bookmarkIcon);
+    await user.press(screen.getByTestId('bookmark-icon-active'));
+    await user.press(screen.getByTestId('bookmark-icon'));
+
+    const state = store.getState() as RootState;
+    expect(state.profile.profile?.bookmarks.length).toBeLessThanOrEqual(1);
   });
 });

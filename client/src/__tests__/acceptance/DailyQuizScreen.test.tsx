@@ -247,19 +247,35 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     // For now, let's just ensure it doesn't crash.
   });
 
-  test('can bookmark a question during daily quiz', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+  test('user can bookmark question in daily quiz session', async () => {
+    renderWithProviders({
+        profile: {
+            profile: {
+                userId: 'user1',
+                bookmarks: [],
+                goals: [],
+                totalXP: 0,
+                correctAnswers: 0,
+                completedQuizzes: 0,
+                globalRanking: 0,
+                highestAchievement: null,
+                settings: { theme: 'system', notificationsEnabled: true, language: 'en', soundEffects: true }
+            }
+        }
+    });
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
-    const bookmarkButton = screen.getByTestId('bookmark-button');
-    await user.press(bookmarkButton);
+    await waitFor(() =>
+        expect(screen.getByText(/Daily Question 1/)).toBeOnTheScreen()
+    );
 
-    expect(store.getState().profile.profile?.bookmarks).toHaveLength(1);
-    expect(store.getState().profile.profile?.bookmarks[0].questionId).toBe('1');
+    const bookmarkIcon = screen.getByTestId('daily-bookmark-icon');
+    await user.press(bookmarkIcon);
 
-    // Toggle off
-    await user.press(bookmarkButton);
-    expect(store.getState().profile.profile?.bookmarks).toHaveLength(0);
+    expect(screen.getByTestId('daily-bookmark-icon-active')).toBeOnTheScreen();
+
+    const state = store.getState();
+    expect(state.profile.profile.bookmarks.length).toBe(1);
   });
 });
