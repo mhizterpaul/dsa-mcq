@@ -83,6 +83,8 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
             intervalId = setInterval(() => {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
+        } else if (isStarted && timeLeft === 0 && !showPrevFeedback) {
+            handleNext();
         }
         return () => clearInterval(intervalId);
     }, [isStarted, timeLeft, showPrevFeedback]);

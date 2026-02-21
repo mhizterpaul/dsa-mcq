@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -187,12 +187,18 @@ describe('DailyQuizScreen Acceptance Tests', () => {
 
   test('back button does not exit the quiz', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+     const alertSpy = jest.spyOn(Alert, 'alert');
     renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
 
     await user.press(screen.getByTestId('back-button'));
-    expect(consoleSpy).toHaveBeenCalledWith("Exit restricted during Daily Quiz");
-    consoleSpy.mockRestore();
+    expect(alertSpy).toHaveBeenCalledWith(
+        "Exit Restricted",
+        "You cannot exit the quiz until the session is over.",
+        [{ text: "OK" }]
+    );
+    alertSpy.mockRestore();
   });
 
   test('completes quiz and shows summary with leaderboard', async () => {
@@ -217,6 +223,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
 
     // Check leaderboard content (Winner Alice should have a crown)
     expect(screen.getByText('Alice')).toBeOnTheScreen();
+    expect(screen.getByTestId('winner-crown')).toBeOnTheScreen();
     expect(screen.getByText('Bob')).toBeOnTheScreen();
     expect(screen.getByText('Charlie')).toBeOnTheScreen();
 
@@ -227,24 +234,148 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   test('handles real-time participant updates via SSE', async () => {
     renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
-    // Trigger SSE event
+    // Trigger SSE event with 4 participants
     act(() => {
         mockSseListeners['message']({
             data: JSON.stringify({
                 type: 'participant_update',
                 payload: [
-                    { userId: 'user1', name: 'Alice', score: 10 },
-                    { userId: 'user2', name: 'Bob', score: 5 },
+                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                    { userId: 'user3', name: 'Charlie', avatarUrl: '...' },
+                    { userId: 'user4', name: 'David', avatarUrl: '...' },
                 ]
             })
         });
     });
 
-    // In this implementation, participant updates might update a list,
-    // but the UI mainly shows AvatarGroup from the initial session.
-    // If we wanted to show scores in real-time we'd need more UI.
-    // For now, let's just ensure it doesn't crash.
+    expect(screen.getByText('4 members in session')).toBeOnTheScreen();
+  });
+
+  test('handles tie scores on the leaderboard', async () => {
+    const tiedResults = {
+        ...mockResults,
+        leaderboard: [
+            { id: 'user1', name: 'Alice', score: 100, avatar: '...' },
+            { id: 'user2', name: 'Bob', score: 100, avatar: '...' },
+            { id: 'user3', name: 'Charlie', score: 60, avatar: '...' },
+        ]
+    };
+    server.use(
+        http.get('http://localhost:3000/api/daily-quiz/results', () => {
+            return HttpResponse.json(tiedResults);
+        })
+    );
+
+    renderWithProviders();
+    await user.press(await screen.findByText('Start Quiz'));
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+
+    // Both Alice and Bob should have crowns
+    const crowns = screen.getAllByTestId('winner-crown');
+    expect(crowns.length).toBe(2);
+  });
+
+  test('handles maximum (5) participants and UI scales', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+
+    act(() => {
+        mockSseListeners['message']({
+            data: JSON.stringify({
+                type: 'participant_update',
+                payload: [
+                    { userId: 'u1', name: 'A', avatarUrl: '...' },
+                    { userId: 'u2', name: 'B', avatarUrl: '...' },
+                    { userId: 'u3', name: 'C', avatarUrl: '...' },
+                    { userId: 'u4', name: 'D', avatarUrl: '...' },
+                    { userId: 'u5', name: 'E', avatarUrl: '...' },
+                ]
+            })
+        });
+    });
+
+    expect(screen.getByText('5 members in session')).toBeOnTheScreen();
+    // AvatarGroup should show +2 if it slices at 3
+    expect(screen.getByText('+2')).toBeOnTheScreen();
+  });
+
+  test('handles participant leaving mid-quiz', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    expect(screen.getByText('3 members in session')).toBeOnTheScreen();
+
+    // Trigger SSE event with 2 participants (one left)
+    act(() => {
+        mockSseListeners['message']({
+            data: JSON.stringify({
+                type: 'participant_update',
+                payload: [
+                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                ]
+            })
+        });
+    });
+
+    expect(screen.getByText('2 members in session')).toBeOnTheScreen();
+  });
+
+  test('timer expiration auto-advances to next question', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    expect(screen.getByText('Daily Question 1')).toBeOnTheScreen();
+
+    // Advance timer by 120 seconds
+    act(() => {
+        jest.advanceTimersByTime(120000);
+    });
+
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+  });
+
+  test('summary screen buttons work as required', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    // Question 1
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    // Question 2
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    // Summary Screen
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+
+    // Play Again
+    await user.press(screen.getByTestId('play-again-button'));
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+
+    // Go to summary again
+    await user.press(screen.getByText('Start Quiz'));
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    // Home button
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('home-button'));
+    await waitFor(() => expect(screen.getByText('Home Screen')).toBeOnTheScreen());
   });
 
   test('user can bookmark question in daily quiz session', async () => {
