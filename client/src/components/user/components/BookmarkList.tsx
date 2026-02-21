@@ -22,31 +22,32 @@ const BookmarkItem = ({
     isExpanded: boolean,
     onToggle: () => void
 }) => {
+    const id = bookmark.questionId;
     return (
         <View style={styles.itemContainer}>
             <TouchableOpacity
                 style={styles.collapsedView}
                 onPress={onToggle}
-                testID={`bookmark-item-${index}`}
+                testID={`bookmark-item-${id}`}
             >
                 <Text style={styles.itemIndex}>{index + 1}</Text>
                 <View style={styles.collapsedContent}>
                     <Text
                         style={styles.questionTextPreview}
                         numberOfLines={1}
-                        testID={`bookmark-title-${index}`}
+                        testID={`bookmark-title-${id}`}
                     >
-                        {question?.question || `Question ${bookmark.questionId}`}
+                        {question?.question || `Question ${id}`}
                     </Text>
                     <Text style={styles.questionType}>Multiple choice</Text>
                 </View>
-                <TouchableOpacity testID={`three-dots-${index}`}>
+                <TouchableOpacity testID={`three-dots-${id}`}>
                     <Feather name="more-vertical" size={20} color="#888" />
                 </TouchableOpacity>
             </TouchableOpacity>
 
             {isExpanded && question && (
-                <View style={styles.expandedView} testID={`expanded-view-${index}`}>
+                <View style={styles.expandedView} testID={`expanded-view-${id}`}>
                     <Text style={styles.fullQuestionText}>{question.question}</Text>
                     <View style={styles.optionsContainer}>
                         {question.options.map((option, optIndex) => {
@@ -60,7 +61,7 @@ const BookmarkItem = ({
                                         styles.optionItem,
                                         isSelected && styles.selectedOption
                                     ]}
-                                    testID={`option-${index}-${optIndex}`}
+                                    testID={`option-${id}-${optIndex}`}
                                 >
                                     <View style={[
                                         styles.radioCircle,

@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/native';
-import { render, screen, userEvent, waitFor, fireEvent, within } from '@testing-library/react-native';
+import { render, screen, userEvent, waitFor, fireEvent, within, act } from '@testing-library/react-native';
 
 import { configureStore } from '@reduxjs/toolkit';
 import type { PreloadedState } from '@reduxjs/toolkit';
@@ -22,10 +22,11 @@ jest.mock('react-native-vector-icons/MaterialIcons', () => 'Icon');
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'Icon');
 
 // --- Mock Data ---
-const mockQuestions = [
-  {
-    id: 1,
-    question: "What does UI stand for in the context of design?",
+const mockQuestions = Array.from({ length: 50 }, (_, i) => ({
+    id: i + 1,
+    question: i === 0 ? "What does UI stand for in the context of design?" :
+              i === 1 ? "Which aspect of UI design focuses on visual elements?" :
+              `Question ${i + 1}`,
     category: "design",
     options: [
       { text: "User Integration", isCorrect: false },
@@ -33,17 +34,7 @@ const mockQuestions = [
       { text: "Universal Interaction", isCorrect: false },
       { text: "User Involvement", isCorrect: false },
     ],
-  },
-  {
-    id: 2,
-    question: "Which aspect of UI design focuses on visual elements?",
-    category: "design",
-    options: [
-      { text: "Typography", isCorrect: true },
-      { text: "Logic", isCorrect: false },
-    ],
-  },
-];
+}));
 
 // --- MSW Server Setup ---
 const server = setupServer(
@@ -103,17 +94,7 @@ const renderWithProviders = (
   };
 };
 
-describe('BookmarkScreen Acceptance Tests', () => {
-  let user: ReturnType<typeof userEvent.setup>;
-
-  beforeEach(() => {
-    user = userEvent.setup();
-  });
-
-  const getInitialState = (bookmarks: QuestionResponse[] = []): PreloadedState<RootState> => {
-    const profile = new UserProfile('user1');
-    profile.bookmarks = bookmarks;
-
+const getInitialState = (bookmarks: any[] = []): PreloadedState<RootState> => {
     return {
         user: {
             currentUser: { id: 'user1', fullName: 'Test User', email: 'test@example.com' },
@@ -121,22 +102,41 @@ describe('BookmarkScreen Acceptance Tests', () => {
             error: null,
         },
         profile: {
-            profile: JSON.parse(JSON.stringify(profile)) // Ensure it's a plain object
+            profile: {
+                userId: 'user1',
+                bookmarks,
+                goals: [],
+                totalXP: 0,
+                correctAnswers: 0,
+                completedQuizzes: 0,
+                globalRanking: 0,
+                highestAchievement: null,
+                settings: { theme: 'system', notificationsEnabled: true, language: 'en', soundEffects: true }
+            }
         }
     } as any;
-  };
+};
+
+// --- Scenario Builder ---
+const givenBookmarks = (...bookmarks: any[]) => renderWithProviders(getInitialState(bookmarks));
+
+describe('BookmarkScreen Acceptance Tests', () => {
+  let user: ReturnType<typeof userEvent.setup>;
+
+  beforeEach(() => {
+    user = userEvent.setup();
+  });
 
   test('renders header and title correctly', async () => {
-    renderWithProviders(getInitialState());
+    givenBookmarks();
     expect(screen.getByTestId('back-button')).toBeOnTheScreen();
     expect(screen.getByTestId('screen-title')).toHaveTextContent('Bookmarks');
   });
 
   test('back button returns user to previous screen', async () => {
-    renderWithProviders(getInitialState());
+    givenBookmarks();
 
-    // Should be on Bookmark screen due to initialState
-    await waitFor(() => expect(screen.getByTestId('screen-title')).toBeOnTheScreen());
+    await screen.findByTestId('screen-title');
 
     fireEvent.press(screen.getByTestId('back-button'));
 
@@ -146,43 +146,58 @@ describe('BookmarkScreen Acceptance Tests', () => {
   });
 
   test('back button pops only one level', async () => {
-    renderWithProviders(getInitialState());
+    givenBookmarks();
 
-    await waitFor(() => expect(screen.getByTestId('screen-title')).toBeOnTheScreen());
+    await screen.findByTestId('screen-title');
 
     fireEvent.press(screen.getByTestId('back-button'));
 
-    await waitFor(() => expect(screen.getByTestId('home-screen')).toBeOnTheScreen());
+    await screen.findByTestId('home-screen');
 
     // Ensure we did not navigate further back
     expect(screen.queryByTestId('screen-title')).not.toBeOnTheScreen();
   });
 
-  test('displays bookmarked items', async () => {
-    const bookmarks = [
-        new QuestionResponse('1', 'User Interface', true, 'easy'),
-        new QuestionResponse('2', 'Typography', true, 'easy')
-    ];
-    renderWithProviders(getInitialState(bookmarks));
+  test('back button does not crash if pressed twice quickly', async () => {
+    givenBookmarks();
 
-    await waitFor(() => expect(screen.getByText(/What does UI stand for/)).toBeOnTheScreen());
+    await screen.findByTestId('screen-title');
+
+    const backButton = screen.getByTestId('back-button');
+    fireEvent.press(backButton);
+    // Second press might happen while unmounting, we just want to ensure no crash
+    try {
+        fireEvent.press(backButton);
+    } catch (e) {
+        // Ignore if already unmounted
+    }
+
+    await screen.findByTestId('home-screen');
+  });
+
+  test('displays bookmarked items', async () => {
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null },
+        { questionId: '2', mostRecentAnswer: 'Typography', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
+
+    expect(await screen.findByText(/What does UI stand for/)).toBeOnTheScreen();
     expect(screen.getByText(/Which aspect of UI design/)).toBeOnTheScreen();
   });
 
   test('shows empty state when no bookmarks exist', async () => {
-    renderWithProviders(getInitialState([]));
+    givenBookmarks();
 
     expect(await screen.findByText(/no bookmarks yet/i)).toBeOnTheScreen();
   });
 
   test('searching bookmarks filters the list', async () => {
-    const bookmarks = [
-        new QuestionResponse('1', 'User Interface', true, 'easy'),
-        new QuestionResponse('2', 'Typography', true, 'easy')
-    ];
-    renderWithProviders(getInitialState(bookmarks));
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null },
+        { questionId: '2', mostRecentAnswer: 'Typography', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    await waitFor(() => expect(screen.getByText(/What does UI stand for/)).toBeOnTheScreen());
+    await screen.findByText(/What does UI stand for/);
 
     const searchBar = screen.getByTestId('search-bar');
     await user.type(searchBar, 'aspect');
@@ -192,14 +207,12 @@ describe('BookmarkScreen Acceptance Tests', () => {
   });
 
   test('clearing search restores full bookmark list', async () => {
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy'),
-      new QuestionResponse('2', 'Typography', true, 'easy')
-    ];
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null },
+        { questionId: '2', mostRecentAnswer: 'Typography', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    renderWithProviders(getInitialState(bookmarks));
-
-    await waitFor(() => expect(screen.getByText(/What does UI stand for/)).toBeOnTheScreen());
+    await screen.findByText(/What does UI stand for/);
 
     const searchBar = screen.getByTestId('search-bar');
 
@@ -214,84 +227,94 @@ describe('BookmarkScreen Acceptance Tests', () => {
   });
 
   test('toggling expansion shows question details and last selection', async () => {
-    const bookmarks = [
-        new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
-    renderWithProviders(getInitialState(bookmarks));
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+    await screen.findByTestId('bookmark-item-1');
 
     // Not expanded yet
-    expect(screen.queryByTestId('expanded-view-0')).not.toBeOnTheScreen();
+    expect(screen.queryByTestId('expanded-view-1')).not.toBeOnTheScreen();
 
     // Tap to expand
-    await user.press(screen.getByTestId('bookmark-item-0'));
+    await user.press(screen.getByTestId('bookmark-item-1'));
 
-    expect(await screen.findByTestId('expanded-view-0')).toBeOnTheScreen();
+    expect(await screen.findByTestId('expanded-view-1')).toBeOnTheScreen();
     expect(screen.getByText('User Integration')).toBeOnTheScreen();
     expect(screen.getByText('User Interface')).toBeOnTheScreen();
 
-    const selectedOption = screen.getByTestId('option-0-1'); // User Interface is index 1
+    const selectedOption = screen.getByTestId('option-1-1'); // User Interface is index 1
     expect(within(selectedOption).getByTestId('status-icon')).toBeOnTheScreen();
   });
 
   test('expanding one bookmark does not expand others', async () => {
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy'),
-      new QuestionResponse('2', 'Typography', true, 'easy')
-    ];
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null },
+        { questionId: '2', mostRecentAnswer: 'Typography', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    renderWithProviders(getInitialState(bookmarks));
+    await screen.findByTestId('bookmark-item-1');
 
-    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('bookmark-item-1'));
 
-    await user.press(screen.getByTestId('bookmark-item-0'));
-
-    expect(await screen.findByTestId('expanded-view-0')).toBeOnTheScreen();
-    expect(screen.queryByTestId('expanded-view-1')).not.toBeOnTheScreen();
+    expect(await screen.findByTestId('expanded-view-1')).toBeOnTheScreen();
+    expect(screen.queryByTestId('expanded-view-2')).not.toBeOnTheScreen();
   });
 
   test('tapping expanded item collapses it', async () => {
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    renderWithProviders(getInitialState(bookmarks));
+    await screen.findByTestId('bookmark-item-1');
 
-    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('bookmark-item-1'));
+    expect(await screen.findByTestId('expanded-view-1')).toBeOnTheScreen();
 
-    await user.press(screen.getByTestId('bookmark-item-0'));
-    expect(await screen.findByTestId('expanded-view-0')).toBeOnTheScreen();
-
-    await user.press(screen.getByTestId('bookmark-item-0'));
+    await user.press(screen.getByTestId('bookmark-item-1'));
 
     await waitFor(() =>
-      expect(screen.queryByTestId('expanded-view-0')).not.toBeOnTheScreen()
+      expect(screen.queryByTestId('expanded-view-1')).not.toBeOnTheScreen()
     );
   });
 
   test('expanded view retains user last selected option', async () => {
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    renderWithProviders(getInitialState(bookmarks));
+    await screen.findByTestId('bookmark-item-1');
 
-    await waitFor(() => expect(screen.getByTestId('bookmark-item-0')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('bookmark-item-1'));
 
-    await user.press(screen.getByTestId('bookmark-item-0'));
-
-    const selectedOption = await screen.findByTestId('option-0-1');
+    const selectedOption = await screen.findByTestId('option-1-1');
     expect(within(selectedOption).getByTestId('status-icon')).toBeOnTheScreen();
   });
 
-  test('three dots menu is present on collapsed view', async () => {
-    const bookmarks = [
-        new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
-    renderWithProviders(getInitialState(bookmarks));
+  test('removes item if unbookmarked while expanded', async () => {
+    const bookmark = { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null };
+    givenBookmarks(bookmark);
 
-    await waitFor(() => expect(screen.getByTestId('three-dots-0')).toBeOnTheScreen());
+    await screen.findByTestId('bookmark-item-1');
+
+    await user.press(screen.getByTestId('bookmark-item-1'));
+    expect(await screen.findByTestId('expanded-view-1')).toBeOnTheScreen();
+
+    act(() => {
+        store.dispatch(toggleBookmark(bookmark as any));
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('bookmark-item-1')).not.toBeOnTheScreen()
+    );
+  });
+
+  test('three dots menu is present on collapsed view', async () => {
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
+
+    await screen.findByTestId('three-dots-1');
   });
 
   test('handles API failure gracefully', async () => {
@@ -301,23 +324,20 @@ describe('BookmarkScreen Acceptance Tests', () => {
       )
     );
 
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
-
-    renderWithProviders(getInitialState(bookmarks));
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
     expect(await screen.findByText(/failed to load bookmarks/i)).toBeOnTheScreen();
+    expect(screen.queryByTestId('bookmark-item-1')).not.toBeOnTheScreen();
   });
 
   test('bookmark list updates when store changes', async () => {
-    const bookmarks = [
-      new QuestionResponse('1', 'User Interface', true, 'easy')
-    ];
+    givenBookmarks(
+        { questionId: '1', mostRecentAnswer: 'User Interface', isCorrect: true, difficultyLevel: 'easy', feedback: null }
+    );
 
-    const { store } = renderWithProviders(getInitialState(bookmarks));
-
-    await waitFor(() => expect(screen.getByText(/What does UI stand for/)).toBeOnTheScreen());
+    await screen.findByText(/What does UI stand for/);
 
     const newBookmark = {
       questionId: '2',
@@ -327,12 +347,44 @@ describe('BookmarkScreen Acceptance Tests', () => {
       feedback: null
     };
 
-    await waitFor(() => {
+    act(() => {
         store.dispatch(toggleBookmark(newBookmark as any));
     });
 
     await waitFor(() =>
       expect(screen.getByText(/Which aspect of UI design/)).toBeOnTheScreen()
     );
+
+    const state = store.getState();
+    expect(state.profile.profile.bookmarks).toHaveLength(2);
+
+    // Test idempotency
+    act(() => {
+        store.dispatch(toggleBookmark(newBookmark as any)); // Should remove it
+    });
+    act(() => {
+        store.dispatch(toggleBookmark(newBookmark as any)); // Should add it back
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Which aspect of UI design/)).toBeOnTheScreen()
+    );
+    expect(store.getState().profile.profile.bookmarks).toHaveLength(2);
+  });
+
+  test('renders large bookmark list without crashing', async () => {
+    const bookmarks = Array.from({ length: 50 }, (_, i) => ({
+        questionId: String(i + 1),
+        mostRecentAnswer: 'User Interface',
+        isCorrect: true,
+        difficultyLevel: 'easy',
+        feedback: null
+    }));
+
+    givenBookmarks(...bookmarks);
+
+    await screen.findByTestId('bookmark-item-1');
+    // For FlatList, we might only see the first few items in test env due to virtualization
+    expect(screen.getByText(/Bookmarks \(50\)/)).toBeOnTheScreen();
   });
 });
