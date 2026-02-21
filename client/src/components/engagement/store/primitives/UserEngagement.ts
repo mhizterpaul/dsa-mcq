@@ -23,7 +23,8 @@ export class UserEngagement {
   updatedAt: number;
   session_attendance: number;
   streak_length: number;
-  response_latency: number;
+  response_latency: number; // in ms
+  average_response_time: number; // alias for clarity in downstream components
   xp_progress: number;
   leaderboard_rank: number;
   last_session_timestamp: number | null;
@@ -41,6 +42,7 @@ export class UserEngagement {
     this.session_attendance = 0;
     this.streak_length = 0;
     this.response_latency = 0;
+    this.average_response_time = 0;
     this.xp_progress = 0;
 
     this.leaderboard_rank = 0;
@@ -81,6 +83,7 @@ export class UserEngagement {
   updateResponseLatency(latency: number) {
     // Simple average for now.
     this.response_latency = (this.response_latency + latency) / 2;
+    this.average_response_time = this.response_latency;
     this.updatedAt = Date.now();
   }
 
