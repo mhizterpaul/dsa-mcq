@@ -42,7 +42,8 @@ const analyticsRootReducer = combineReducers({
 });
 
 // User Component Reducer
-import userReducer from '../components/user/store';
+import userReducer from '../components/user/store/user.slice';
+import userProfileReducer from '../components/user/store/userProfile.slice';
 
 // Mediator Component Reducer
 import sharedStateReducer from './sharedState.slice';
@@ -57,6 +58,7 @@ const rootReducer = combineReducers({
   learning: learningRootReducer,
   engagement: engagementRootReducer,
   user: userReducer,
+  profile: userProfileReducer,
   analytics: analyticsRootReducer,
   mediator: mediatorRootReducer,
 });
