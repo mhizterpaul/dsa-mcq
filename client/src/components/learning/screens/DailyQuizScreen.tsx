@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import SSE from 'react-native-sse';
 
@@ -68,7 +68,11 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                 const data = JSON.parse(event.data);
                 switch (data.type) {
                     case 'participant_update':
-                        setParticipantUpdates(data.payload);
+                        setSession(prev => prev ? {
+                            ...prev,
+                            participants: data.payload,
+                            participantCount: data.payload.length
+                        } : null);
                         break;
                     case 'session_end':
                         navigation.replace('DailyQuizSummary', { sessionId: session.sessionId });
@@ -143,8 +147,11 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
     };
 
     const handleBack = () => {
-        // Restricted: users cannot exit the quiz until the session is over
-        console.log("Exit restricted during Daily Quiz");
+        Alert.alert(
+            "Exit Restricted",
+            "You cannot exit the quiz until the session is over.",
+            [{ text: "OK" }]
+        );
     };
 
     if (!session || questions.length === 0) {

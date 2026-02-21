@@ -90,7 +90,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players: propPlayers, hideFil
             const isFirstPlace = (topPlayers.length > 1 && index === 1) || (topPlayers.length === 1 && index === 0);
             return (
               <View key={player.id} style={styles.topPlayer}>
-                {isFirstPlace && <Icon name="crown" size={24} color="#FFBE0B" style={styles.crownIcon} />}
+                {isFirstPlace && <Icon name="crown" size={24} color="#FFBE0B" style={styles.crownIcon} testID="winner-crown" />}
                 <Avatar.Image
                     size={isFirstPlace ? 70 : 54}
                     source={{ uri: player.avatar || 'https://i.pravatar.cc/150' }}

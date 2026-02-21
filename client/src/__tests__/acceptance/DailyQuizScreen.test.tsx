@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -183,14 +183,18 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
   });
 
-  test('back button does not exit the quiz', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+  test('back button shows exit restricted alert', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
     renderWithProviders();
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
 
     await user.press(screen.getByTestId('back-button'));
-    expect(consoleSpy).toHaveBeenCalledWith("Exit restricted during Daily Quiz");
-    consoleSpy.mockRestore();
+    expect(alertSpy).toHaveBeenCalledWith(
+        "Exit Restricted",
+        "You cannot exit the quiz until the session is over.",
+        [{ text: "OK" }]
+    );
+    alertSpy.mockRestore();
   });
 
   test('completes quiz and shows summary with leaderboard', async () => {
@@ -215,6 +219,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
 
     // Check leaderboard content (Winner Alice should have a crown)
     expect(screen.getByText('Alice')).toBeOnTheScreen();
+    expect(screen.getByTestId('winner-crown')).toBeOnTheScreen();
     expect(screen.getByText('Bob')).toBeOnTheScreen();
     expect(screen.getByText('Charlie')).toBeOnTheScreen();
 
@@ -222,26 +227,60 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('home-button')).toBeOnTheScreen();
   });
 
-  test('handles real-time participant updates via SSE', async () => {
+  test('handles real-time participant updates via SSE and updates member tracking', async () => {
     renderWithProviders();
     await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
-    // Trigger SSE event
+    // Trigger SSE event with 4 participants
     act(() => {
         mockSseListeners['message']({
             data: JSON.stringify({
                 type: 'participant_update',
                 payload: [
-                    { userId: 'user1', name: 'Alice', score: 10 },
-                    { userId: 'user2', name: 'Bob', score: 5 },
+                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                    { userId: 'user3', name: 'Charlie', avatarUrl: '...' },
+                    { userId: 'user4', name: 'David', avatarUrl: '...' },
                 ]
             })
         });
     });
 
-    // In this implementation, participant updates might update a list,
-    // but the UI mainly shows AvatarGroup from the initial session.
-    // If we wanted to show scores in real-time we'd need more UI.
-    // For now, let's just ensure it doesn't crash.
+    expect(screen.getByText('4 members in session')).toBeOnTheScreen();
+  });
+
+  test('summary screen buttons work as required', async () => {
+    renderWithProviders();
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    // Question 1
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    // Question 2
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    // Summary Screen
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+
+    // Play Again
+    await user.press(screen.getByTestId('play-again-button'));
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+
+    // Go to summary again
+    await user.press(screen.getByText('Start Quiz'));
+    await user.press(screen.getByText('Option A'));
+    await user.press(screen.getByTestId('next-button'));
+    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    await user.press(screen.getByText('Option C'));
+    await user.press(screen.getByTestId('next-button'));
+
+    // Home button
+    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('home-button'));
+    await waitFor(() => expect(screen.getByText('Home Screen')).toBeOnTheScreen());
   });
 });
