@@ -95,11 +95,13 @@ const BookmarkList = () => {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [questions, setQuestions] = useState<Record<string, Question>>({});
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchQuestions = async () => {
             if (profile && profile.bookmarks.length > 0) {
                 setLoading(true);
+                setError(null);
                 try {
                     const ids = profile.bookmarks.map(b => parseInt(b.questionId, 10));
                     const fetchedQuestions = await learningService.getQuestionsByIds(ids);
@@ -110,6 +112,7 @@ const BookmarkList = () => {
                     setQuestions(questionMap);
                 } catch (error) {
                     console.error("Error fetching bookmarked questions:", error);
+                    setError("Failed to load bookmarks");
                 } finally {
                     setLoading(false);
                 }
@@ -152,6 +155,10 @@ const BookmarkList = () => {
 
             {loading && Object.keys(questions).length === 0 ? (
                 <ActivityIndicator animating={true} style={{ marginTop: 20 }} />
+            ) : error ? (
+                <View style={styles.emptyContainer}>
+                    <Text style={[styles.emptyText, { color: 'red' }]}>{error}</Text>
+                </View>
             ) : filteredBookmarks.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>No bookmarks yet</Text>
