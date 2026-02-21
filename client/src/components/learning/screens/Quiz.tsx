@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { toggleBookmark } from '../../user/store/userProfile.slice';
+import { QuestionResponse } from '../../user/store/primitives/UserProfile';
 import { UserQuestionData } from '../store/primitives/UserQuestionData';
 import { processAnswerAndUpdate, nextSubset } from '../store/learningSession.slice';
 import { LearningRootState } from '../store';
@@ -18,6 +20,7 @@ interface QuizProps {
 const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigation }) => {
     const dispatch = useDispatch();
     const { currentUser } = useSelector((state: any) => state.user);
+    const profile = useSelector((state: any) => state.profile.profile);
     const session = useSelector((state: any) => state.learning.learningSession.session);
     const recentQuizzesEntities = useSelector((state: any) => state.learning.recentQuizzes.entities);
     const recentQuizzes = useMemo(() => Object.values(recentQuizzesEntities), [recentQuizzesEntities]);
@@ -156,6 +159,26 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
         navigation.goBack();
     };
 
+    const handleToggleBookmark = () => {
+        const question = questions[currentQuestionIndex];
+        if (!question) return;
+
+        const bookmark: QuestionResponse = {
+            questionId: String(question.id),
+            mostRecentAnswer: selectedOption || '',
+            isCorrect: selectedOption === question.options.find(o => o.isCorrect)?.text,
+            difficultyLevel: (question.difficulty as any) || 'easy',
+            feedback: null,
+        };
+
+        dispatch(toggleBookmark(bookmark));
+    };
+
+    const isBookmarked = useMemo(() => {
+        const question = questions[currentQuestionIndex];
+        return profile?.bookmarks.some((b: any) => b.questionId === String(question?.id));
+    }, [profile?.bookmarks, questions, currentQuestionIndex]);
+
     if (questions.length === 0) {
         return (
             <View style={styles.loadingContainer}>
@@ -211,7 +234,18 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
                 </View>
-                <View style={styles.headerRight} />
+                <View style={styles.headerRight}>
+                    <TouchableOpacity
+                        onPress={handleToggleBookmark}
+                        testID={isBookmarked ? "bookmark-icon-active" : "bookmark-icon"}
+                    >
+                        <Icon
+                            name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                            size={28}
+                            color={isBookmarked ? "#6200EE" : "#000"}
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ProgressBar

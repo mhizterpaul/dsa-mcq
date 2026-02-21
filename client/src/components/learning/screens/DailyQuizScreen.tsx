@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import SSE from 'react-native-sse';
 
 import { Question, API_BASE_URL } from '../services/learningService';
+import { toggleBookmark } from '../../user/store/userProfile.slice';
+import { QuestionResponse } from '../../user/store/primitives/UserProfile';
 import QuestionCard from '../components/QuestionCard';
 import ProgressBar from '../components/ProgressBar';
 import AvatarGroup from '../../engagement/components/AvatarGroup';
@@ -27,6 +30,8 @@ interface ScreenProps {
 }
 
 const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
+    const dispatch = useDispatch();
+    const profile = useSelector((state: any) => state.profile.profile);
     const [session, setSession] = useState<DailyQuizSession | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -156,6 +161,26 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
         );
     };
 
+    const handleToggleBookmark = () => {
+        const question = questions[currentQuestionIndex];
+        if (!question) return;
+
+        const bookmark: QuestionResponse = {
+            questionId: String(question.id),
+            mostRecentAnswer: selectedOption || '',
+            isCorrect: selectedOption === question.options.find(o => o.isCorrect)?.text,
+            difficultyLevel: (question.difficulty as any) || 'easy',
+            feedback: null,
+        };
+
+        dispatch(toggleBookmark(bookmark));
+    };
+
+    const isBookmarked = useMemo(() => {
+        const question = questions[currentQuestionIndex];
+        return profile?.bookmarks.some((b: any) => b.questionId === String(question?.id));
+    }, [profile?.bookmarks, questions, currentQuestionIndex]);
+
     if (!session || questions.length === 0) {
         return (
             <View style={styles.loadingContainer}>
@@ -182,7 +207,18 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle} testID="quiz-header-title">Aptitude Test</Text>
                 </View>
-                <View style={styles.headerRight} />
+                <View style={styles.headerRight}>
+                    <TouchableOpacity
+                        onPress={handleToggleBookmark}
+                        testID={isBookmarked ? "daily-bookmark-icon-active" : "daily-bookmark-icon"}
+                    >
+                        <Icon
+                            name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                            size={28}
+                            color={isBookmarked ? "#6200EE" : "#000"}
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ProgressBar

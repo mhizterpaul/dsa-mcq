@@ -12,7 +12,7 @@ interface BackButtonProps {
 
 const BackButton: React.FC<BackButtonProps> = ({ navigation }) => {
     return (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.button}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.button} testID="back-button">
             <Icon name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
     );

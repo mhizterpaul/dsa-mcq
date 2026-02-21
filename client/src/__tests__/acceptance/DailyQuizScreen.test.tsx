@@ -114,9 +114,11 @@ const TestNavigator = () => (
   </NavigationContainer>
 );
 
-const renderWithProviders = () => {
-  const store = configureStore({
+let store: any;
+const renderWithProviders = (preloadedState?: any) => {
+  store = configureStore({
     reducer: rootReducer,
+    preloadedState
   });
 
   return render(
@@ -136,7 +138,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('renders all daily quiz UI elements correctly', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
     await waitFor(() => expect(screen.getByTestId('quiz-header-title')).toBeOnTheScreen());
 
@@ -152,7 +154,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('Next button is disabled until an option is selected for all questions', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
@@ -173,7 +175,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('timer counts down after starting', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
@@ -183,9 +185,11 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
   });
 
-  test('back button shows exit restricted alert', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert');
-    renderWithProviders();
+  test('back button does not exit the quiz', async () => {
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+     const alertSpy = jest.spyOn(Alert, 'alert');
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
 
     await user.press(screen.getByTestId('back-button'));
@@ -198,7 +202,7 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('completes quiz and shows summary with leaderboard', async () => {
-    renderWithProviders();
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
@@ -227,8 +231,8 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('home-button')).toBeOnTheScreen();
   });
 
-  test('handles real-time participant updates via SSE and updates member tracking', async () => {
-    renderWithProviders();
+  test('handles real-time participant updates via SSE', async () => {
+    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
@@ -372,5 +376,37 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
     await user.press(screen.getByTestId('home-button'));
     await waitFor(() => expect(screen.getByText('Home Screen')).toBeOnTheScreen());
+  });
+
+  test('user can bookmark question in daily quiz session', async () => {
+    renderWithProviders({
+        profile: {
+            profile: {
+                userId: 'user1',
+                bookmarks: [],
+                goals: [],
+                totalXP: 0,
+                correctAnswers: 0,
+                completedQuizzes: 0,
+                globalRanking: 0,
+                highestAchievement: null,
+                settings: { theme: 'system', notificationsEnabled: true, language: 'en', soundEffects: true }
+            }
+        }
+    });
+    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    await user.press(screen.getByText('Start Quiz'));
+
+    await waitFor(() =>
+        expect(screen.getByText(/Daily Question 1/)).toBeOnTheScreen()
+    );
+
+    const bookmarkIcon = screen.getByTestId('daily-bookmark-icon');
+    await user.press(bookmarkIcon);
+
+    expect(screen.getByTestId('daily-bookmark-icon-active')).toBeOnTheScreen();
+
+    const state = store.getState();
+    expect(state.profile.profile.bookmarks.length).toBe(1);
   });
 });

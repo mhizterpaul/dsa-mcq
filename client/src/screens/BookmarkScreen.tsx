@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 import { UserComponent } from '../components/user/interface';
@@ -18,7 +18,11 @@ const BookmarkScreen: React.FC<ScreenProps> = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <BackButton navigation={navigation} />
+            <View style={styles.header}>
+                <BackButton navigation={navigation} />
+                <Text style={styles.title} testID="screen-title">Bookmarks</Text>
+                <View style={{ width: 40 }} />
+            </View>
             <View style={styles.content}>
                 {userComponent.renderBookmarkList('bookmark')}
             </View>
@@ -34,6 +38,20 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 40,
+        paddingBottom: 10,
+        backgroundColor: '#fff',
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#000',
     },
 });
 
