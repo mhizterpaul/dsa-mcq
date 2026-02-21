@@ -56,6 +56,7 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
             onPress={openMenu}
             style={styles.menuButton}
             testID="menu-button"
+            accessibilityLabel="Open profile menu"
           />
         }>
         {menuItems.map((item, idx) => (

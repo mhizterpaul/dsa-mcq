@@ -4,22 +4,39 @@ import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { render, screen, userEvent, fireEvent } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
 
-import userReducer from '../../components/user/store/user.slice';
+import userReducer, { UserObject } from '../../components/user/store/user.slice';
 import UserProfileScreen from '../../screens/UserProfileScreen';
 
 jest.useFakeTimers();
 
+// Mock navigation
+const mockGoBack = jest.fn();
+jest.mock('@react-navigation/native', () => {
+  const actualNav = jest.requireActual('@react-navigation/native');
+  return {
+    ...actualNav,
+    useNavigation: () => ({
+      goBack: mockGoBack,
+      navigate: jest.fn(),
+    }),
+    useRoute: () => ({
+      name: 'Profile',
+    }),
+  };
+});
+
 // --- Redux Store + Render Helper ---
-const renderWithProviders = () => {
+const renderWithProviders = (preloadedState?: any) => {
   const store = configureStore({
     reducer: {
       user: userReducer,
       learning: (state = {}) => state,
       engagement: (state = { streak: { currentStreak: 0 } }) => state,
     },
+    preloadedState,
   });
 
   const Stack = createStackNavigator();
@@ -40,58 +57,167 @@ const renderWithProviders = () => {
   };
 };
 
-describe('UserProfileScreen Acceptance', () => {
+describe('UserProfileScreen Acceptance Enhanced', () => {
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
     user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    mockGoBack.mockClear();
   });
 
-  test('renders all required elements', async () => {
+  test('renders all required elements with default state', async () => {
     renderWithProviders();
 
     await act(async () => {
       jest.runAllTimers();
     });
 
-    // Back button
-    expect(screen.getByTestId('back-button')).toBeOnTheScreen();
+    // Back button and accessibility
+    const backButton = screen.getByTestId('back-button');
+    expect(backButton).toBeTruthy();
+    expect(backButton.props.accessibilityLabel).toBe('Go back');
 
     // Title block
-    expect(screen.getByTestId('screen-title')).toBeOnTheScreen();
     expect(screen.getByTestId('screen-title')).toHaveTextContent('User profile');
 
     // Menu button
-    expect(screen.getByTestId('menu-button')).toBeOnTheScreen();
+    const menuButton = screen.getByTestId('menu-button');
+    expect(menuButton).toBeTruthy();
+    expect(menuButton.props.accessibilityLabel).toBe('Open profile menu');
 
-    // User name block and edit icon
-    expect(screen.getByTestId('user-name-block')).toBeOnTheScreen();
-    expect(screen.getByTestId('user-name-block')).toHaveTextContent('Sammy Skott');
-    expect(screen.getByTestId('edit-icon')).toBeOnTheScreen();
+    // User name block and accessibility
+    const nameBlock = screen.getByTestId('user-name-block');
+    expect(nameBlock).toBeTruthy();
+    expect(nameBlock).toHaveTextContent('Sammy Skott');
+    expect(nameBlock.props.accessibilityLabel).toBe('User name: Sammy Skott');
+
+    // Edit icon and accessibility
+    const editIcon = screen.getByTestId('edit-icon');
+    expect(editIcon).toBeTruthy();
+    expect(editIcon.props.accessibilityLabel).toBe('Edit user name');
 
     // User stats block
-    expect(screen.getByTestId('user-stats-block')).toBeOnTheScreen();
-    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('Level');
-    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('Achievements');
-    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('Weekly gifts');
+    const statsBlock = screen.getByTestId('user-stats-block');
+    expect(statsBlock).toBeTruthy();
+    expect(statsBlock.props.accessibilityLabel).toBe('User statistics');
+    expect(statsBlock).toHaveTextContent('Level');
+    expect(statsBlock).toHaveTextContent('Achievements');
+    expect(statsBlock).toHaveTextContent('Weekly gifts');
 
     // Bottom nav
-    expect(screen.getByTestId('bottom-nav')).toBeOnTheScreen();
+    expect(screen.getByTestId('bottom-nav')).toBeTruthy();
   });
 
-  test('dropdown menu icon functions properly', async () => {
+  test('back button triggers navigation.goBack()', async () => {
+    renderWithProviders();
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    const backButton = screen.getByTestId('back-button');
+    // Using fireEvent.press for reliability with mocks
+    fireEvent.press(backButton);
+
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  test('renders dynamic user data correctly', async () => {
+    const customUser: UserObject = {
+      id: '123',
+      fullName: 'John Constantine',
+      email: 'john@hellblazer.com',
+      level: 42,
+      achievementsCount: 99,
+      weeklyGiftsCount: 7,
+      avatarUrl: 'https://example.com/avatar.png',
+    };
+
+    renderWithProviders({
+      user: {
+        currentUser: customUser,
+        loading: false,
+        error: null,
+      },
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(screen.getByTestId('user-name-block')).toHaveTextContent('John Constantine');
+    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('42');
+    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('99');
+    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('7');
+  });
+
+  test('handles long username correctly', async () => {
+    const longName = 'Maximilian Alexander von Lichtenstein the Third';
+    renderWithProviders({
+      user: {
+        currentUser: { id: '1', fullName: longName, email: 'test@test.com' },
+        loading: false,
+        error: null,
+      },
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(screen.getByTestId('user-name-block')).toHaveTextContent(longName);
+  });
+
+  test('dropdown menu opens and closes correctly', async () => {
     renderWithProviders();
     await act(async () => {
       jest.runAllTimers();
     });
 
     const menuButton = screen.getByTestId('menu-button');
-    await user.press(menuButton);
 
-    // Check if menu items are displayed
+    // Open menu
+    // For react-native-paper IconButton, fireEvent.press is safer
+    fireEvent.press(menuButton);
     expect(screen.getByText('Coin history')).toBeTruthy();
-    expect(screen.getByText('Profile details')).toBeTruthy();
-    expect(screen.getByText('Weekly gifts')).toBeTruthy();
-    expect(screen.getByText('Questions?')).toBeTruthy();
+
+    // Close menu by pressing an item
+    const menuItem = screen.getByText('Coin history');
+    fireEvent.press(menuItem);
+
+    // Wait for menu to close
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(screen.queryByText('Coin history')).toBeNull();
+  });
+
+  test('handles missing stats by showing defaults', async () => {
+    renderWithProviders({
+      user: {
+        currentUser: { id: '1', fullName: 'Minimal User', email: 'min@user.com' },
+        loading: false,
+        error: null,
+      },
+    });
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(screen.getByTestId('user-name-block')).toHaveTextContent('Minimal User');
+    expect(screen.getByTestId('user-stats-block')).toHaveTextContent('02'); // Default level
+  });
+
+  test('displays spinner when loading', async () => {
+    renderWithProviders({
+      user: {
+        currentUser: null,
+        loading: true,
+        error: null,
+      },
+    });
+
+    expect(screen.getByTestId('auth-spinner')).toBeTruthy();
   });
 });

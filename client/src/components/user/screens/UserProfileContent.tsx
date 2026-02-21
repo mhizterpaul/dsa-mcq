@@ -9,12 +9,17 @@ import {
 import { View, Text, Button, Image, Avatar } from 'react-native-ui-lib';
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 import UserProfileSummary from "../../user/components/UserProfileSummary";
+import Spinner from "../../common/components/Spinner";
+import BackButton from "../../common/components/BackButton";
 
 const { width } = Dimensions.get("window");
 
 export default function UserProfileContent({ AdComponent }: { AdComponent?: React.ComponentType }) {
   const navigation = useNavigation();
+  const { currentUser, loading } = useSelector((state: RootState) => state.user);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -26,22 +31,24 @@ export default function UserProfileContent({ AdComponent }: { AdComponent?: Reac
   }, []);
 
   const user = {
-    name: "Sammy Skott",
-    level: "02",
-    achievements: 32,
-    weeklyGifts: 32,
-    avatarUri: "https://via.placeholder.com/150",
+    name: currentUser?.fullName || "Sammy Skott",
+    level: currentUser?.level?.toString().padStart(2, '0') || "02",
+    achievements: currentUser?.achievementsCount || 0,
+    weeklyGifts: currentUser?.weeklyGiftsCount || 0,
+    avatarUri: currentUser?.avatarUrl || "https://via.placeholder.com/150",
   };
 
   return (
     <View flex bg-grey80>
+      <Spinner visible={loading} />
       {/* Header */}
       <View row spread centerV paddingH-20 paddingV-10 marginB-20 marginT-40>
-        <Button
-          link
-          iconSource={() => <Ionicons name="chevron-back" size={24} color="#111" />}
-          onPress={() => navigation.goBack()}
-          testID="back-button"
+        <BackButton
+          navigation={navigation as any}
+          style={styles.backButton}
+          iconName="chevron-left"
+          iconSize={24}
+          iconColor="#111"
         />
         <Text text70b color_grey10 testID="screen-title">User profile</Text>
         <UserProfileSummary showGreeting={false} />
@@ -58,9 +65,9 @@ export default function UserProfileContent({ AdComponent }: { AdComponent?: Reac
 
       {/* User Name Block */}
       <View paddingH-20 marginB-16>
-        <View row spread centerV bg-white br20 paddingH-20 paddingV-15 style={styles.cardShadow} testID="user-name-block">
+        <View row spread centerV bg-white br20 paddingH-20 paddingV-15 style={styles.cardShadow} testID="user-name-block" accessibilityLabel={`User name: ${user.name}`}>
           <Text text60b color_grey10>{user.name}</Text>
-          <TouchableOpacity style={styles.editButton} testID="edit-icon">
+          <TouchableOpacity style={styles.editButton} testID="edit-icon" accessibilityLabel="Edit user name">
             <Ionicons name="pencil" size={16} color="white" />
           </TouchableOpacity>
         </View>
@@ -68,7 +75,7 @@ export default function UserProfileContent({ AdComponent }: { AdComponent?: Reac
 
       {/* Stats Block */}
       <View paddingH-20 marginB-20>
-        <View bg-white br20 padding-20 style={styles.cardShadow} testID="user-stats-block">
+        <View bg-white br20 padding-20 style={styles.cardShadow} testID="user-stats-block" accessibilityLabel="User statistics">
           <View row spread centerV marginB-15>
             <View row centerV>
                <Ionicons name="flash" size={20} color="#FF7A3C" />
@@ -127,6 +134,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'relative',
+    top: 0,
+    left: 0,
+    padding: 0,
   },
   avatarContainer: {
       position: 'relative',

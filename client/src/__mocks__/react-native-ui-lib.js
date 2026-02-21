@@ -3,9 +3,9 @@ const uilib = jest.requireActual('react-native-ui-lib');
 
 module.exports = {
   ...uilib,
-  View: (props) => <div {...props} />,
+  View: ({onPress, ...props}) => <div onClick={onPress} {...props} />,
   Text: (props) => <p {...props} />,
-  Button: (props) => <button {...props} />,
+  Button: ({onPress, ...props}) => <button onClick={onPress} {...props} />,
   Image: (props) => <img {...props} />,
   Avatar: (props) => <div {...props} />,
 };

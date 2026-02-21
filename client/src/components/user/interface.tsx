@@ -1,6 +1,6 @@
 import React from 'react';
 import UserProfileSummary from './components/UserProfileSummary';
-import UserProfileContent from './screens/UserProfile';
+import UserProfileContent from './screens/UserProfileContent';
 import BookmarkList from './components/BookmarkList';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import UserSettings from './components/UserSettings';
