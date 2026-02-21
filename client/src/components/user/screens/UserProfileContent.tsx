@@ -9,8 +9,9 @@ import {
 import { View, Text, Button, Image, Avatar } from 'react-native-ui-lib';
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
-import { useSelector } from "react-redux";
-import { RootState } from "../../../store";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "../../../store";
+import { fetchUserProfile } from "../store/user.slice";
 import UserProfileSummary from "../../user/components/UserProfileSummary";
 import Spinner from "../../common/components/Spinner";
 import BackButton from "../../common/components/BackButton";
@@ -19,7 +20,8 @@ const { width } = Dimensions.get("window");
 
 export default function UserProfileContent({ AdComponent }: { AdComponent?: React.ComponentType }) {
   const navigation = useNavigation();
-  const { currentUser, loading } = useSelector((state: RootState) => state.user);
+  const dispatch: AppDispatch = useDispatch();
+  const { currentUser, loading, error } = useSelector((state: RootState) => state.user);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -53,6 +55,27 @@ export default function UserProfileContent({ AdComponent }: { AdComponent?: Reac
         <Text text70b color_grey10 testID="screen-title">User profile</Text>
         <UserProfileSummary showGreeting={false} />
       </View>
+
+      {error && (
+        <View paddingH-20 marginB-20>
+          <View bg-red80 br20 padding-15 style={styles.cardShadow} testID="error-message">
+            <View row centerV>
+              <Ionicons name="alert-circle" size={20} color="#B00020" />
+              <Text marginL-10 text80 color-red10 flex>{error}</Text>
+            </View>
+            <Button
+              label="Retry"
+              size={Button.sizes.xSmall}
+              marginT-10
+              outline
+              outlineColor="#B00020"
+              color="#B00020"
+              onPress={() => dispatch(fetchUserProfile())}
+              testID="retry-button"
+            />
+          </View>
+        </View>
+      )}
 
       <View centerH marginB-20>
         <View style={styles.avatarContainer}>
