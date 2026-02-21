@@ -5,7 +5,7 @@ import userReducer from './user.slice';
 import userProfileReducer from './userProfile.slice';
 import userInsightReducer from './userInsight.slice';
 
-const rootReducer = combineReducers({
+export const rootReducer = combineReducers({
     user: userReducer,
     profile: userProfileReducer,
     insight: userInsightReducer,

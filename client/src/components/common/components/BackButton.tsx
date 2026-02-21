@@ -8,27 +8,12 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface BackButtonProps {
     navigation: NavigationProp;
-    style?: any;
-    iconName?: string;
-    iconSize?: number;
-    iconColor?: string;
 }
 
-const BackButton: React.FC<BackButtonProps> = ({
-    navigation,
-    style,
-    iconName = "arrow-left",
-    iconSize = 24,
-    iconColor = "#000"
-}) => {
+const BackButton: React.FC<BackButtonProps> = ({ navigation }) => {
     return (
-        <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={[styles.button, style]}
-            testID="back-button"
-            accessibilityLabel="Go back"
-        >
-            <Icon name={iconName} size={iconSize} color={iconColor} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.button} testID="back-button">
+            <Icon name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
     );
 };

@@ -11,10 +11,6 @@ const GoalScreen = ({ navigation }: GoalScreenProps) => {
   return (
     <View style={styles.container}>
       <GoalSetter navigation={navigation} />
-      {/*
-        // Add navigation backbutton
-        // Ensure to include bottom navigation
-      */}
     </View>
   );
 };
@@ -22,10 +18,7 @@ const GoalScreen = ({ navigation }: GoalScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16, // Corresponds to padding-page
     backgroundColor: '#121212',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
 
