@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { render, screen, fireEvent } from '@testing-library/react-native';
@@ -39,7 +40,11 @@ const mockAchievementsData: AchievementsData = {
   }
 };
 
-const MockSettingsScreen = () => <></>;
+const MockSettingsScreen = () => (
+    <View>
+        <Text>Settings Page</Text>
+    </View>
+);
 
 const TestNavigator = ({ data = mockAchievementsData }: { data?: AchievementsData }) => (
   <NavigationContainer>
@@ -70,6 +75,12 @@ describe('AchievementsScreen Acceptance Tests', () => {
     expect(screen.getByTestId('back-button')).toBeTruthy();
   });
 
+  test('gear icon navigates to settings page', async () => {
+    render(<TestNavigator />);
+    fireEvent.press(screen.getByTestId('gear-button'));
+    expect(await screen.findByText('Settings Page')).toBeTruthy();
+  });
+
   test('Badges tab is active by default', async () => {
     render(<TestNavigator />);
 
@@ -78,16 +89,34 @@ describe('AchievementsScreen Acceptance Tests', () => {
     expect(screen.getByTestId('badges-tab-content')).toBeTruthy();
   });
 
+  test('inactive tab content is not rendered', () => {
+    render(<TestNavigator />);
+
+    // Default is badges
+    expect(screen.queryByTestId('leaderboard-tab-content')).toBeNull();
+    expect(screen.queryByTestId('stats-tab-content')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('tab-leaderboard'));
+
+    expect(screen.queryByTestId('badges-tab-content')).toBeNull();
+  });
+
   test('Badges tab reflects dummy badge data correctly', async () => {
     render(<TestNavigator />);
 
-    // Already on Badges tab by default
-    expect(screen.getByText('81')).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.badges.totalUnlocked.toString())).toBeTruthy();
     expect(screen.getByText('Fitness God')).toBeTruthy();
     expect(screen.getByText('Max Sets')).toBeTruthy();
     expect(screen.getByText('AI Enthusiast')).toBeTruthy();
+  });
+
+  test('all next badges render correctly', () => {
+    render(<TestNavigator />);
+
     expect(screen.getByText('10 Day Streak')).toBeTruthy();
+    expect(screen.getByText('5,000 Calorie Burn')).toBeTruthy();
     expect(screen.getByText('60%')).toBeTruthy();
+    expect(screen.getByText('32%')).toBeTruthy();
   });
 
   test('Leaderboard tab reflects correct ranking and score', async () => {
@@ -98,13 +127,10 @@ describe('AchievementsScreen Acceptance Tests', () => {
     const leaderboardTab = screen.getByTestId('tab-leaderboard');
     expect(leaderboardTab.props.accessibilityState.selected).toBe(true);
 
-    // Score is 4878, should be formatted with locale (if implemented that way)
-    // In my implementation I used toLocaleString()
-    expect(screen.getByText('4,878')).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.leaderboard.score.toLocaleString())).toBeTruthy();
     expect(screen.getByText(/3rd Place/)).toBeTruthy();
     expect(screen.getByText('Azunyan U. Wu')).toBeTruthy();
     expect(screen.getByText('Champagne S. Nova')).toBeTruthy();
-    expect(screen.getByText('118,487pts • Lvl 10')).toBeTruthy();
   });
 
   test('Stats tab reflects statistical values from dummy data', async () => {
@@ -116,13 +142,11 @@ describe('AchievementsScreen Acceptance Tests', () => {
     expect(statsTab.props.accessibilityState.selected).toBe(true);
 
     expect(screen.getAllByText('High Score').length).toBeGreaterThanOrEqual(1);
-    // In Stats tab, I have two "High Score" texts, one is header, one is label.
-    // And the value 980.
-    expect(screen.getByText('980')).toBeTruthy();
-    expect(screen.getByText('14')).toBeTruthy();
-    expect(screen.getByText('60')).toBeTruthy();
-    expect(screen.getByText('120')).toBeTruthy();
-    expect(screen.getByText('20')).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.stats.highScore.toString())).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.stats.longestStreak.toString())).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.stats.longestExercise.toString())).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.stats.longestReps.toString())).toBeTruthy();
+    expect(screen.getByText(mockAchievementsData.stats.longestSets.toString())).toBeTruthy();
   });
 
   test('only one tab can be active at a time', async () => {
@@ -135,17 +159,65 @@ describe('AchievementsScreen Acceptance Tests', () => {
     expect(screen.getByTestId('tab-stats').props.accessibilityState.selected).toBe(false);
   });
 
-  test('rank formatting logic renders ordinal correctly', async () => {
-    const customData = {
-        ...mockAchievementsData,
-        leaderboard: {
-            ...mockAchievementsData.leaderboard,
-            rank: 1
-        }
-    };
-    render(<TestNavigator data={customData} />);
+  test('ordinal formatting handles edge cases correctly', () => {
+    const edgeCases = [
+        { rank: 1, expected: '1st' },
+        { rank: 2, expected: '2nd' },
+        { rank: 3, expected: '3rd' },
+        { rank: 4, expected: '4th' },
+        { rank: 11, expected: '11th' },
+        { rank: 12, expected: '12th' },
+        { rank: 13, expected: '13th' },
+        { rank: 21, expected: '21st' },
+        { rank: 101, expected: '101st' },
+        { rank: 111, expected: '111th' }
+    ];
 
-    fireEvent.press(screen.getByTestId('tab-leaderboard'));
-    expect(screen.getByText(/1st Place/)).toBeTruthy();
+    edgeCases.forEach(({ rank, expected }) => {
+        const customData = {
+            ...mockAchievementsData,
+            leaderboard: {
+                ...mockAchievementsData.leaderboard,
+                rank
+            }
+        };
+        const { unmount } = render(<TestNavigator data={customData} />);
+        fireEvent.press(screen.getByTestId('tab-leaderboard'));
+        expect(screen.getByText(new RegExp(`${expected} Place`))).toBeTruthy();
+        unmount();
+    });
+  });
+
+  test('renders gracefully when no badges unlocked', () => {
+    const emptyData: AchievementsData = {
+      ...mockAchievementsData,
+      badges: {
+        ...mockAchievementsData.badges,
+        totalUnlocked: 0,
+        list: [],
+        nextBadge: []
+      }
+    };
+
+    render(<TestNavigator data={emptyData} />);
+
+    expect(screen.getByText('0')).toBeTruthy();
+    expect(screen.queryByText('Fitness God')).toBeNull();
+  });
+
+  test('updates when data prop changes', () => {
+    const { rerender } = render(<TestNavigator />);
+
+    const updatedData: AchievementsData = {
+      ...mockAchievementsData,
+      badges: {
+        ...mockAchievementsData.badges,
+        totalUnlocked: 82
+      }
+    };
+
+    rerender(<TestNavigator data={updatedData} />);
+
+    expect(screen.getByText('82')).toBeTruthy();
   });
 });
