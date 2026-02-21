@@ -6,6 +6,11 @@ export interface UserObject {
   fullName: string;
   email: string;
   image?: string;
+  level?: number;
+  achievementsCount?: number;
+  weeklyGiftsCount?: number;
+  avatarUrl?: string;
+  xp?: number;
 }
 
 interface UserState {

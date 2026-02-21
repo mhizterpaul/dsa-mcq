@@ -17,7 +17,7 @@ const BottomNav = () => {
   ];
 
   return (
-    <Surface style={styles.container}>
+    <Surface style={styles.container} testID="bottom-nav">
       {navItems.map((item) => {
         const isActive = activeScreen === item.name;
         const color = isActive ? '#FF7A3C' : '#B0B0B0';

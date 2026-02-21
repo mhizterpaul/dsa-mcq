@@ -18,7 +18,6 @@ const UserProfileScreen: React.FC<ScreenProps> = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <BackButton navigation={navigation} />
             <View style={styles.content}>
                 {userComponent.renderUserProfile('profile')}
             </View>

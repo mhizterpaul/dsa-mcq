@@ -7,14 +7,16 @@ type MenuKey = 'coinHistory' | 'profileDetails' | 'weeklyGifts' | 'questions';
 
 export type UserProfileSummaryProps = {
   containerStyle?: object;
-  fullName: string;
-  xp: number;
+  fullName?: string;
+  xp?: number;
+  showGreeting?: boolean;
 };
 
 const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
   containerStyle,
   fullName,
   xp,
+  showGreeting = true,
 }) => {
   const [visible, setVisible] = useState(false);
 
@@ -38,10 +40,12 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <View style={styles.greetingContainer}>
-        <Text style={styles.greetingText}>Hello, {fullName}</Text>
-        <Text style={styles.xpText}>{xp} XP</Text>
-      </View>
+      {showGreeting && (
+        <View style={styles.greetingContainer}>
+          <Text style={styles.greetingText}>Hello, {fullName}</Text>
+          <Text style={styles.xpText}>{xp} XP</Text>
+        </View>
+      )}
       <Menu
         visible={visible}
         onDismiss={closeMenu}
@@ -51,7 +55,8 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
             size={18}
             onPress={openMenu}
             style={styles.menuButton}
-            testID="userAvatar"
+            testID="menu-button"
+            accessibilityLabel="Open profile menu"
           />
         }>
         {menuItems.map((item, idx) => (
