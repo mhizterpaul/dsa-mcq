@@ -101,7 +101,7 @@ describe('GoalScreen Acceptance Tests', () => {
     // Check Calendar Icon at the top
     expect(screen.getByTestId('summary-calendar-icon')).toBeOnTheScreen();
 
-    // Check Progress Component (Progress: (100-40)/(100-30) = 60/70 = 86%)
+    // Check Progress Component (Progress: (100-40)/(100-30) = 60/70 = 85.7% -> 86%)
     expect(screen.getByTestId('progress-percentage')).toHaveTextContent('86%');
     expect(screen.getByText('Habit')).toBeOnTheScreen();
 
@@ -118,6 +118,106 @@ describe('GoalScreen Acceptance Tests', () => {
     expect(mediatorService.getUserProgress).toHaveBeenCalledWith(userId);
 
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  test('validates percentile input (range 1-100)', async () => {
+    const userId = 'user-123';
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
+    renderWithProviders({
+        user: {
+            user: { currentUser: { id: userId } },
+            profile: { profile: new UserProfile(userId) }
+        }
+    });
+
+    // Move to Step 1
+    await user.press(screen.getByTestId('continue-button'));
+    await waitFor(() => expect(screen.getByText('Your Goal Target?')).toBeOnTheScreen());
+    await user.press(screen.getByTestId('goal-type-LEADERBOARD_PERCENTILE'));
+
+    const percentileInput = screen.getByTestId('percentile-input');
+    const continueBtn = screen.getByTestId('continue-button');
+
+    // Case: > 100
+    await user.clear(percentileInput);
+    await user.type(percentileInput, '101');
+    expect(continueBtn).toBeDisabled();
+    expect(screen.getByText('Please enter a value between 1 and 100')).toBeOnTheScreen();
+
+    // Case: 0
+    await user.clear(percentileInput);
+    await user.type(percentileInput, '0');
+    expect(continueBtn).toBeDisabled();
+
+    // Case: Valid
+    await user.clear(percentileInput);
+    await user.type(percentileInput, '50');
+    expect(continueBtn).not.toBeDisabled();
+  });
+
+  test('handles intermediate back navigation', async () => {
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
+    renderWithProviders();
+
+    // Step 0 -> Step 1
+    await user.press(screen.getByTestId('continue-button'));
+    await waitFor(() => expect(screen.getByText('Your Goal Target?')).toBeOnTheScreen());
+
+    // Press Back: Step 1 -> Step 0
+    await user.press(screen.getByTestId('back-button'));
+    await waitFor(() => expect(screen.getByText('Your Wake Time?')).toBeOnTheScreen());
+
+    // Press Back: Step 0 -> Exit (goBack)
+    await user.press(screen.getByTestId('back-button'));
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  test('verifies calendar interaction in summary', async () => {
+    const userId = 'user-123';
+    const profile = new UserProfile(userId);
+    profile.globalRanking = 50;
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({ rank: 40 });
+
+    renderWithProviders({
+        user: { user: { currentUser: { id: userId } }, profile: { profile } }
+    });
+
+    // Skip to summary
+    await user.press(screen.getByTestId('continue-button')); // 0 -> 1
+    await waitFor(() => screen.getByText('Your Goal Target?'));
+
+    // Set feasible target
+    const percentileInput = screen.getByTestId('percentile-input');
+    await user.clear(percentileInput);
+    await user.type(percentileInput, '40');
+
+    await user.press(screen.getByTestId('continue-button')); // 1 -> 2
+    await waitFor(() => screen.getByText('Set Your Deadline'));
+    await user.press(screen.getByTestId('continue-button')); // 2 -> 3
+    await waitFor(() => screen.getByText('Create Habit Plan'));
+
+    // Open calendar day selector
+    await user.press(screen.getByTestId('summary-calendar-icon'));
+    expect(screen.getByText('Modify Gaming Days')).toBeOnTheScreen();
+
+    // Toggle a day (Deselect Mon)
+    await user.press(screen.getByTestId('summary-day-option-Mon'));
+    await user.press(screen.getByText('Done'));
+
+    expect(screen.getByText('Create Habit Plan')).toBeOnTheScreen();
+  });
+
+  test('preserves configuration across renders', async () => {
+    const userId = 'user-123';
+    const profile = new UserProfile(userId);
+    profile.preferredQuizTime = '10:00';
+    (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
+
+    renderWithProviders({
+        user: { user: { currentUser: { id: userId } }, profile: { profile } }
+    });
+
+    expect(screen.getByText('10:00')).toBeOnTheScreen();
   });
 
   test('shows Edit button for existing goals', async () => {

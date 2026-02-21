@@ -25,8 +25,13 @@ interface GoalSetterProps {
   navigation: StackNavigationProp<any>;
 }
 
-const StyledButton = ({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) => (
-  <TouchableOpacity onPress={onPress} style={styles.customButton} testID={testID}>
+const StyledButton = ({ label, onPress, testID, disabled }: { label: string; onPress: () => void; testID?: string; disabled?: boolean }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.customButton, disabled && { opacity: 0.5 }]}
+    testID={testID}
+    disabled={disabled}
+  >
     <View style={styles.buttonCheckCircle}>
         <Feather name="check" size={14} color="black" />
     </View>
@@ -82,6 +87,12 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
     { type: GoalType.COMPETITIVE_PROGRAMMING, label: 'Competitive Prog', icon: 'code' },
   ];
 
+  const isPercentileValid = useMemo(() => {
+    if (goalType !== GoalType.LEADERBOARD_PERCENTILE) return true;
+    const val = parseInt(targetMetric);
+    return !isNaN(val) && val >= 1 && val <= 100;
+  }, [goalType, targetMetric]);
+
   // Progress Calculation using retrieved engagement data via Mediator
   const progressPercentage = useMemo(() => {
     if (!engagementMetrics) return 0;
@@ -111,6 +122,7 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
 
   const handleContinue = () => {
     if (step === 1) {
+        if (!isPercentileValid) return;
         setStep(2);
     } else if (step === 2) {
         generatePlan();
@@ -190,6 +202,16 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
     }
   }, [selectedDays, step]);
 
+  const handleBack = () => {
+    if (step > 0) {
+        setStep(step - 1);
+    } else {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        }
+    }
+  };
+
   const renderStep0 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconCircle}>
@@ -247,7 +269,11 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
                 textColor="white"
                 theme={{ colors: { primary: NEON, outline: GRAY } }}
                 testID="percentile-input"
+                error={!isPercentileValid && targetMetric.length > 0}
             />
+            {!isPercentileValid && targetMetric.length > 0 && (
+                <Text style={{ color: 'red', fontSize: 12 }}>Please enter a value between 1 and 100</Text>
+            )}
         </View>
       )}
     </View>
@@ -336,7 +362,7 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} testID="back-button">
+        <TouchableOpacity onPress={handleBack} testID="back-button">
           <Feather name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.progressBarWrapper}>
@@ -366,6 +392,7 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
           label={step === 3 ? 'Complete' : (isEditMode ? 'Edit' : 'Continue')}
           onPress={handleContinue}
           testID="continue-button"
+          disabled={step === 1 && !isPercentileValid}
         />
       </View>
     </View>
