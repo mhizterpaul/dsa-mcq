@@ -3,7 +3,41 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 
-const AchievementsView: React.FC = () => {
+export interface AchievementsData {
+  badges: {
+    totalUnlocked: number;
+    list: { id: number; title: string; date: string; icon: string }[];
+    nextBadge: {
+      title: string;
+      description: string;
+      progress: number;
+    }[];
+  };
+  leaderboard: {
+    score: number;
+    rank: number;
+    competitors: { id: number; name: string; score: number; level: number; badgeIcon?: string; badgeText?: string }[];
+  };
+  stats: {
+    highScore: number;
+    longestStreak: string | number;
+    longestExercise: string | number;
+    longestReps: string | number;
+    longestSets: string | number;
+  };
+}
+
+interface AchievementsViewProps {
+    data: AchievementsData;
+}
+
+const getOrdinal = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
+const AchievementsView: React.FC<AchievementsViewProps> = ({ data }) => {
     const navigation = useNavigation<any>();
     const [activeTab, setActiveTab] = useState<'Badges' | 'Leaderboard' | 'Stats'>('Badges');
 
@@ -35,6 +69,7 @@ const AchievementsView: React.FC = () => {
                     testID={`tab-${tab.toLowerCase()}`}
                     onPress={() => setActiveTab(tab)}
                     style={[styles.tab, activeTab === tab && styles.activeTab]}
+                    accessibilityState={{ selected: activeTab === tab }}
                 >
                     <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
                 </TouchableOpacity>
@@ -45,32 +80,24 @@ const AchievementsView: React.FC = () => {
     const renderBadgesTab = () => (
         <View style={styles.tabContent} testID="badges-tab-content">
             <View style={styles.badgesSummary}>
-                <Text style={styles.badgesCountText}>81</Text>
+                <Text style={styles.badgesCountText}>{data.badges.totalUnlocked}</Text>
                 <Text style={styles.badgesSubText}>Badges Unlocked</Text>
             </View>
 
             <View style={styles.badgesGrid}>
-                <View style={styles.badgeItem}>
-                    <View style={styles.badgeIconContainer}>
-                        <Icon name="dumbbell" size={30} color="#333" />
+                {data.badges.list.map((badge) => (
+                    <View key={badge.id} style={styles.badgeItem}>
+                        <View style={styles.badgeIconContainer}>
+                            {badge.icon === 'text' ? (
+                                <Text style={styles.badgeTextIcon}>{badge.title.split(' ')[0]}</Text>
+                            ) : (
+                                <Icon name={badge.icon} size={30} color="#333" />
+                            )}
+                        </View>
+                        <Text style={styles.badgeDate}>{badge.date}</Text>
+                        <Text style={styles.badgeName}>{badge.title}</Text>
                     </View>
-                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
-                    <Text style={styles.badgeName}>Fitness God</Text>
-                </View>
-                <View style={styles.badgeItem}>
-                    <View style={styles.badgeIconContainer}>
-                        <Text style={styles.badgeTextIcon}>97</Text>
-                    </View>
-                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
-                    <Text style={styles.badgeName}>Max Sets</Text>
-                </View>
-                <View style={styles.badgeItem}>
-                    <View style={styles.badgeIconContainer}>
-                        <Icon name="robot" size={30} color="#333" />
-                    </View>
-                    <Text style={styles.badgeDate}>Feb 23, 2025</Text>
-                    <Text style={styles.badgeName}>AI Enthusiast</Text>
-                </View>
+                ))}
             </View>
 
             <View style={styles.nextBadgeSection}>
@@ -79,31 +106,20 @@ const AchievementsView: React.FC = () => {
                     <TouchableOpacity><Text style={styles.seeAllText}>See All</Text></TouchableOpacity>
                 </View>
 
-                <View style={styles.nextBadgeItem}>
-                    <View style={styles.nextBadgeIcon}>
-                        <Icon name="help-circle-outline" size={24} color="#999" />
+                {data.badges.nextBadge.map((badge, index) => (
+                    <View key={index} style={styles.nextBadgeItem}>
+                        <View style={styles.nextBadgeIcon}>
+                            <Icon name="help-circle-outline" size={24} color="#999" />
+                        </View>
+                        <View style={styles.nextBadgeInfo}>
+                            <Text style={styles.nextBadgeTitle}>{badge.title}</Text>
+                            <Text style={styles.nextBadgeDescription}>{badge.description}</Text>
+                        </View>
+                        <View style={styles.progressCircle}>
+                             <Text style={styles.progressText}>{badge.progress}%</Text>
+                        </View>
                     </View>
-                    <View style={styles.nextBadgeInfo}>
-                        <Text style={styles.nextBadgeTitle}>10 Day Streak</Text>
-                        <Text style={styles.nextBadgeDescription}>Open app for 10 days</Text>
-                    </View>
-                    <View style={styles.progressCircle}>
-                         <Text style={styles.progressText}>60%</Text>
-                    </View>
-                </View>
-
-                <View style={styles.nextBadgeItem}>
-                    <View style={styles.nextBadgeIcon}>
-                        <Icon name="help-circle-outline" size={24} color="#999" />
-                    </View>
-                    <View style={styles.nextBadgeInfo}>
-                        <Text style={styles.nextBadgeTitle}>5,000 Calorie Burn</Text>
-                        <Text style={styles.nextBadgeDescription}>Burn 5K Calories total</Text>
-                    </View>
-                    <View style={styles.progressCircle}>
-                         <Text style={styles.progressText}>32%</Text>
-                    </View>
-                </View>
+                ))}
             </View>
         </View>
     );
@@ -120,8 +136,8 @@ const AchievementsView: React.FC = () => {
                          <Icon name="chart-bar" size={16} color="#fff" />
                     </View>
                 </View>
-                <Text style={styles.userPoints}>4,878</Text>
-                <Text style={styles.userRankLabel}>The Infiltrator • 🏆 3rd Place</Text>
+                <Text style={styles.userPoints}>{data.leaderboard.score.toLocaleString()}</Text>
+                <Text style={styles.userRankLabel}>The Infiltrator • 🏆 {getOrdinal(data.leaderboard.rank)} Place</Text>
                 <TouchableOpacity style={styles.viewStatsButton}>
                     <Icon name="chart-line" size={16} color="#FF8C00" style={{ marginRight: 5 }} />
                     <Text style={styles.viewStatsText}>View Stats</Text>
@@ -134,29 +150,23 @@ const AchievementsView: React.FC = () => {
                     <TouchableOpacity><Text style={styles.seeAllText}>See All</Text></TouchableOpacity>
                 </View>
 
-                <View style={styles.leaderboardItem}>
-                    <Text style={styles.rankNumber}>1</Text>
-                    <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.avatarSmall} />
-                    <View style={styles.leaderboardUserInfo}>
-                        <Text style={styles.userName}>Azunyan U. Wu</Text>
-                        <Text style={styles.userMeta}>118,487pts • Lvl 10</Text>
+                {data.leaderboard.competitors.map((competitor) => (
+                    <View key={competitor.id} style={styles.leaderboardItem}>
+                        <Text style={styles.rankNumber}>{competitor.id}</Text>
+                        <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.avatarSmall} />
+                        <View style={styles.leaderboardUserInfo}>
+                            <Text style={styles.userName}>{competitor.name}</Text>
+                            <Text style={styles.userMeta}>{competitor.score.toLocaleString()}pts • Lvl {competitor.level}</Text>
+                        </View>
+                        <View style={styles.rankBadge}>
+                            {competitor.badgeIcon ? (
+                                <Icon name={competitor.badgeIcon} size={16} color="#fff" />
+                            ) : (
+                                <Text style={styles.rankBadgeText}>{competitor.badgeText}</Text>
+                            )}
+                        </View>
                     </View>
-                    <View style={styles.rankBadge}>
-                        <Text style={styles.rankBadgeText}>80</Text>
-                    </View>
-                </View>
-
-                <View style={styles.leaderboardItem}>
-                    <Text style={styles.rankNumber}>2</Text>
-                    <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.avatarSmall} />
-                    <View style={styles.leaderboardUserInfo}>
-                        <Text style={styles.userName}>Champagne S. Nova</Text>
-                        <Text style={styles.userMeta}>58,123pts • Lvl 8</Text>
-                    </View>
-                    <View style={styles.rankBadge}>
-                        <Icon name="dumbbell" size={16} color="#fff" />
-                    </View>
-                </View>
+                ))}
             </View>
         </View>
     );
@@ -167,19 +177,23 @@ const AchievementsView: React.FC = () => {
                 <Text style={styles.statsHeader}>High Score</Text>
                 <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>Longest Streak</Text>
-                    <Text style={styles.statsValue}>10 min, 21sec</Text>
+                    <Text style={styles.statsValue}>{data.stats.longestStreak}</Text>
                 </View>
                 <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>Longest Exercise</Text>
-                    <Text style={styles.statsValue}>7min</Text>
+                    <Text style={styles.statsValue}>{data.stats.longestExercise}</Text>
                 </View>
                 <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>Longest Reps</Text>
-                    <Text style={styles.statsValue}>38min, 21sec</Text>
+                    <Text style={styles.statsValue}>{data.stats.longestReps}</Text>
                 </View>
                 <View style={styles.statsRow}>
                     <Text style={styles.statsLabel}>Longest Sets</Text>
-                    <Text style={styles.statsValue}>6h</Text>
+                    <Text style={styles.statsValue}>{data.stats.longestSets}</Text>
+                </View>
+                <View style={[styles.statsRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.statsLabel}>High Score</Text>
+                    <Text style={styles.statsValue}>{data.stats.highScore}</Text>
                 </View>
             </View>
         </View>
@@ -254,7 +268,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#EEE',
     },
-    badgeTextIcon: { fontSize: 20, fontWeight: 'bold' },
+    badgeTextIcon: { fontSize: 16, fontWeight: 'bold' },
     badgeDate: { fontSize: 10, color: '#999' },
     badgeName: { fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
     nextBadgeSection: { marginTop: 10 },
