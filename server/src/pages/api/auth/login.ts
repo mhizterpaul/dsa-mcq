@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma as defaultPrisma } from '../../../infra/prisma/client';
-import { AuthService } from '../../../services/authService';
+import { AuthService } from '../../../controllers/authController';
 import { PrismaClient } from '@prisma/client';
 
 export default async function loginHandler(

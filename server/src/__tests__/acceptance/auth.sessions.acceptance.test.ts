@@ -1,16 +1,23 @@
 import { createMocks } from 'node-mocks-http';
-import registerHandler from '../pages/api/auth/register';
-import loginHandler from '../pages/api/auth/login';
-import { rawLogoutHandler as logoutHandler } from '../pages/api/auth/logout';
-import meHandler from '../pages/api/me';
-import { prisma } from '../infra/prisma/client';
+import registerHandler from '../../pages/api/auth/register';
+import loginHandler from '../../pages/api/auth/login';
+import { rawLogoutHandler as logoutHandler } from '../../pages/api/auth/logout';
+import meHandler from '../../pages/api/me';
+import { providerSigninHandler } from '../../pages/api/auth/provider-signin';
+import { prisma } from '../../infra/prisma/client';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 
 // Properly typed mock
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
 
-jest.mock('../infra/prisma/client');
+jest.mock('../../infra/prisma/client');
+jest.mock('../../infra/cacheService');
+jest.mock('../../infra/schedulerService', () => ({
+  schedulerService: {
+    start: jest.fn(),
+  },
+}));
 
 const testUser = {
   id: 'test-id',
@@ -141,5 +148,23 @@ describe('Auth Session Acceptance Tests', () => {
     // No user or sessionId attached to simulate an invalid token scenario
     await logoutHandler(req, res, { prisma: mockedPrisma });
     expect(res._getStatusCode()).toBe(401);
+  });
+
+  test('OAuth Provider Sign-in', async () => {
+    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    mockedPrisma.user.create.mockResolvedValue(testUser);
+
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: { provider: 'google', token: 'valid-token' },
+    });
+
+    await providerSigninHandler(req, res, mockedPrisma);
+
+    expect(res._getStatusCode()).toBe(200);
+    const data = JSON.parse(res._getData());
+    expect(data.token).toBeDefined();
+    expect(data.user.email).toBe(testUser.email);
+    expect(mockedPrisma.user.create).toHaveBeenCalled();
   });
 });

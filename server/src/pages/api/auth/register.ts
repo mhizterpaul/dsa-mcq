@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma as defaultPrisma } from '../../../infra/prisma/client';
-import { AuthService } from '../../../services/authService';
+import { AuthService } from '../../../controllers/authController';
 import { PrismaClient } from '@prisma/client';
 
 export default async function registerHandler(
@@ -13,14 +13,14 @@ export default async function registerHandler(
   }
 
   const authService = new AuthService(deps.prisma);
-  const { email, password, name } = req.body;
+  const { email, password, name, fullName } = req.body;
   const userAgent = req.headers['user-agent'] || '';
 
   try {
     const { user, token } = await authService.register({
       email,
       password,
-      name,
+      name: name || fullName,
       userAgent,
     });
     res.status(201).json({ user, token });

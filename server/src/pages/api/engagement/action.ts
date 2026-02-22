@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { EngagementService } from '../../../services/engagementService';
-import { engagementService } from '../../../services/engagementServiceInstance';
+import { EngagementService } from '../../../controllers/engagementController';
+import { prisma } from '../../../infra/prisma/client';
 
 export async function actionHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
     const user = getAuthenticatedUser(req);
@@ -31,5 +31,6 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    return actionHandler(req, res, engagementService);
+    const service = new EngagementService(prisma);
+    return actionHandler(req, res, service);
 }
