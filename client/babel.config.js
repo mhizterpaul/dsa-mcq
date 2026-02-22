@@ -1,6 +1,8 @@
 module.exports = {
-  presets: [ 'module:metro-react-native-babel-preset',
-  ], // ⬅️ FIX: use official RN preset
+  presets: [
+    '@react-native/babel-preset',   // core RN preset
+    '@babel/preset-typescript',     // adds explicit TypeScript support
+  ],
 
   plugins: [
     [
@@ -13,19 +15,12 @@ module.exports = {
       },
     ],
     ['@babel/plugin-transform-runtime', { helpers: true }],
+    'react-native-reanimated/plugin', // MUST be last
   ],
 
   env: {
     test: {
-      presets: [
-        [
-          '@react-native/babel-preset',
-        ],
-       '@babel/preset-typescript',   
-      ],
-      plugins: [
-        'dynamic-import-node',
-      ],
+      plugins: ['dynamic-import-node'],
     },
   },
 };
