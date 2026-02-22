@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { CacheService } from '../../../services/cacheService';
+import { CacheService } from '../../../infra/cacheService';
 
 export interface AuthResponse {
   token: string;

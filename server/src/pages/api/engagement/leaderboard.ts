@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { EngagementService } from '../../../services/engagementService';
-import { engagementService } from '../../../services/engagementServiceInstance';
+import { EngagementService } from '../../../controllers/engagementController';
+import { prisma } from '../../../infra/prisma/client';
 
 export async function leaderboardHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
     if (req.method === 'GET') {
@@ -20,5 +20,6 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    return leaderboardHandler(req, res, engagementService);
+    const service = new EngagementService(prisma);
+    return leaderboardHandler(req, res, service);
 }

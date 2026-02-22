@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma as defaultPrisma } from '../../infra/prisma/client';
 import { withAuth } from '../../utils/withAuth';
 import { withClientSignature } from '../../utils/withClientSignature';
-import { EngagementService } from '../../services/engagementService';
+import { EngagementService } from '../../controllers/engagementController';
 import { PrismaClient } from '@prisma/client';
 
 async function syncHandler(
