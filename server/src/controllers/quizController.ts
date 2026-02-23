@@ -62,11 +62,6 @@ export class QuizService {
       if (availableSession) return availableSession;
     }
 
-    // Simulate "unavailable groups" if we reached some limit for matching
-    // For the sake of the requirement, if we have too many sessions we might want to fail
-    // but here let's just create one unless there's an explicit reason not to.
-    // To satisfy the "notified when session available" requirement, let's say
-    // we only allow a certain number of concurrent sessions.
     if (sessions.length >= 10) {
        return null;
     }
@@ -92,7 +87,6 @@ export class QuizService {
     const xpDiff = Math.abs(l1.xp - l2.xp);
     const sameBadge = l1.userHighestBadge === l2.userHighestBadge;
 
-    // Match if rank is within 20, XP within 2000, or they have the same highest badge
     return rankDiff <= 20 || xpDiff <= 2000 || sameBadge;
   }
 
@@ -158,7 +152,7 @@ export class QuizService {
     const now = new Date();
     const startTime = new Date(session.startTime);
     const elapsedSeconds = (now.getTime() - startTime.getTime()) / 1000;
-    if (elapsedSeconds > 300) { // 5 minutes limit for the daily quiz
+    if (elapsedSeconds > 300) { // 5 minutes limit
         throw new Error('Quiz session has expired.');
     }
 
@@ -167,6 +161,14 @@ export class QuizService {
     });
 
     if (!participant) throw new Error('Participant not found');
+
+    const existingAnswer = await this.prisma.userQuestionData.findUnique({
+        where: { userId_questionId: { userId, questionId } }
+    });
+
+    if (existingAnswer && existingAnswer.lastAttempt && existingAnswer.lastAttempt >= session.startTime) {
+        throw new Error('Question already answered in this session');
+    }
 
     const question = await this.prisma.question.findUnique({ where: { id: questionId } });
     if (!question) throw new Error('Question not found');
@@ -181,7 +183,6 @@ export class QuizService {
       },
     });
 
-    // Update user achievements/stats
     await this.prisma.userQuestionData.upsert({
       where: { userId_questionId: { userId, questionId } },
       update: {
@@ -233,9 +234,8 @@ export class QuizService {
   }
 
   removeSseConnection(sessionId: string, userId: string) {
-    const connections = sseConnections.get(sessionId);
-    if (connections) {
-      sseConnections.set(sessionId, connections.filter((c) => c.userId !== userId));
+    for (const [sid, conns] of sseConnections.entries()) {
+        sseConnections.set(sid, conns.filter(c => c.userId !== userId));
     }
     waitingList.delete(userId);
   }
@@ -246,7 +246,9 @@ export class QuizService {
 
   private notifyWaitingUsers() {
     waitingList.forEach((res, userId) => {
-      res.write(`data: ${JSON.stringify({ type: 'session_available' })}\n\n`);
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'session_available' })}\n\n`);
+      } catch (e) {}
     });
     waitingList.clear();
   }
@@ -257,19 +259,33 @@ export class QuizService {
       connections.forEach((c) => {
         try {
           c.res.write(`data: ${JSON.stringify(data)}\n\n`);
-        } catch (e) {
-          // Connection might be closed
-        }
+        } catch (e) {}
       });
     }
   }
 
   async getResults(sessionId: string) {
-      const participants = await this.prisma.quizParticipant.findMany({
-          where: { sessionId },
-          include: { user: true },
-          orderBy: { score: 'desc' }
+      const session = await this.prisma.quizSession.findUnique({
+          where: { id: sessionId },
+          include: { participants: { include: { user: true }, orderBy: { score: 'desc' } } }
       });
-      return participants;
+
+      if (!session) throw new Error('Session not found');
+      if (!session.endTime) throw new Error('Results only available after session end');
+
+      return session.participants.map((p, index) => ({
+          userId: p.userId,
+          name: p.user.name,
+          score: p.score,
+          rank: index + 1,
+          xpEarned: p.score * 5
+      }));
+  }
+
+  async endSession(sessionId: string) {
+      return this.prisma.quizSession.update({
+          where: { id: sessionId },
+          data: { endTime: new Date() }
+      });
   }
 }
