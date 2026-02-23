@@ -105,7 +105,7 @@ describe('Auth Session Acceptance Tests', () => {
     expect(revokedRes._getStatusCode()).toBe(401);
 
     // 6. Verify Token B is still valid
-    mockedPrisma.session.findFirst.mockResolvedValue(sessionB);
+    mockedPrisma.session.findFirst.mockResolvedValue({ ...sessionB, user: testUser });
     const { req: stillValidReq, res: stillValidRes } = createMocks({
       method: 'GET',
       headers: { authorization: `Bearer ${tokenB}` },

@@ -52,7 +52,8 @@ export async function callbackHandler(req: NextApiRequest, res: NextApiResponse,
 
     cacheService.set(user.id, user);
 
-    const accessToken = jwt.sign({ user }, 'your-jwt-secret');
+    const secret = process.env.JWT_SECRET || 'your-jwt-secret';
+    const accessToken = jwt.sign({ user }, secret);
     const refreshToken = jwt.sign({ userId: user.id }, 'your-refresh-secret', { expiresIn: '7d' });
 
     res.status(200).json({ user, accessToken, refreshToken });

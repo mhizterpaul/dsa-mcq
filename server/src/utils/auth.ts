@@ -17,21 +17,31 @@ export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheSer
         return null;
     }
 
+    let decoded;
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
+        decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
+    } catch (error) {
+        return null;
+    }
+
+    try {
         const { user, sessionId } = decoded;
 
         if (sessionId) {
             const session = await prisma.session.findFirst({
                 where: { id: sessionId, userId: user.id },
+                include: { user: true },
             });
-            if (!session) {
+            if (!session || !session.user) {
                 return null;
             }
+            return session.user;
         }
 
         return user;
     } catch (error) {
+        // For utilities like this, returning null on error is common,
+        // but handlers using it should be aware.
         return null;
     }
 }

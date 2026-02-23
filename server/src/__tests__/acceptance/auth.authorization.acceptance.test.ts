@@ -46,6 +46,9 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       const { req, res } = createMocks({ method: 'GET' });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
+      // Verify business logic was not called
+      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+      expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
     }
   );
 
@@ -59,13 +62,19 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
+      // Verify business logic was not called
+      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name allows lowercase bearer prefix',
     async ({ name, handler }) => {
-      mockedPrisma.session.findFirst.mockResolvedValue({ id: 'sess-1', userId: testUser.id });
+      mockedPrisma.session.findFirst.mockResolvedValue({
+          id: 'sess-1',
+          userId: testUser.id,
+          user: testUser
+      } as any);
       const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
         method: 'GET',
@@ -93,6 +102,25 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
+      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+    }
+  );
+
+  test.each(protectedEndpoints)(
+    '$name rejects expired token',
+    async ({ handler }) => {
+      const expiredToken = jwt.sign(
+        { user: testUser, sessionId: 'sess-1' },
+        process.env.JWT_SECRET!,
+        { expiresIn: '-1h' }
+      );
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${expiredToken}` },
+      });
+      await handler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
     }
   );
 
@@ -112,7 +140,13 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   );
 
   test('devops endpoint enforces admin role', async () => {
-    mockedPrisma.session.findFirst.mockResolvedValue({ id: 'sess-1', userId: testUser.id });
+    // Session exists, but user role in DB is USER
+    mockedPrisma.session.findFirst.mockResolvedValue({
+        id: 'sess-1',
+        userId: testUser.id,
+        user: testUser // role: 'USER'
+    } as any);
+
     const userToken = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
     const { req, res } = createMocks({
       method: 'GET',
@@ -121,10 +155,54 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
     await devopsHandler(req, res);
     expect(res._getStatusCode()).toBe(403);
     expect(JSON.parse(res._getData())).toEqual({ message: 'Forbidden: Admins only' });
+    expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
   });
 
+  test('devops endpoint prevents privilege escalation via tampered JWT role', async () => {
+      // Session exists, but user role in DB is USER
+      mockedPrisma.session.findFirst.mockResolvedValue({
+          id: 'sess-1',
+          userId: testUser.id,
+          user: testUser // role: 'USER'
+      } as any);
+
+      // JWT claims role is admin
+      const tamperedToken = jwt.sign(
+          { user: { ...testUser, role: 'admin' }, sessionId: 'sess-1' },
+          process.env.JWT_SECRET!
+      );
+
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${tamperedToken}` },
+      });
+      await devopsHandler(req, res);
+
+      // Should still be forbidden because it should check DB role
+      expect(res._getStatusCode()).toBe(403);
+      expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
+    });
+
+    test.each(protectedEndpoints)(
+        '$name handles database failure gracefully (returns 500)',
+        async ({ handler }) => {
+          mockedPrisma.session.findFirst.mockRejectedValue(new Error('Database connection failed'));
+          const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+          const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${token}` },
+          });
+          await handler(req, res);
+          expect(res._getStatusCode()).toBe(500);
+        }
+      );
+
   test('devops endpoint allows admin access', async () => {
-    mockedPrisma.session.findFirst.mockResolvedValue({ id: 'sess-2', userId: adminUser.id });
+    mockedPrisma.session.findFirst.mockResolvedValue({
+        id: 'sess-2',
+        userId: adminUser.id,
+        user: adminUser
+    } as any);
     mockedPrisma.devOpsMetric.findMany.mockResolvedValue([]);
     const adminToken = jwt.sign({ user: adminUser, sessionId: 'sess-2' }, process.env.JWT_SECRET!);
     const { req, res } = createMocks({

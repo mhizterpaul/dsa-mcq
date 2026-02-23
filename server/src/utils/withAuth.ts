@@ -21,25 +21,32 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       return res.status(401).json({ message: 'Unauthorized: Token not provided' });
     }
 
+    let decoded;
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    try {
       const { user, sessionId } = decoded;
 
       const session = await prisma.session.findFirst({
         where: { id: sessionId, userId: user.id },
+        include: { user: true },
       });
 
-      if (!session) {
+      if (!session || !session.user) {
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
       const authenticatedReq = req as AuthenticatedRequest;
-      authenticatedReq.user = user;
+      authenticatedReq.user = session.user;
       authenticatedReq.sessionId = sessionId;
 
       return handler(authenticatedReq, res);
     } catch (error) {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
   };
 }
