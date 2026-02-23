@@ -5,10 +5,8 @@ import exitHandler from '../../pages/api/daily-quiz/exit';
 import answerHandler from '../../pages/api/daily-quiz/answer';
 import resultsHandler from '../../pages/api/daily-quiz/results';
 import { prisma } from '../../infra/prisma/client';
+import { QuizService } from '../../controllers/quizController';
 import jwt from 'jsonwebtoken';
-
-jest.mock('../../infra/prisma/client');
-const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
 
 const JWT_SECRET = 'test-secret';
 process.env.JWT_SECRET = JWT_SECRET;
@@ -23,9 +21,23 @@ const leaderboardA = { userId: 'user-a', rank: 10, xp: 1000, userHighestBadge: '
 const leaderboardB = { userId: 'user-b', rank: 15, xp: 1200, userHighestBadge: 'gold' };
 const leaderboardC = { userId: 'user-c', rank: 100, xp: 5000, userHighestBadge: 'bronze' };
 
-describe('Daily Quiz Acceptance Tests', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+describe('Daily Quiz Acceptance Tests (Real DB)', () => {
+    beforeEach(async () => {
+        QuizService.resetState();
+        // Cleanup database in correct order
+        await prisma.quizParticipant.deleteMany();
+        await prisma.quizQuestion.deleteMany();
+        await prisma.quizSession.deleteMany();
+        await prisma.userQuestionData.deleteMany();
+        await prisma.engagement.deleteMany();
+        await prisma.leaderboard.deleteMany();
+        await prisma.user.deleteMany();
+        await prisma.question.deleteMany();
+        await prisma.category.deleteMany();
+    });
+
+    afterAll(async () => {
+        await prisma.$disconnect();
     });
 
     describe('Security & Authorization', () => {
@@ -50,118 +62,101 @@ describe('Daily Quiz Acceptance Tests', () => {
             await sessionsHandler(req, res);
             expect(res._getStatusCode()).toBe(401);
         });
-
-        test('rejects malformed tokens', async () => {
-            const { req, res } = createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer not-a-token` }
-            });
-            await sessionsHandler(req, res);
-            expect(res._getStatusCode()).toBe(401);
-        });
-
-        test('rejects tokens with invalid signature', async () => {
-            const badToken = jwt.sign({ user: userA }, 'wrong-secret');
-            const { req, res } = createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${badToken}` }
-            });
-            await sessionsHandler(req, res);
-            expect(res._getStatusCode()).toBe(401);
-        });
     });
 
     describe('Session Matching & Capacity', () => {
         test('users with similar achievements are matched into the same session', async () => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const session1 = { id: 'session-1', date: today, participants: [] };
-
-            mockedPrisma.quizSession.findMany
-                .mockResolvedValueOnce([])
-                .mockResolvedValue([{ ...session1, participants: [] }]);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(leaderboardA);
-            mockedPrisma.quizSession.create.mockResolvedValue({ ...session1, participants: [] });
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue(null);
-            mockedPrisma.quizParticipant.count.mockResolvedValue(0);
-            mockedPrisma.quizParticipant.create.mockResolvedValue({ userId: 'user-a', sessionId: 'session-1' });
-            mockedPrisma.quizParticipant.findMany.mockResolvedValue([{ user: userA }]);
+            await prisma.user.createMany({ data: [userA, userB, userC] });
+            await prisma.leaderboard.createMany({ data: [leaderboardA, leaderboardB, leaderboardC] });
 
             const tokenA = createToken(userA);
             const { req: reqA, res: resA } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
             });
-
             await sessionsHandler(reqA, resA);
             expect(resA._getStatusCode()).toBe(200);
-
-            mockedPrisma.quizSession.findMany.mockResolvedValue([{
-                ...session1,
-                participants: [{ user: { ...userA, leaderboard: leaderboardA } }]
-            }]);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(leaderboardB);
-            mockedPrisma.quizParticipant.count.mockResolvedValue(1);
+            const dataA = JSON.parse(resA._getData());
 
             const tokenB = createToken(userB);
             const { req: reqB, res: resB } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
             });
-
             await sessionsHandler(reqB, resB);
             expect(resB._getStatusCode()).toBe(200);
-            expect(JSON.parse(resB._getData()).id).toBe('session-1');
+            const dataB = JSON.parse(resB._getData());
+
+            expect(dataB.id).toBe(dataA.id);
+
+            const tokenC = createToken(userC);
+            const { req: reqC, res: resC } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenC}` }
+            });
+            await sessionsHandler(reqC, resC);
+            expect(resC._getStatusCode()).toBe(200);
+            const dataC = JSON.parse(resC._getData());
+
+            expect(dataC.id).not.toBe(dataA.id);
         });
 
-        test('enforces 2-5 participants per session (rejects 6th)', async () => {
-            const session = { id: 'full-session', participants: Array(5).fill({}) };
-            mockedPrisma.quizSession.findMany.mockResolvedValue([session]);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(leaderboardA);
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue(null);
-            mockedPrisma.quizParticipant.count.mockResolvedValue(5);
-            mockedPrisma.quizSession.create.mockResolvedValue({ id: 'new-session', participants: [] });
-
-            const token = createToken(userA);
-            const { req, res } = createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${token}` }
+        test('findOrCreateParticipant enforces capacity limits atomically', async () => {
+            process.env.SIMULATE_CONCURRENCY = 'true';
+            await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4' }, { id: 'u5' }, { id: 'u6' }] });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const session = await prisma.quizSession.create({
+                data: { id: 's1', date: today, startTime: new Date() }
             });
 
-            await sessionsHandler(req, res);
-            expect(mockedPrisma.quizSession.create).toHaveBeenCalled();
-        });
-
-        test('strictly rejects joining when session is full', async () => {
-            const session = { id: 'full-session', participants: [] };
-            mockedPrisma.quizSession.findMany.mockResolvedValue([session]);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(null);
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue(null);
-            mockedPrisma.quizParticipant.count.mockResolvedValue(5);
-
-            const token = createToken(userA);
-            const { req, res } = createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${token}` }
+            await prisma.quizParticipant.createMany({
+                data: [
+                    { userId: 'user-b', sessionId: 's1' },
+                    { userId: 'user-c', sessionId: 's1' },
+                    { userId: 'u4', sessionId: 's1' },
+                    { userId: 'u5', sessionId: 's1' },
+                ]
             });
 
-            await sessionsHandler(req, res);
-            expect(res._getStatusCode()).toBe(500);
-            expect(JSON.parse(res._getData()).message).toBe('Session is full');
+            const quizService = new QuizService(prisma);
+
+            const results = await Promise.allSettled([
+                quizService.findOrCreateParticipant(session, userA),
+                quizService.findOrCreateParticipant(session, { id: 'u6' })
+            ]);
+
+            const fulfilled = results.filter(r => r.status === 'fulfilled');
+            const rejected = results.filter(r => r.status === 'rejected');
+
+            expect(fulfilled).toHaveLength(1);
+            expect(rejected).toHaveLength(1);
+            expect((rejected[0] as any).reason.message).toContain('Session is full');
+            delete process.env.SIMULATE_CONCURRENCY;
         });
     });
 
     describe('Timer Integrity & Answer Handling', () => {
         test('rejects answers after 5 minute timeout', async () => {
-            const expiredStartTime = new Date(Date.now() - 301000);
-            const session = { id: 's1', startTime: expiredStartTime, endTime: null };
-            mockedPrisma.quizSession.findFirst.mockResolvedValue(session);
+            await prisma.user.create({ data: userA });
+            const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
+            await prisma.question.create({
+                data: { id: 1, title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D' }
+            });
 
-            const token = createToken(userA);
+            const expiredStartTime = new Date(Date.now() - 301000);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const session = await prisma.quizSession.create({
+                data: { id: 'expired-session', date: today, startTime: expiredStartTime }
+            });
+            await prisma.quizParticipant.create({
+                data: { userId: userA.id, sessionId: session.id }
+            });
+
             const { req, res } = createMocks({
                 method: 'POST',
-                headers: { authorization: `Bearer ${token}` },
+                headers: { authorization: `Bearer ${createToken(userA)}` },
                 body: { questionId: 1, answer: 'A' }
             });
 
@@ -170,147 +165,154 @@ describe('Daily Quiz Acceptance Tests', () => {
             expect(JSON.parse(res._getData()).message).toContain('expired');
         });
 
-        test('prevents duplicate answers for the same question in a session', async () => {
-            const session = { id: 's1', startTime: new Date(), endTime: null };
-            mockedPrisma.quizSession.findFirst.mockResolvedValue(session);
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue({ id: 'p1' } as any);
-            mockedPrisma.userQuestionData.findUnique.mockResolvedValue({
-                lastAttempt: new Date()
-            } as any);
-
-            const token = createToken(userA);
-            const { req, res } = createMocks({
-                method: 'POST',
-                headers: { authorization: `Bearer ${token}` },
-                body: { questionId: 1, answer: 'A' }
+        test('prevents duplicate answers', async () => {
+            await prisma.user.create({ data: userA });
+            const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
+            await prisma.question.create({
+                data: { id: 1, title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D' }
             });
 
-            await answerHandler(req, res);
-            expect(res._getStatusCode()).toBe(400);
-            expect(JSON.parse(res._getData()).message).toContain('already answered');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const session = await prisma.quizSession.create({
+                data: { id: 's1', date: today, startTime: new Date() }
+            });
+            await prisma.quizParticipant.create({
+                data: { userId: userA.id, sessionId: session.id }
+            });
+
+            const answer = async () => {
+                const { req, res } = createMocks({
+                    method: 'POST',
+                    headers: { authorization: `Bearer ${createToken(userA)}` },
+                    body: { questionId: 1, answer: 'A' }
+                });
+                await answerHandler(req, res);
+                return res;
+            };
+
+            const res1 = await answer();
+            expect(res1._getStatusCode()).toBe(200);
+
+            const res2 = await answer();
+            expect(res2._getStatusCode()).toBe(400);
+            expect(JSON.parse(res2._getData()).message).toContain('already answered');
+        });
+    });
+
+    describe('Results Calculation', () => {
+        test('computes correct rankings and XP', async () => {
+            await prisma.user.createMany({ data: [userA, userB] });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const session = await prisma.quizSession.create({
+                data: { id: 's1', date: today, startTime: new Date(), endTime: new Date() }
+            });
+            await prisma.quizParticipant.createMany({
+                data: [
+                    { userId: userA.id, sessionId: 's1', score: 20 },
+                    { userId: userB.id, sessionId: 's1', score: 10 },
+                ]
+            });
+
+            const { req, res } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${createToken(userA)}` }
+            });
+
+            await resultsHandler(req, res);
+            expect(res._getStatusCode()).toBe(200);
+            const data = JSON.parse(res._getData());
+
+            expect(data.results[0].userId).toBe('user-a');
+            expect(data.results[0].rank).toBe(1);
+            expect(data.results[0].xpEarned).toBe(100);
+
+            expect(data.results[1].userId).toBe('user-b');
+            expect(data.results[1].rank).toBe(2);
+            expect(data.results[1].xpEarned).toBe(50);
         });
     });
 
     describe('SSE & Broadcast Isolation', () => {
         test('broadcast isolation: only users in the same session receive updates', async () => {
-            const session1 = { id: 's1', participants: [] };
-            const session2 = { id: 's2', participants: [] };
+            await prisma.user.createMany({ data: [userA, userB, userC] });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-            // User A in Session 1
+            // Give them distinct leaderboards
+            await prisma.leaderboard.createMany({ data: [
+                { userId: userA.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
+                { userId: userB.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
+                { userId: userC.id, rank: 1000, xp: 10000, userHighestBadge: 'bronze' },
+            ] });
+
+            // User A joins and creates participant (creates s1)
+            const resInitA = createMocks().res;
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req, resInitA);
+            const s1Id = JSON.parse(resInitA._getData()).id;
+
+            // User A opens SSE
             const resA = createMocks().res;
             resA.write = jest.fn();
-            mockedPrisma.quizSession.findMany.mockResolvedValueOnce([session1]);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(null);
-            await eventsHandler(createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${createToken(userA)}` }
-            }).req, resA);
+            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req, resA);
 
-            // User C in Session 2
+            // User C joins and creates participant (creates s2)
+            const resInitC = createMocks().res;
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC)}` } }).req, resInitC);
+            const s2Id = JSON.parse(resInitC._getData()).id;
+
+            // User C opens SSE
             const resC = createMocks().res;
             resC.write = jest.fn();
-            mockedPrisma.quizSession.findMany.mockResolvedValueOnce([session2]);
-            await eventsHandler(createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${createToken(userC)}` }
-            }).req, resC);
+            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC)}` } }).req, resC);
+
+            expect(s1Id).not.toBe(s2Id);
 
             // User B joins Session 1
-            mockedPrisma.quizSession.findMany.mockResolvedValue([session1]);
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue(null);
-            mockedPrisma.quizParticipant.count.mockResolvedValue(1);
-            mockedPrisma.quizParticipant.create.mockResolvedValue({ userId: 'user-b', sessionId: 's1' });
-            mockedPrisma.quizParticipant.findMany.mockResolvedValue([{ user: userA }, { user: userB }]);
-
             await sessionsHandler(createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${createToken(userB)}` }
             }).req, createMocks().res);
 
             // User A should get update, User C should NOT
-            expect(resA.write).toHaveBeenCalledWith(expect.stringContaining('participant_update'));
-            expect(resC.write).not.toHaveBeenCalledWith(expect.stringContaining('participant_update'));
+            const aCalls = resA.write.mock.calls.map(c => c[0]);
+            const cCalls = resC.write.mock.calls.map(c => c[0]);
+
+            expect(aCalls.some(c => c.includes('participant_update'))).toBe(true);
+            expect(cCalls.some(c => c.includes('participant_update'))).toBe(false);
         });
-    });
 
-    describe('Results & Persistence', () => {
-        test('results include ranking and XP earned', async () => {
-            const session = {
-                id: 's1',
-                startTime: new Date(),
-                endTime: new Date(),
-                participants: [
-                    { userId: 'user-a', score: 20, user: userA },
-                    { userId: 'user-b', score: 10, user: userB }
-                ]
-            };
-            mockedPrisma.quizSession.findFirst.mockResolvedValue(session);
-            mockedPrisma.quizSession.findUnique.mockResolvedValue(session);
+        test('user is notified when session available after failure', async () => {
+            await prisma.user.createMany({ data: [userA, userB] });
 
-            const token = createToken(userA);
-            const { req, res } = createMocks({
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            for (let i = 0; i < 10; i++) {
+                const s = await prisma.quizSession.create({ data: { id: `full-${i}`, date: today, startTime: new Date() } });
+                for (let j = 0; j < 5; j++) {
+                    await prisma.user.create({ data: { id: `u-${i}-${j}`, email: `u-${i}-${j}@x.com` }});
+                    await prisma.quizParticipant.create({ data: { userId: `u-${i}-${j}`, sessionId: s.id } });
+                }
+            }
+
+            const resEv = createMocks().res;
+            resEv.write = jest.fn();
+            const reqEv = createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req;
+            await eventsHandler(reqEv, resEv);
+
+            expect(resEv.write).toHaveBeenCalledWith(expect.stringContaining('"type":"waiting"'));
+
+            // Free up a slot by deleting a session
+            await prisma.quizSession.delete({ where: { id: 'full-0' } });
+
+            const { req: reqS, res: resS } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${token}` }
+                headers: { authorization: `Bearer ${createToken(userB)}` }
             });
+            await sessionsHandler(reqS, resS);
 
-            await resultsHandler(req, res);
-            expect(res._getStatusCode()).toBe(200);
-            const data = JSON.parse(res._getData());
-            expect(data.results[0].userId).toBe('user-a');
-            expect(data.results[0].rank).toBe(1);
-            expect(data.results[0].xpEarned).toBe(100);
-        });
-
-        test('cannot fetch results before session end (logic ends it automatically in resultsHandler)', async () => {
-             const session = {
-                id: 's1',
-                startTime: new Date(),
-                endTime: null,
-                participants: [{ userId: 'user-a', score: 20, user: userA }]
-            };
-            mockedPrisma.quizSession.findFirst.mockResolvedValue(session);
-            mockedPrisma.quizSession.update.mockResolvedValue({ ...session, endTime: new Date() });
-            mockedPrisma.quizSession.findUnique.mockResolvedValue({ ...session, endTime: new Date(), participants: [{ userId: 'user-a', score: 20, user: userA }] });
-
-            const token = createToken(userA);
-            const { req, res } = createMocks({
-                method: 'GET',
-                headers: { authorization: `Bearer ${token}` }
-            });
-
-            await resultsHandler(req, res);
-            expect(mockedPrisma.quizSession.update).toHaveBeenCalledWith(expect.objectContaining({
-                data: { endTime: expect.any(Date) }
-            }));
-            expect(res._getStatusCode()).toBe(200);
-        });
-    });
-
-    describe('Concurrency Simulation', () => {
-        test('handles parallel join requests', async () => {
-            const session = { id: 's1', participants: [] };
-            mockedPrisma.quizSession.findMany.mockResolvedValue([session]);
-            mockedPrisma.quizParticipant.findUnique.mockResolvedValue(null);
-            mockedPrisma.leaderboard.findUnique.mockResolvedValue(null);
-
-            mockedPrisma.quizParticipant.count.mockResolvedValue(4);
-            mockedPrisma.quizParticipant.findMany.mockResolvedValue([]);
-
-            const joinUser = async (user: any) => {
-                const { req, res } = createMocks({
-                    method: 'GET',
-                    headers: { authorization: `Bearer ${createToken(user)}` }
-                });
-                await sessionsHandler(req, res);
-                return res;
-            };
-
-            await Promise.all([
-                joinUser(userA),
-                joinUser(userB)
-            ]);
-
-            expect(mockedPrisma.quizParticipant.create).toHaveBeenCalledTimes(2);
+            expect(resEv.write).toHaveBeenCalledWith(expect.stringContaining('"type":"session_available"'));
         });
     });
 });

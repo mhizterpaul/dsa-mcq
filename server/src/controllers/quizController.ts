@@ -1,10 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 
 // Global state for SSE and waiting list (limited by process lifecycle in FaaS)
-const sseConnections = new Map<string, any[]>();
-const waitingList = new Map<string, any>(); // userId -> res
+let sseConnections = new Map<string, any[]>();
+let waitingList = new Map<string, any>(); // userId -> res
 
 export class QuizService {
+  static resetState() {
+    sseConnections = new Map<string, any[]>();
+    waitingList = new Map<string, any>();
+  }
   private prisma: PrismaClient;
 
   constructor(prisma: PrismaClient) {
@@ -20,9 +24,34 @@ export class QuizService {
     });
   }
 
+  async getUserActiveSession(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return this.prisma.quizSession.findFirst({
+        where: {
+            date: today,
+            endTime: null,
+            participants: { some: { userId } }
+        },
+        include: {
+            participants: {
+                include: {
+                    user: true
+                }
+            }
+        }
+    });
+  }
+
   async getOrCreateDailyQuizSession(user?: any) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // First check if user is already in a session today
+    if (user) {
+        const existing = await this.getUserActiveSession(user.id);
+        if (existing) return existing;
+    }
 
     const sessions = await this.prisma.quizSession.findMany({
       where: {
@@ -66,6 +95,8 @@ export class QuizService {
        return null;
     }
 
+    // Use transaction to ensure session creation doesn't double up unexpectedly
+    // though here we're more concerned with participant capacity.
     const newSession = await this.prisma.quizSession.create({
       data: {
         date: today,
@@ -82,47 +113,66 @@ export class QuizService {
   }
 
   private isSimilar(l1: any, l2: any) {
-    if (!l1 || !l2) return true;
+    if (!l1 || !l2) {
+        return true;
+    }
     const rankDiff = Math.abs(l1.rank - l2.rank);
     const xpDiff = Math.abs(l1.xp - l2.xp);
     const sameBadge = l1.userHighestBadge === l2.userHighestBadge;
 
-    return rankDiff <= 20 || xpDiff <= 2000 || sameBadge;
+    const similar = rankDiff <= 20 || xpDiff <= 2000 || sameBadge;
+    return similar;
   }
 
   async findOrCreateParticipant(session: any, user: any) {
-    const existing = await this.prisma.quizParticipant.findUnique({
-      where: {
-        userId_sessionId: {
-          userId: user.id,
-          sessionId: session.id,
-        },
-      },
+    return await this.prisma.$transaction(async (tx) => {
+        // Force a write lock in SQLite by doing a dummy update
+        if (process.env.USE_REAL_DB) {
+            await tx.$executeRaw`UPDATE QuizSession SET updatedAt = CURRENT_TIMESTAMP WHERE id = ${session.id}`;
+        }
+
+        const existing = await tx.quizParticipant.findUnique({
+            where: {
+                userId_sessionId: {
+                    userId: user.id,
+                    sessionId: session.id,
+                },
+            },
+        });
+
+        if (existing) return existing;
+
+        const participantCount = await tx.quizParticipant.count({
+            where: { sessionId: session.id }
+        });
+
+        if (participantCount >= 5) {
+            throw new Error('Session is full');
+        }
+
+        // Artificial delay to test concurrency if in test environment
+        if (process.env.NODE_ENV === 'test' && process.env.SIMULATE_CONCURRENCY) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const participant = await tx.quizParticipant.create({
+            data: {
+                userId: user.id,
+                sessionId: session.id,
+            },
+        });
+
+        // Broadcasting should happen after transaction success, but we can't easily do that inside $transaction's return
+        // without a separate step. In a real system we might use an outbox or post-commit hook.
+        // For now, we'll return it and the caller or a subsequent step can handle broadcast.
+        return participant;
+    }).then(async (participant) => {
+        this.broadcastToSession(session.id, {
+            type: 'participant_update',
+            payload: await this.getSessionParticipants(session.id),
+        });
+        return participant;
     });
-
-    if (existing) return existing;
-
-    const participantCount = await this.prisma.quizParticipant.count({
-        where: { sessionId: session.id }
-    });
-
-    if (participantCount >= 5) {
-      throw new Error('Session is full');
-    }
-
-    const participant = await this.prisma.quizParticipant.create({
-      data: {
-        userId: user.id,
-        sessionId: session.id,
-      },
-    });
-
-    this.broadcastToSession(session.id, {
-      type: 'participant_update',
-      payload: await this.getSessionParticipants(session.id),
-    });
-
-    return participant;
   }
 
   async getSessionParticipants(sessionId: string) {
@@ -142,72 +192,75 @@ export class QuizService {
   async handleAnswer(userId: string, questionId: number, answer: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const session = await this.prisma.quizSession.findFirst({
-        where: { date: today, endTime: null, participants: { some: { userId } } }
-    });
 
-    if (!session) throw new Error('No active daily quiz session found for user');
-
-    // Timer integrity check
-    const now = new Date();
-    const startTime = new Date(session.startTime);
-    const elapsedSeconds = (now.getTime() - startTime.getTime()) / 1000;
-    if (elapsedSeconds > 300) { // 5 minutes limit
-        throw new Error('Quiz session has expired.');
-    }
-
-    const participant = await this.prisma.quizParticipant.findUnique({
-      where: { userId_sessionId: { userId, sessionId: session.id } },
-    });
-
-    if (!participant) throw new Error('Participant not found');
-
-    const existingAnswer = await this.prisma.userQuestionData.findUnique({
-        where: { userId_questionId: { userId, questionId } }
-    });
-
-    if (existingAnswer && existingAnswer.lastAttempt && existingAnswer.lastAttempt >= session.startTime) {
-        throw new Error('Question already answered in this session');
-    }
-
-    const question = await this.prisma.question.findUnique({ where: { id: questionId } });
-    if (!question) throw new Error('Question not found');
-
-    const isCorrect = question.correct === answer;
-
-    await this.prisma.quizParticipant.update({
-      where: { id: participant.id },
-      data: {
-        score: isCorrect ? participant.score + 10 : participant.score,
-        streak: isCorrect ? participant.streak + 1 : 0,
-      },
-    });
-
-    await this.prisma.userQuestionData.upsert({
-      where: { userId_questionId: { userId, questionId } },
-      update: {
-        attempts: { increment: 1 },
-        correct: isCorrect,
-        lastAttempt: new Date(),
-      },
-      create: {
-        userId,
-        questionId,
-        attempts: 1,
-        correct: isCorrect,
-        lastAttempt: new Date(),
-      },
-    });
-
-    if (isCorrect) {
-        await this.prisma.engagement.upsert({
-            where: { userId },
-            update: { xp: { increment: 10 } },
-            create: { userId, xp: 10 }
+    return await this.prisma.$transaction(async (tx) => {
+        const session = await tx.quizSession.findFirst({
+            where: { date: today, endTime: null, participants: { some: { userId } } }
         });
-    }
 
-    return { success: true, isCorrect };
+        if (!session) throw new Error('No active daily quiz session found for user');
+
+        // Timer integrity check
+        const now = new Date();
+        const startTime = new Date(session.startTime);
+        const elapsedSeconds = (now.getTime() - startTime.getTime()) / 1000;
+        if (elapsedSeconds > 300) { // 5 minutes limit
+            throw new Error('Quiz session has expired.');
+        }
+
+        const participant = await tx.quizParticipant.findUnique({
+            where: { userId_sessionId: { userId, sessionId: session.id } },
+        });
+
+        if (!participant) throw new Error('Participant not found');
+
+        const existingAnswer = await tx.userQuestionData.findUnique({
+            where: { userId_questionId: { userId, questionId } }
+        });
+
+        if (existingAnswer && existingAnswer.lastAttempt && existingAnswer.lastAttempt >= session.startTime) {
+            throw new Error('Question already answered in this session');
+        }
+
+        const question = await tx.question.findUnique({ where: { id: questionId } });
+        if (!question) throw new Error('Question not found');
+
+        const isCorrect = question.correct === answer;
+
+        await tx.quizParticipant.update({
+            where: { id: participant.id },
+            data: {
+                score: isCorrect ? participant.score + 10 : participant.score,
+                streak: isCorrect ? participant.streak + 1 : 0,
+            },
+        });
+
+        await tx.userQuestionData.upsert({
+            where: { userId_questionId: { userId, questionId } },
+            update: {
+                attempts: { increment: 1 },
+                correct: isCorrect,
+                lastAttempt: new Date(),
+            },
+            create: {
+                userId,
+                questionId,
+                attempts: 1,
+                correct: isCorrect,
+                lastAttempt: new Date(),
+            },
+        });
+
+        if (isCorrect) {
+            await tx.engagement.upsert({
+                where: { userId },
+                update: { xp: { increment: 10 } },
+                create: { userId, xp: 10 }
+            });
+        }
+
+        return { success: true, isCorrect };
+    });
   }
 
   async removeParticipant(sessionId: string, userId: string) {
