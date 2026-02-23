@@ -17,4 +17,13 @@ export class EngagementService {
       data: engagementData,
     });
   }
+
+  async getAverageUserPerformance(): Promise<number> {
+    const aggregate = await this.prisma.engagement.aggregate({
+      _avg: {
+        xp: true,
+      },
+    });
+    return aggregate._avg.xp || 0;
+  }
 }
