@@ -1,8 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { google } from 'googleapis';
-import { PrismaClient } from '@prisma/client';
+import { prisma as defaultPrisma } from "../../../infra/prisma/client";
+import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken';
-import { CacheService } from '../../../services/cacheService';
+import { CacheService } from '../../../infra/cacheService';
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -11,7 +12,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 export async function callbackHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient, cache?: CacheService) {
-  const client = prisma ?? new PrismaClient();
+  const client = prisma ?? defaultPrisma;
   const cacheService = cache ?? new CacheService();
   const { code } = req.query;
 

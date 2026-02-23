@@ -167,4 +167,31 @@ describe('Auth Session Acceptance Tests', () => {
     expect(data.user.email).toBe(testUser.email);
     expect(mockedPrisma.user.create).toHaveBeenCalled();
   });
+
+  test('OAuth Provider Sign-in Links Existing Account', async () => {
+    mockedPrisma.user.findUnique.mockResolvedValue(testUser);
+
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: { provider: 'google', token: 'valid-token' },
+    });
+
+    await providerSigninHandler(req, res, mockedPrisma);
+
+    expect(res._getStatusCode()).toBe(200);
+    const data = JSON.parse(res._getData());
+    expect(data.user.email).toBe(testUser.email);
+    expect(mockedPrisma.user.create).not.toHaveBeenCalled();
+  });
+
+  test('OAuth Provider Sign-in Fails with Invalid Token', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: { provider: 'google', token: 'invalid-token' },
+    });
+
+    await providerSigninHandler(req, res, mockedPrisma);
+
+    expect(res._getStatusCode()).toBe(401);
+  });
 });

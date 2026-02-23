@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../infra/prisma/client';
 import { withAuth } from '../../../utils/withAuth';
-import { QuizService } from '../../../services/quizService';
+import { QuizService } from '../../../controllers/quizController';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {

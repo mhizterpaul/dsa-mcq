@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { QuizService } from '../../../services/quizService';
+import { QuizService } from "../../../controllers/quizController";
+import { prisma } from "../../../infra/prisma/client";
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { quizService } from '../../../services/quizServiceInstance';
 
 export async function resultsHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService) {
-    const user = getAuthenticatedUser(req);
+    const user = await getAuthenticatedUser(req);
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -26,5 +26,6 @@ export default function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    return resultsHandler(req, res, quizService);
+    const service = new QuizService(prisma);
+    return resultsHandler(req, res, service);
 }

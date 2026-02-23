@@ -1,12 +1,13 @@
 import { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
 import { CacheService } from '../infra/cacheService';
+import { prisma } from '../infra/prisma/client';
 
 export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheService) {
     const cacheService = cache || new CacheService();
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !/^Bearer /i.test(authHeader)) {
         return null;
     }
     const token = authHeader.split(' ')[1];
@@ -18,7 +19,18 @@ export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheSer
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-        return decoded.user;
+        const { user, sessionId } = decoded;
+
+        if (sessionId) {
+            const session = await prisma.session.findFirst({
+                where: { id: sessionId, userId: user.id },
+            });
+            if (!session) {
+                return null;
+            }
+        }
+
+        return user;
     } catch (error) {
         return null;
     }

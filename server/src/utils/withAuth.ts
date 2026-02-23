@@ -11,10 +11,14 @@ export type AuthenticatedRequest = NextApiRequest & {
 
 export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => void | Promise<void>) {
   return async (req: NextApiRequest, res: NextApiResponse, deps?: { cache?: CacheService }) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !/^Bearer /i.test(authHeader)) {
+      return res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header' });
+    }
+    const token = authHeader.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'Unauthorized: Token not provided' });
     }
 
     try {

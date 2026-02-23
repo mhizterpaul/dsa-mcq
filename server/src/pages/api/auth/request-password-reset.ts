@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { MailService } from '../../../services/mailService';
+import { prisma as defaultPrisma } from "../../../infra/prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { MailService } from '../../../infra/mailService';
 import crypto from 'crypto';
 import { verifySignature } from '../../../utils/signature';
 
@@ -10,7 +11,7 @@ export async function requestPasswordResetHandler(
     prisma?: PrismaClient,
     mailService?: MailService,
 ) {
-    const client = prisma ?? new PrismaClient();
+    const client = prisma ?? defaultPrisma;
     const mailer = mailService ?? new MailService(client);
 
     if (!verifySignature(req)) {
@@ -58,7 +59,7 @@ export async function requestPasswordResetHandler(
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    const prisma = new PrismaClient();
+    const prisma = defaultPrisma;
     const mailService = new MailService(prisma);
     return await requestPasswordResetHandler(req, res, prisma, mailService);
 }

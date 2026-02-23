@@ -4,7 +4,7 @@ import { EngagementService } from '../../../controllers/engagementController';
 import { prisma } from '../../../infra/prisma/client';
 
 export async function settingsHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
-    const user = getAuthenticatedUser(req);
+    const user = await getAuthenticatedUser(req);
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
     }

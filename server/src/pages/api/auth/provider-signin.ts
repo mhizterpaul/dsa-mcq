@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { CacheService } from '../../../infra/cacheService';
+import { prisma as defaultPrisma } from '../../../infra/prisma/client';
 
 export interface AuthResponse {
   token: string;
@@ -25,7 +26,7 @@ const verifyToken = async (provider: string, token: string): Promise<any> => {
 };
 
 export async function providerSigninHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient, cache?: CacheService) {
-    const client = prisma ?? new PrismaClient();
+    const client = prisma ?? defaultPrisma;
     const cacheService = cache ?? new CacheService();
 
     if (req.method !== 'POST') {

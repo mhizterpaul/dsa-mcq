@@ -1,10 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import argon2 from 'argon2';
-import { PrismaClient } from '@prisma/client';
+import { prisma as defaultPrisma } from "../../../infra/prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { verifySignature } from '../../../utils/signature';
 
 export async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient) {
-    const client = prisma ?? new PrismaClient();
+    const client = prisma ?? defaultPrisma;
 
     if (!verifySignature(req)) {
         return res.status(403).json({ message: 'Invalid signature' });
