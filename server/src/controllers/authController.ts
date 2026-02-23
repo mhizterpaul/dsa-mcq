@@ -23,6 +23,8 @@ export class AuthService {
       data: {
         userId: user.id,
         userAgent: data.userAgent || '',
+        sessionToken: Math.random().toString(36).substring(7),
+        expires: new Date(Date.now() + 3600000),
       },
     });
 
@@ -45,6 +47,8 @@ export class AuthService {
       data: {
         userId: user.id,
         userAgent,
+        sessionToken: Math.random().toString(36).substring(7),
+        expires: new Date(Date.now() + 3600000),
       },
     });
 

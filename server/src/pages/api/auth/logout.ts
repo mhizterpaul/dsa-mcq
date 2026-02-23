@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthenticatedRequest } from '../../../utils/withAuth';
-import { AuthService } from '../../../services/authService';
+import { AuthService } from '../../../controllers/authController';
 import { prisma as defaultPrisma } from '../../../infra/prisma/client';
 import { PrismaClient } from '@prisma/client';
 

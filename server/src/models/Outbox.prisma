@@ -2,9 +2,9 @@ model Outbox {
   id        String   @id @default(cuid())
   to        String
   subject   String
-  html      String   @db.Text
+  html      String
   retries   Int
   lastRetry DateTime
-  error     String   @db.Text
+  error     String
   createdAt DateTime @default(now())
 }

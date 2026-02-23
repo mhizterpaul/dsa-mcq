@@ -1,6 +1,1 @@
-jest.mock('@prisma/client', () => {
-  return {
-    ...jest.requireActual('@prisma/client'),
-    PrismaClient: jest.requireActual('prismock').PrismockClient,
-  };
-});
+// No global mocks for Prisma to allow using real DB in acceptance tests
