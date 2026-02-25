@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "yarn prisma:migrate-deploy && next start",
     "lint": "next lint",
-    "test": "yarn prisma:generate && jest --runInBand",
+    "test": "yarn prisma:generate && dotenv -e .env.test -- jest --runInBand",
     "test:watch": "yarn prisma:generate && jest --watch --runInBand",
     "test:coverage": "yarn prisma:generate && jest --coverage",
     "prisma:pregenerate": "cat src/infra/prisma/schema.header.prisma src/models/*.prisma > src/infra/prisma/schema.prisma",
