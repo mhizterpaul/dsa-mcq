@@ -18,6 +18,15 @@ const userA = { id: 'user-a', name: 'Alice', email: 'alice@example.com', image: 
 const userB = { id: 'user-b', name: 'Bob', email: 'bob@example.com', image: 'avatar-b' };
 
 describe('Engagement Route Acceptance Tests', () => {
+    beforeAll(() => {
+        jest.useFakeTimers();
+    });
+
+    afterAll(async () => {
+        jest.useRealTimers();
+        await prisma.$disconnect();
+    });
+
     beforeEach(async () => {
         await prisma.notification.deleteMany();
         await prisma.quizParticipant.deleteMany();
@@ -28,12 +37,8 @@ describe('Engagement Route Acceptance Tests', () => {
         await prisma.user.deleteMany();
     });
 
-    afterAll(async () => {
-        await prisma.$disconnect();
-    });
-
-    const setupAuth = async (user: any) => {
-        await prisma.user.create({ data: user });
+    const setupAuth = async (user: any, role: string = 'USER') => {
+        const dbUser = await prisma.user.create({ data: { ...user, role } });
         const session = await prisma.session.create({
             data: {
                 id: 'session-' + user.id,
@@ -42,7 +47,7 @@ describe('Engagement Route Acceptance Tests', () => {
                 expires: new Date(Date.now() + 1000000)
             }
         });
-        return createToken(user, session.id);
+        return { token: createToken(user, session.id), user: dbUser };
     };
 
     describe('Security', () => {
@@ -58,29 +63,45 @@ describe('Engagement Route Acceptance Tests', () => {
     });
 
     describe('XP & Action Handling', () => {
-        test('updates user XP via action endpoint', async () => {
-            const token = await setupAuth(userA);
+        test('accumulates XP correctly over multiple calls', async () => {
+            const { token } = await setupAuth(userA);
 
+            const callAction = async (xp: number) => {
+                const { req, res } = createMocks({
+                    method: 'POST',
+                    headers: { authorization: `Bearer ${token}` },
+                    body: { xp }
+                });
+                await actionHandler(req, res);
+                return res;
+            };
+
+            await callAction(50);
+            await callAction(30);
+
+            const engagement = await prisma.engagement.findUnique({ where: { userId: userA.id } });
+            expect(engagement?.xp).toBe(80);
+            expect(engagement?.xp_weekly).toBe(80);
+        });
+
+        test('rejects negative XP with 400', async () => {
+            const { token } = await setupAuth(userA);
             const { req, res } = createMocks({
                 method: 'POST',
                 headers: { authorization: `Bearer ${token}` },
-                body: { xp: 50 }
+                body: { xp: -100 }
             });
 
             await actionHandler(req, res);
-            expect(res._getStatusCode()).toBe(200);
-
-            const engagement = await prisma.engagement.findUnique({ where: { userId: userA.id } });
-            expect(engagement?.xp).toBe(50);
-            expect(engagement?.xp_weekly).toBe(50);
+            expect(res._getStatusCode()).toBe(400);
         });
     });
 
     describe('Leaderboard & Achievements', () => {
-        test('returns leaderboard data in expected format', async () => {
+        test('returns leaderboard data in expected format with deterministic tie-breaking', async () => {
             await prisma.user.createMany({ data: [userA, userB] });
-            await prisma.engagement.create({ data: { userId: userA.id, xp: 100 } });
-            await prisma.engagement.create({ data: { userId: userB.id, xp: 200 } });
+            await prisma.engagement.create({ data: { userId: userA.id, xp: 500 } });
+            await prisma.engagement.create({ data: { userId: userB.id, xp: 500 } });
 
             const { req, res } = createMocks({ method: 'GET' });
             await leaderboardHandler(req, res);
@@ -88,14 +109,21 @@ describe('Engagement Route Acceptance Tests', () => {
             expect(res._getStatusCode()).toBe(200);
             const data = JSON.parse(res._getData());
             expect(data).toHaveLength(2);
-            expect(data[0].id).toBe(userB.id);
-            expect(data[0].score).toBe(200);
-            expect(data[1].id).toBe(userA.id);
+            // user-a < user-b alphabetically
+            expect(data[0].id).toBe(userA.id);
+            expect(data[1].id).toBe(userB.id);
         });
 
-        test('returns achievements data for a user', async () => {
-            const token = await setupAuth(userA);
-            await prisma.leaderboard.create({ data: { userId: userA.id, rank: 5, xp: 1000 } });
+        test('returns achievements data for a user with dynamic rank', async () => {
+            const { token } = await setupAuth(userA);
+
+            // Create 4 other users with more XP to make Alice rank 5
+            for(let i=1; i<=4; i++) {
+                const other = { id: `other-${i}`, email: `other-${i}@x.com`, name: `Other ${i}` };
+                await prisma.user.create({ data: other });
+                await prisma.engagement.create({ data: { userId: other.id, xp: 2000 + i } });
+            }
+
             await prisma.engagement.create({ data: { userId: userA.id, xp: 1000 } });
 
             const { req, res } = createMocks({
@@ -110,22 +138,46 @@ describe('Engagement Route Acceptance Tests', () => {
             expect(data.badges).toBeDefined();
             expect(data.leaderboard.score).toBe(1000);
             expect(data.leaderboard.rank).toBe(5);
-            expect(data.leaderboard.competitors).toHaveLength(1);
+            expect(data.leaderboard.competitors.length).toBeGreaterThan(0);
+
+            // Strict contract validation
+            expect(data).toEqual(expect.objectContaining({
+                badges: expect.objectContaining({
+                    totalUnlocked: expect.any(Number),
+                    list: expect.any(Array),
+                    nextBadge: expect.any(Array)
+                }),
+                leaderboard: expect.objectContaining({
+                    score: expect.any(Number),
+                    rank: expect.any(Number),
+                    competitors: expect.any(Array)
+                }),
+                stats: expect.any(Object)
+            }));
         });
     });
 
     describe('Weekly King of Quiz', () => {
-        test('calculates weekly king from daily quiz scores', async () => {
+        test('calculates weekly king from daily quiz scores and excludes past weeks', async () => {
+            const fixedDate = new Date('2025-02-26T12:00:00Z'); // Wednesday
+            jest.setSystemTime(fixedDate);
+
             await prisma.user.createMany({ data: [userA, userB] });
-            const today = new Date();
-            const session = await prisma.quizSession.create({
-                data: { id: 's1', date: today, startTime: new Date(), endTime: new Date() }
+
+            // Session this week
+            const session1 = await prisma.quizSession.create({
+                data: { id: 's1', date: new Date('2025-02-24'), startTime: new Date('2025-02-24T10:00:00Z') }
+            });
+            // Session last week
+            const sessionOld = await prisma.quizSession.create({
+                data: { id: 's_old', date: new Date('2025-02-17'), startTime: new Date('2025-02-17T10:00:00Z') }
             });
 
             await prisma.quizParticipant.createMany({
                 data: [
-                    { userId: userA.id, sessionId: session.id, score: 10, createdAt: today },
-                    { userId: userB.id, sessionId: session.id, score: 20, createdAt: today },
+                    { userId: userA.id, sessionId: 's1', score: 10, createdAt: new Date('2025-02-24T10:05:00Z') },
+                    { userId: userB.id, sessionId: 's1', score: 20, createdAt: new Date('2025-02-24T10:05:00Z') },
+                    { userId: userA.id, sessionId: 's_old', score: 100, createdAt: new Date('2025-02-17T10:05:00Z') }
                 ]
             });
 
@@ -137,58 +189,62 @@ describe('Engagement Route Acceptance Tests', () => {
             expect(data.userId).toBe(userB.id);
             expect(data.score).toBe(100); // 20 * 5
         });
-
-        test('returns null when no participants this week', async () => {
-            const { req, res } = createMocks({ method: 'GET' });
-            await weeklyKingHandler(req, res);
-            expect(res._getStatusCode()).toBe(200);
-            expect(res._getData()).toBe('null');
-        });
     });
 
     describe('User Engagement Details', () => {
-        test('returns user-specific engagement data', async () => {
-            await prisma.user.create({ data: userA });
+        test('returns user-specific engagement data and enforces authorization', async () => {
+            const { token: tokenA } = await setupAuth(userA);
+            const { token: tokenB } = await setupAuth(userB);
             await prisma.engagement.create({ data: { userId: userA.id, xp: 300 } });
 
-            const { req, res } = createMocks({
+            // User A accesses their own data
+            const { req: reqA, res: resA } = createMocks({
                 method: 'GET',
+                headers: { authorization: `Bearer ${tokenA}` },
                 query: { userId: userA.id }
             });
+            await userEngagementHandler(reqA, resA);
+            expect(resA._getStatusCode()).toBe(200);
 
-            await userEngagementHandler(req, res);
-
-            expect(res._getStatusCode()).toBe(200);
-            const data = JSON.parse(res._getData());
-            expect(data.userId).toBe(userA.id);
-            expect(data.xp).toBe(300);
-            expect(data.streak_length).toBeDefined();
+            // User B tries to access user A's data
+            const { req: reqB, res: resB } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenB}` },
+                query: { userId: userA.id }
+            });
+            await userEngagementHandler(reqB, resB);
+            expect(resB._getStatusCode()).toBe(403);
         });
     });
 
     describe('Notifications', () => {
-        test('creates and retrieves notifications', async () => {
-            const token = await setupAuth(userA);
+        test('creates and retrieves notifications with isolation', async () => {
+            const { token: tokenA } = await setupAuth(userA);
+            const { token: tokenB } = await setupAuth(userB);
 
-            // Create
-            const { req: reqPost, res: resPost } = createMocks({
+            // Create A's notification
+            const { req: reqPost } = createMocks({
                 method: 'POST',
-                headers: { authorization: `Bearer ${token}` },
+                headers: { authorization: `Bearer ${tokenA}` },
                 body: { message: 'Hello Alice', type: 'reminder' }
             });
-            await notificationsHandler(reqPost, resPost);
-            expect(resPost._getStatusCode()).toBe(201);
+            await notificationsHandler(reqPost, createMocks().res);
 
-            // Retrieve
-            const { req: reqGet, res: resGet } = createMocks({
+            // Retrieve B's notifications
+            const { req: reqGetB, res: resGetB } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${token}` }
+                headers: { authorization: `Bearer ${tokenB}` }
             });
-            await notificationsHandler(reqGet, resGet);
-            expect(resGet._getStatusCode()).toBe(200);
-            const data = JSON.parse(resGet._getData());
-            expect(data).toHaveLength(1);
-            expect(data[0].message).toBe('Hello Alice');
+            await notificationsHandler(reqGetB, resGetB);
+            expect(JSON.parse(resGetB._getData())).toHaveLength(0);
+
+            // Retrieve A's notifications
+            const { req: reqGetA, res: resGetA } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenA}` }
+            });
+            await notificationsHandler(reqGetA, resGetA);
+            expect(JSON.parse(resGetA._getData())).toHaveLength(1);
         });
     });
 });

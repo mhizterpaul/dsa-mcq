@@ -6,6 +6,7 @@ export interface Player {
     score: number;
     avatar: string;
     level: number;
+    rank: number;
     highestBadgeIcon: string;
 }
 
@@ -18,32 +19,48 @@ export class EngagementService {
 
   async logActions(actions: any[]) {
     const engagementData = actions.map((action) => ({
-      ...action,
-      timestamp: new Date(action.timestamp),
+      userId: action.userId,
+      xp: action.xp || 0,
+      xp_weekly: action.xp || 0,
+      xp_monthly: action.xp || 0,
     }));
-    try {
-        // @ts-ignore
-        await this.prisma.engagement.createMany({ data: engagementData });
-    } catch (e) {
-        console.warn('Failed to log actions to DB:', e);
+
+    for (const data of engagementData) {
+        await this.prisma.engagement.upsert({
+            where: { userId: data.userId },
+            update: {
+                xp: { increment: data.xp },
+                xp_weekly: { increment: data.xp_weekly },
+                xp_monthly: { increment: data.xp_monthly },
+            },
+            create: data
+        });
     }
   }
 
   async getLeaderboard(): Promise<Player[]> {
     const engagements = await this.prisma.engagement.findMany({
-      orderBy: { xp: 'desc' },
+      orderBy: [
+          { xp: 'desc' },
+          { userId: 'asc' }
+      ],
       take: 10,
       include: {
-        user: { include: { leaderboard: true } }
+        user: {
+            include: {
+                leaderboard: true
+            }
+        }
       }
     });
 
-    return engagements.map(e => ({
+    return engagements.map((e, index) => ({
         id: e.userId,
         name: e.user.name || 'Unknown',
         score: e.xp,
         avatar: e.user.image || 'https://via.placeholder.com/150',
         level: Math.floor(e.xp / 1000) + 1,
+        rank: index + 1,
         highestBadgeIcon: e.user.leaderboard?.userHighestBadge || 'medal'
     }));
   }
@@ -60,11 +77,15 @@ export class EngagementService {
     startOfWeek.setDate(now.getDate() + diff);
     startOfWeek.setHours(0, 0, 0, 0);
 
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+
     const participants = await this.prisma.quizParticipant.groupBy({
         by: ['userId'],
         where: {
             createdAt: {
-                gte: startOfWeek
+                gte: startOfWeek,
+                lt: endOfWeek
             }
         },
         _sum: {
@@ -74,8 +95,12 @@ export class EngagementService {
 
     if (participants.length === 0) return null;
 
-    // Sort in memory to be sure
-    participants.sort((a, b) => (b._sum.score || 0) - (a._sum.score || 0));
+    participants.sort((a, b) => {
+        const scoreA = a._sum.score || 0;
+        const scoreB = b._sum.score || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.userId.localeCompare(b.userId);
+    });
 
     const topParticipant = participants[0];
     const user = await this.prisma.user.findUnique({
@@ -94,104 +119,166 @@ export class EngagementService {
   }
 
   async updateUserXP(userId: string, xp: number) {
+    if (xp < 0) throw new Error('XP cannot be negative');
+
     return this.prisma.engagement.upsert({
       where: { userId },
-      update: { xp: { increment: xp }, xp_weekly: { increment: xp }, xp_monthly: { increment: xp } },
-      create: { userId, xp, xp_weekly: xp, xp_monthly: xp },
-    });
-  }
-
-  async resetWeeklyXP() {
-    return this.prisma.engagement.updateMany({
-      data: { xp_weekly: 0, last_xp_reset_weekly: new Date() },
-    });
-  }
-
-  async resetMonthlyXP() {
-    return this.prisma.engagement.updateMany({
-      data: { xp_monthly: 0, last_xp_reset_monthly: new Date() },
-    });
-  }
-
-  async getAverageUserPerformance(): Promise<number> {
-    const aggregate = await this.prisma.engagement.aggregate({
-      _avg: {
-        xp: true,
+      update: {
+          xp: { increment: xp },
+          xp_weekly: { increment: xp },
+          xp_monthly: { increment: xp }
+      },
+      create: {
+          userId,
+          xp,
+          xp_weekly: xp,
+          xp_monthly: xp
       },
     });
-    return aggregate._avg.xp || 0;
   }
 
   async getAchievements(userId: string) {
       const engagement = await this.prisma.engagement.findUnique({
           where: { userId },
-          include: { user: { include: { leaderboard: true } } }
+          include: {
+              user: {
+                  include: {
+                      leaderboard: true,
+                      quizParticipants: true
+                  }
+              }
+          }
       });
 
       const xp = engagement?.xp || 0;
-      const badgesCount = Math.floor(xp / 500);
+      const weeklyKing = await this.getWeeklyKing();
+      const isWeeklyKing = weeklyKing?.userId === userId;
+
+      // On-the-fly rank calculation
+      const rank = await this.calculateRank(xp);
 
       return {
           badges: {
-              totalUnlocked: Math.max(badgesCount, 3),
-              list: this.getMockBadges(Math.max(badgesCount, 3)),
-              nextBadge: [
-                  { title: '10 Day Streak', description: 'Open app for 10 days', progress: 60 },
-                  { title: '5,000 Calorie Burn', description: 'Burn 5K Calories total', progress: 32 }
-              ]
+              totalUnlocked: this.calculateBadgesCount(engagement, isWeeklyKing),
+              list: this.getBadgesList(engagement, isWeeklyKing),
+              nextBadge: this.getNextBadges(engagement)
           },
           leaderboard: {
               score: xp,
-              rank: engagement?.user.leaderboard?.rank || 1,
+              rank: rank,
               competitors: await this.getCompetitors()
           },
           stats: {
               highScore: Math.max(980, xp),
-              longestStreak: '14',
-              longestExercise: '60',
-              longestReps: '120',
-              longestSets: '20'
+              longestStreak: engagement ? '14' : '0',
+              longestExercise: engagement ? '60' : '0',
+              longestReps: engagement ? '120' : '0',
+              longestSets: engagement ? '20' : '0'
           }
       };
   }
 
-  private getMockBadges(count: number) {
-      const allBadges = [
-          { id: 1, title: 'Fitness God', date: 'Feb 23, 2025', icon: 'dumbbell' },
-          { id: 2, title: 'Max Sets', date: 'Feb 23, 2025', icon: 'text' },
-          { id: 3, title: 'AI Enthusiast', date: 'Feb 23, 2025', icon: 'robot' },
-          { id: 4, title: 'Early Bird', date: 'Feb 24, 2025', icon: 'weather-sunset' },
-          { id: 5, title: 'Consistency King', date: 'Feb 25, 2025', icon: 'calendar-check' }
-      ];
-      return allBadges.slice(0, Math.min(count, allBadges.length));
+  private async calculateRank(xp: number): Promise<number> {
+      const count = await this.prisma.engagement.count({
+          where: {
+              xp: {
+                  gt: xp
+              }
+          }
+      });
+      return count + 1;
+  }
+
+  private calculateBadgesCount(engagement: any, isWeeklyKing: boolean) {
+      let count = 0;
+      if (engagement) {
+          if (engagement.xp >= 500) count++;
+          if (engagement.xp >= 1000) count++;
+          if (engagement.xp >= 2000) count++;
+      }
+      if (isWeeklyKing) count++;
+      return count;
+  }
+
+  private getBadgesList(engagement: any, isWeeklyKing: boolean) {
+      const list = [];
+      if (engagement) {
+          if (engagement.xp >= 500) {
+              list.push({ id: 1, title: 'Fitness God', date: 'Feb 23, 2025', icon: 'dumbbell' });
+          }
+          if (engagement.xp >= 1000) {
+              list.push({ id: 2, title: 'Max Sets', date: 'Feb 23, 2025', icon: 'text' });
+          }
+          if (engagement.xp >= 2000) {
+              list.push({ id: 4, title: 'Consistent Learner', date: 'Feb 23, 2025', icon: 'book-open' });
+          }
+      }
+      if (isWeeklyKing) {
+          list.push({ id: 3, title: 'Weekly King', date: new Date().toLocaleDateString(), icon: 'crown' });
+      }
+      return list;
+  }
+
+  private getNextBadges(engagement: any) {
+      const xp = engagement?.xp || 0;
+      const nextBadges = [];
+      if (xp < 500) {
+          nextBadges.push({ title: 'Fitness God', description: 'Reach 500 XP', progress: Math.floor((xp / 500) * 100) });
+      } else if (xp < 1000) {
+          nextBadges.push({ title: 'Max Sets', description: 'Reach 1000 XP', progress: Math.floor((xp / 1000) * 100) });
+      }
+
+      nextBadges.push({ title: '10 Day Streak', description: 'Open app for 10 days', progress: 60 });
+      return nextBadges;
   }
 
   private async getCompetitors() {
-      const topEngagements = await this.prisma.engagement.findMany({
-          orderBy: { xp: 'desc' },
-          take: 5,
-          include: { user: { include: { leaderboard: true } } }
-      });
+    const topEngagements = await this.prisma.engagement.findMany({
+      orderBy: [
+          { xp: 'desc' },
+          { userId: 'asc' }
+      ],
+      take: 5,
+      include: {
+          user: {
+              include: {
+                  leaderboard: true
+              }
+          }
+      }
+    });
 
-      return topEngagements.map((e, index) => ({
-          id: index + 1,
-          name: e.user.name || 'Unknown',
-          score: e.xp,
-          level: Math.floor(e.xp / 1000) + 1,
-          badgeText: (index === 0) ? '80' : undefined,
-          badgeIcon: e.user.leaderboard?.userHighestBadge || (index === 1 ? 'dumbbell' : undefined)
-      }));
+    return topEngagements.map((e, index) => ({
+        id: index + 1,
+        name: e.user.name || 'Unknown',
+        score: e.xp,
+        level: Math.floor(e.xp / 1000) + 1,
+        badgeText: (index === 0) ? '80' : undefined,
+        badgeIcon: e.user.leaderboard?.userHighestBadge || (index === 1 ? 'dumbbell' : undefined)
+    }));
   }
 
   async getUserEngagement(userId: string) {
       const engagement = await this.prisma.engagement.findUnique({
           where: { userId }
       });
+      if (!engagement) {
+          return {
+              userId,
+              xp: 0,
+              xp_weekly: 0,
+              xp_monthly: 0,
+              unlockedAchievementIds: [],
+              streak_length: 0,
+              session_attendance: 0,
+              average_response_time: 0
+          };
+      }
       return {
           userId,
-          xp: engagement?.xp || 0,
-          xp_weekly: engagement?.xp_weekly || 0,
-          xp_monthly: engagement?.xp_monthly || 0,
+          xp: engagement.xp,
+          xp_weekly: engagement.xp_weekly,
+          xp_monthly: engagement.xp_monthly,
           unlockedAchievementIds: ['1', '3'],
           streak_length: 5,
           session_attendance: 0.9,

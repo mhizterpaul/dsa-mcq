@@ -17,15 +17,15 @@ export async function actionHandler(req: NextApiRequest, res: NextApiResponse, s
 
     if (req.method === 'POST') {
         const { xp } = req.body;
-        if (typeof xp !== 'number') {
+        if (typeof xp !== 'number' || xp < 0) {
             return res.status(400).json({ message: 'Invalid XP amount' });
         }
 
         try {
             await service.updateUserXP(user.id, xp);
             res.status(200).json({ success: true });
-        } catch (error) {
-            res.status(500).json({ message: 'Internal Server Error' });
+        } catch (error: any) {
+            res.status(500).json({ message: error.message || 'Internal Server Error' });
         }
     } else {
         res.setHeader('Allow', ['POST']);

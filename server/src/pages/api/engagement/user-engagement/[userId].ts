@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EngagementService } from '../../../../controllers/engagementController';
 import { prisma } from '../../../../infra/prisma/client';
+import { getAuthenticatedUser } from '../../../../utils/auth';
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,6 +9,22 @@ export default async function handler(
 ) {
     const { userId } = req.query;
     const service = new EngagementService(prisma);
+
+    let user;
+    try {
+        user = await getAuthenticatedUser(req);
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+
+    if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Authorization: only the user themselves or an admin can access engagement data
+    if (user.id !== userId && user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden' });
+    }
 
     if (req.method === 'GET') {
         if (typeof userId === 'string') {
