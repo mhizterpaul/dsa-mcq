@@ -1,7 +1,12 @@
 import React from 'react';
-const uilib = jest.requireActual('react-native-ui-lib');
+import { View as RNView, Text as RNText, TouchableOpacity, Image as RNImage } from 'react-native';
 
-const MockButton = ({onPress, ...props}) => <button onClick={onPress} {...props} />;
+const MockButton = ({ label, onPress, children, ...props }) => (
+  <TouchableOpacity onPress={onPress} {...props}>
+    <RNText>{label || children}</RNText>
+  </TouchableOpacity>
+);
+
 MockButton.sizes = {
   xSmall: 'xSmall',
   small: 'small',
@@ -9,11 +14,24 @@ MockButton.sizes = {
   large: 'large',
 };
 
-module.exports = {
-  ...uilib,
-  View: ({onPress, ...props}) => <div onClick={onPress} {...props} />,
-  Text: (props) => <p {...props} />,
-  Button: MockButton,
-  Image: (props) => <img {...props} />,
-  Avatar: (props) => <div {...props} />,
+export const View = RNView;
+export const Text = RNText;
+export const Button = MockButton;
+export const Image = RNImage;
+export const Avatar = (props) => <RNView {...props} />;
+export const CircularProgressBar = (props) => <RNView {...props} />;
+export const Colors = { white: '#fff', black: '#000', grey: '#888', blue: '#00f', yellow: '#ff0' };
+export const Typography = {};
+export const Spacings = {};
+
+export default {
+    View,
+    Text,
+    Button,
+    Image,
+    Avatar,
+    CircularProgressBar,
+    Colors,
+    Typography,
+    Spacings
 };

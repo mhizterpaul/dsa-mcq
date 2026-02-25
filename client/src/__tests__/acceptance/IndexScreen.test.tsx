@@ -74,27 +74,27 @@ jest.spyOn(global, 'requestAnimationFrame').mockImplementation(cb => setTimeout(
 
 // --- Navigation Test Setup ---
 const Stack = createStackNavigator();
-const AuthScreen = () => <View><Text>Auth Screen</Text></View>;
+const AuthScreenMock = () => <View><Text>Auth Screen</Text></View>;
 const LeaderboardScreen = () => <View testID="weeklyLeaderboard"><Text>LB</Text></View>;
-const QuizScreen = () => <View testID="quizPage"><Text>Quiz</Text></View>;
+const QuizScreenMock = () => <View testID="quizPage"><Text>Quiz</Text></View>;
 const HistoryScreen = () => <View testID="historyPage"><Text>History</Text></View>;
-const DailyQuizScreen = () => <View testID="dailyQuizPage"><Text>Daily Quiz</Text></View>;
+const DailyQuizScreenMock = () => <View testID="dailyQuizPage"><Text>Daily Quiz</Text></View>;
 
 
 const TestNavigator = ({ initialRouteName = 'Index' }) => (
   <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Index" component={IndexScreen} />
-    <Stack.Screen name="Auth" component={AuthScreen} />
+    <Stack.Screen name="Auth" component={AuthScreenMock} />
     <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-    <Stack.Screen name="Quiz" component={QuizScreen} />
+    <Stack.Screen name="Quiz" component={QuizScreenMock} />
     <Stack.Screen name="History" component={HistoryScreen} />
-    <Stack.Screen name="DailyQuiz" component={DailyQuizScreen} />
+    <Stack.Screen name="DailyQuiz" component={DailyQuizScreenMock} />
   </Stack.Navigator>
 );
 
 // --- Redux Store + Render Helper ---
 let store: AppStore;
-const renderWithProviders = (
+const renderWithProviders = async (
   preloadedState?: PreloadedState<RootState>,
   initialRouteName: 'Index' | 'Auth' = 'Index'
 ) => {
@@ -103,26 +103,28 @@ const renderWithProviders = (
     preloadedState,
   });
 
+  const renderResult = await render(
+    <Provider store={store}>
+      <PaperProvider>
+        <NavigationContainer>
+          <TestNavigator initialRouteName={initialRouteName} />
+        </NavigationContainer>
+      </PaperProvider>
+    </Provider>
+  );
+
   return {
     store,
-    ...render(
-      <Provider store={store}>
-        <PaperProvider>
-          <NavigationContainer>
-            <TestNavigator initialRouteName={initialRouteName} />
-          </NavigationContainer>
-        </PaperProvider>
-      </Provider>
-    ),
+    ...renderResult,
   };
 };
 
 const renderIndex = async (preloadedState: PreloadedState<RootState>) => {
-  const utils = renderWithProviders(preloadedState);
+  const utils = await renderWithProviders(preloadedState);
   // wait for UI to fetch and render (profile summary etc.)
   await waitFor(() => expect(screen.getByText('Hello, Test User')).toBeTruthy(), { timeout: 3000 });
   // allow animations to settle
-  act(() => { jest.runAllTimers(); });
+  await act(async () => { jest.runAllTimers(); });
   return utils;
 };
 
@@ -160,9 +162,9 @@ describe('IndexScreen E2E', () => {
           recentQuizzes: recentQuizzesAdapter.getInitialState(),
         },
       };
-      const { queryByText } = renderWithProviders(preloadedState);
+      const { queryByText } = await renderWithProviders(preloadedState);
       // more robust: assert Auth screen exists
-      await waitFor(() => expect(queryByText('Auth Screen')).toBeTruthy());
+      await waitFor(() => expect(screen.queryByText('Auth Screen')).toBeTruthy());
     });
   });
 
@@ -222,7 +224,7 @@ describe('IndexScreen E2E', () => {
     test('weekly king opens leaderboard on press', async () => {
       await renderIndex(preloadedState);
       const weekly = await screen.findByTestId('weeklyKing');
-      fireEvent.press(weekly);
+      await user.press(weekly);
       // Leaderboard screen should be shown (ensure your TestNavigator has a Leaderboard screen)
       expect(await screen.findByTestId('weeklyLeaderboard')).toBeTruthy();
     });
@@ -234,21 +236,21 @@ describe('IndexScreen E2E', () => {
       expect(screen.getByTestId('banner-achievement')).toBeTruthy();
 
       const startQuizButton = screen.getByTestId('banner-start-quiz');
-      fireEvent.press(startQuizButton);
+      await user.press(startQuizButton);
       expect(await screen.findByTestId('quizPage')).toBeTruthy();
     });
 
     test('daily quiz join opens quiz', async () => {
       await renderIndex(preloadedState);
       const join = screen.getByTestId('dailyQuizJoin');
-      fireEvent.press(join);
+      await user.press(join);
       expect(await screen.findByTestId('dailyQuizPage')).toBeTruthy();
     });
 
     test('recent quiz click opens history page', async () => {
       await renderIndex(preloadedState);
       const recent = await screen.findByTestId('recent-1');
-      fireEvent.press(recent);
+      await user.press(recent);
       expect(await screen.findByTestId('historyPage')).toBeTruthy();
     });
 
@@ -266,7 +268,7 @@ describe('IndexScreen E2E', () => {
         })
       );
 
-      renderWithProviders(preloadedState);
+      await renderWithProviders(preloadedState);
 
       // The user should be logged out and redirected to the Auth screen.
       await waitFor(() => {
