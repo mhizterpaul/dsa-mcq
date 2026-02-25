@@ -40,6 +40,9 @@ const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
+      <View style={styles.avatarPlaceholder} testID="userAvatar">
+        <Ionicons name="person-circle" size={36} color="#4CAF50" />
+      </View>
       {showGreeting && (
         <View style={styles.greetingContainer}>
           <Text style={styles.greetingText}>Hello, {fullName}</Text>
@@ -81,6 +84,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
+  },
+  avatarPlaceholder: {
+    marginRight: 10,
   },
   greetingContainer: {
     alignItems: 'flex-end',

@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/native';
-import { render, screen, userEvent, within } from '@testing-library/react-native';
+import { render, screen, userEvent, within, act, waitFor } from '@testing-library/react-native';
 
 import { configureStore } from '@reduxjs/toolkit';
 import type { PreloadedState } from '@reduxjs/toolkit';
@@ -78,21 +78,23 @@ const TestNavigator = () => (
 
 // --- Redux Store + Render Helper ---
 let store: AppStore;
-const renderWithProviders = (preloadedState?: PreloadedState<RootState>) => {
+const renderWithProviders = async (preloadedState?: PreloadedState<RootState>) => {
   store = configureStore({
     reducer: { user: userReducer },
     preloadedState,
   });
 
+  const renderResult = await render(
+    <Provider store={store}>
+      <PaperProvider>
+        <TestNavigator />
+      </PaperProvider>
+    </Provider>
+  );
+
   return {
     store,
-    ...render(
-      <Provider store={store}>
-        <PaperProvider>
-          <TestNavigator />
-        </PaperProvider>
-      </Provider>
-    ),
+    ...renderResult,
   };
 };
 
@@ -109,8 +111,8 @@ describe('AuthScreen E2E', () => {
     jest.clearAllMocks();
   });
 
-  test('renders login form correctly by default', () => {
-    renderWithProviders();
+  test('renders login form correctly by default', async () => {
+    await renderWithProviders();
     const loginTab = screen.getByTestId('login-tab');
     expect(within(loginTab).getByText('Login')).toBeOnTheScreen();
     expect(screen.getByLabelText('Email')).toBeOnTheScreen();
@@ -119,7 +121,7 @@ describe('AuthScreen E2E', () => {
   });
 
   test('switches between login and register tabs', async () => {
-    renderWithProviders();
+    await renderWithProviders();
     await user.press(screen.getByTestId('register-tab'));
     expect(screen.getByLabelText('Full name')).toBeOnTheScreen();
     expect(screen.getByLabelText('Confirm password')).toBeOnTheScreen();
@@ -131,7 +133,7 @@ describe('AuthScreen E2E', () => {
 
   describe('Login Flow', () => {
     test('user can log in successfully', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       await user.type(screen.getByLabelText('Email'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'password123');
       await user.press(screen.getByTestId('auth-button'));
@@ -143,7 +145,7 @@ describe('AuthScreen E2E', () => {
     });
 
     test('shows error for incorrect credentials', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       await user.type(screen.getByLabelText('Email'), 'wrong@example.com');
       await user.type(screen.getByLabelText('Password'), 'wrongpassword');
       await user.press(screen.getByTestId('auth-button'));
@@ -152,7 +154,7 @@ describe('AuthScreen E2E', () => {
     });
 
     test('shows validation error for invalid email', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       const fetchSpy = jest.spyOn(global, 'fetch');
 
       await user.type(screen.getByLabelText('Email'), 'invalid-email');
@@ -165,7 +167,7 @@ describe('AuthScreen E2E', () => {
 
   describe('Register Flow', () => {
     test('user can register successfully', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       await user.press(screen.getByTestId('register-tab'));
       await user.type(screen.getByLabelText('Full name'), 'New User');
       await user.type(screen.getByLabelText('Email'), 'newuser@example.com');
@@ -177,7 +179,7 @@ describe('AuthScreen E2E', () => {
     });
 
     test('shows error for mismatched passwords', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       const fetchSpy = jest.spyOn(global, 'fetch');
 
       await user.press(screen.getByTestId('register-tab'));
@@ -200,7 +202,7 @@ describe('AuthScreen E2E', () => {
       });
       signInSpy.mockReturnValue({ signIn: mockSignIn });
 
-      renderWithProviders();
+      await renderWithProviders();
       await user.press(screen.getByLabelText('Sign in with Google'));
 
       expect(mockSignIn).toHaveBeenCalledWith('google');
@@ -208,7 +210,7 @@ describe('AuthScreen E2E', () => {
     });
 
     test('handles provider-signin API fallback', async () => {
-      renderWithProviders();
+      await renderWithProviders();
       await user.press(screen.getByLabelText('Sign in with Google'));
       expect(await screen.findByText('Welcome Home')).toBeOnTheScreen();
     });
@@ -218,7 +220,7 @@ describe('AuthScreen E2E', () => {
       const mockFail = jest.fn().mockRejectedValue(new Error(errorMessage));
       signInSpy.mockReturnValue({ signIn: mockFail });
 
-      renderWithProviders();
+      await renderWithProviders();
       await user.press(screen.getByLabelText('Sign in with Google'));
       expect(await screen.findByText(errorMessage)).toBeOnTheScreen();
     });

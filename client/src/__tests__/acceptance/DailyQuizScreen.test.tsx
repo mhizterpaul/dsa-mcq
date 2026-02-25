@@ -1,3 +1,6 @@
+// @ts-ignore
+global.IS_REACT_ACT_ENVIRONMENT = true;
+
 import * as React from 'react';
 import { View, Text, Alert } from 'react-native';
 import { Provider } from 'react-redux';
@@ -5,7 +8,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/native';
+import { setupServer } from 'msw/node';
 import { render, screen, userEvent, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
 
@@ -82,6 +85,7 @@ jest.mock('react-native-sse', () => {
             mockSseListeners[type] = listener;
         },
         close: mockSSEClose,
+        removeEventListener: jest.fn(),
     }));
 });
 
@@ -91,10 +95,14 @@ jest.mock('../../services/mediatorService', () => ({
 }));
 
 beforeAll(() => server.listen());
-afterEach(() => {
+afterEach(async () => {
     server.resetHandlers();
     mockSseListeners = {};
     jest.clearAllMocks();
+    // Clear any pending timers
+    await act(async () => {
+        jest.runOnlyPendingTimers();
+    });
 });
 afterAll(() => server.close());
 
@@ -105,29 +113,34 @@ const Stack = createStackNavigator();
 const HomeScreen = () => <View><Text>Home Screen</Text></View>;
 
 const TestNavigator = () => (
-  <NavigationContainer>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DailyQuiz" component={DailyQuizScreen} />
       <Stack.Screen name="DailyQuizSummary" component={DailyQuizSummaryScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
     </Stack.Navigator>
-  </NavigationContainer>
 );
 
 let store: any;
-const renderWithProviders = (preloadedState?: any) => {
+const renderWithProviders = async (preloadedState?: any) => {
   store = configureStore({
     reducer: rootReducer,
     preloadedState
   });
 
-  return render(
+  const result = await render(
     <Provider store={store}>
       <PaperProvider>
-        <TestNavigator />
+        <NavigationContainer>
+            <TestNavigator />
+        </NavigationContainer>
       </PaperProvider>
     </Provider>
   );
+
+  return {
+    store,
+    ...result
+  };
 };
 
 describe('DailyQuizScreen Acceptance Tests', () => {
@@ -138,15 +151,15 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('renders all daily quiz UI elements correctly', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
-    await waitFor(() => expect(screen.getByTestId('quiz-header-title')).toBeOnTheScreen());
+    expect(await screen.findByTestId('quiz-header-title')).toBeOnTheScreen();
 
     expect(screen.getByTestId('back-button')).toBeOnTheScreen();
     expect(screen.getByText('Aptitude Test')).toBeOnTheScreen();
     expect(screen.getByTestId('timer-text')).toHaveTextContent('2:00');
     expect(screen.getByTestId('progress-bar-container')).toBeOnTheScreen();
-    expect(screen.getByTestId('quiz-type')).toHaveTextContent('ALGORITHMS');
+    expect(screen.getByTestId('quiz-type')).toHaveTextContent(/ALGORITHMS/i);
     expect(screen.getByTestId('question-count')).toHaveTextContent('0 out of 2 questions');
     expect(screen.getByTestId('member-tracking')).toBeOnTheScreen();
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
@@ -154,12 +167,12 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('Next button is disabled until an option is selected for all questions', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
-    const nextButton = screen.getByTestId('next-button');
+    const nextButton = await screen.findByTestId('next-button');
 
     // Question 1
     expect(nextButton).toBeDisabled();
@@ -168,31 +181,33 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     await user.press(nextButton);
 
     // Question 2
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
     expect(nextButton).toBeDisabled();
     await user.press(screen.getByText('Option C'));
     expect(nextButton).not.toBeDisabled();
   });
 
   test('timer counts down after starting', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(1000);
     });
-    expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
+
+    await waitFor(() => {
+        expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
+    });
   });
 
   test('back button does not exit the quiz', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-     const alertSpy = jest.spyOn(Alert, 'alert');
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation();
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
 
-    await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
+    const backBtn = await screen.findByTestId('back-button');
+    await user.press(backBtn);
 
-    await user.press(screen.getByTestId('back-button'));
     expect(alertSpy).toHaveBeenCalledWith(
         "Exit Restricted",
         "You cannot exit the quiz until the session is over.",
@@ -202,21 +217,21 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('completes quiz and shows summary with leaderboard', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
     // Question 1
     await user.press(screen.getByText('Option A'));
     await user.press(screen.getByTestId('next-button'));
 
     // Question 2
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
     await user.press(screen.getByText('Option C'));
     await user.press(screen.getByTestId('next-button'));
 
     // Summary Screen
-    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    expect(await screen.findByTestId('summary-title')).toBeOnTheScreen();
     expect(screen.getByTestId('user-rank')).toHaveTextContent('1 / 3');
     expect(screen.getByTestId('xp-earned')).toHaveTextContent('+50');
     expect(screen.getByTestId('leaderboard-scroll')).toBeOnTheScreen();
@@ -232,23 +247,25 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('handles real-time participant updates via SSE', async () => {
-    renderWithProviders({ profile: { profile: { bookmarks: [] } } });
-    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
+    expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
     // Trigger SSE event with 4 participants
-    act(() => {
-        mockSseListeners['message']({
-            data: JSON.stringify({
-                type: 'participant_update',
-                payload: [
-                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
-                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
-                    { userId: 'user3', name: 'Charlie', avatarUrl: '...' },
-                    { userId: 'user4', name: 'David', avatarUrl: '...' },
-                ]
-            })
-        });
+    await act(async () => {
+        if (mockSseListeners['message']) {
+            mockSseListeners['message']({
+                data: JSON.stringify({
+                    type: 'participant_update',
+                    payload: [
+                        { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                        { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                        { userId: 'user3', name: 'Charlie', avatarUrl: '...' },
+                        { userId: 'user4', name: 'David', avatarUrl: '...' },
+                    ]
+                })
+            });
+        }
     });
 
     expect(screen.getByText('4 members in session')).toBeOnTheScreen();
@@ -269,15 +286,18 @@ describe('DailyQuizScreen Acceptance Tests', () => {
         })
     );
 
-    renderWithProviders();
-    await user.press(await screen.findByText('Start Quiz'));
+    await renderWithProviders();
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
+
     await user.press(screen.getByText('Option A'));
     await user.press(screen.getByTestId('next-button'));
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
     await user.press(screen.getByText('Option C'));
     await user.press(screen.getByTestId('next-button'));
 
-    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    expect(await screen.findByTestId('summary-title')).toBeOnTheScreen();
 
     // Both Alice and Bob should have crowns
     const crowns = screen.getAllByTestId('winner-crown');
@@ -285,22 +305,24 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('handles maximum (5) participants and UI scales', async () => {
-    renderWithProviders();
-    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    await renderWithProviders();
+    expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
 
-    act(() => {
-        mockSseListeners['message']({
-            data: JSON.stringify({
-                type: 'participant_update',
-                payload: [
-                    { userId: 'u1', name: 'A', avatarUrl: '...' },
-                    { userId: 'u2', name: 'B', avatarUrl: '...' },
-                    { userId: 'u3', name: 'C', avatarUrl: '...' },
-                    { userId: 'u4', name: 'D', avatarUrl: '...' },
-                    { userId: 'u5', name: 'E', avatarUrl: '...' },
-                ]
-            })
-        });
+    await act(async () => {
+        if (mockSseListeners['message']) {
+            mockSseListeners['message']({
+                data: JSON.stringify({
+                    type: 'participant_update',
+                    payload: [
+                        { userId: 'u1', name: 'A', avatarUrl: '...' },
+                        { userId: 'u2', name: 'B', avatarUrl: '...' },
+                        { userId: 'u3', name: 'C', avatarUrl: '...' },
+                        { userId: 'u4', name: 'D', avatarUrl: '...' },
+                        { userId: 'u5', name: 'E', avatarUrl: '...' },
+                    ]
+                })
+            });
+        }
     });
 
     expect(screen.getByText('5 members in session')).toBeOnTheScreen();
@@ -309,77 +331,79 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('handles participant leaving mid-quiz', async () => {
-    renderWithProviders();
-    await waitFor(() => expect(screen.getByTestId('member-tracking')).toBeOnTheScreen());
+    await renderWithProviders();
+    expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
     // Trigger SSE event with 2 participants (one left)
-    act(() => {
-        mockSseListeners['message']({
-            data: JSON.stringify({
-                type: 'participant_update',
-                payload: [
-                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
-                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
-                ]
-            })
-        });
+    await act(async () => {
+        if (mockSseListeners['message']) {
+            mockSseListeners['message']({
+                data: JSON.stringify({
+                    type: 'participant_update',
+                    payload: [
+                        { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                        { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                    ]
+                })
+            });
+        }
     });
 
     expect(screen.getByText('2 members in session')).toBeOnTheScreen();
   });
 
   test('timer expiration auto-advances to next question', async () => {
-    renderWithProviders();
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    await renderWithProviders();
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
-    expect(screen.getByText('Daily Question 1')).toBeOnTheScreen();
+    expect(await screen.findByText('Daily Question 1')).toBeOnTheScreen();
 
     // Advance timer by 120 seconds
-    act(() => {
+    await act(async () => {
         jest.advanceTimersByTime(120000);
     });
 
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
   });
 
   test('summary screen buttons work as required', async () => {
-    renderWithProviders();
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    await renderWithProviders();
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
     // Question 1
     await user.press(screen.getByText('Option A'));
     await user.press(screen.getByTestId('next-button'));
     // Question 2
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
     await user.press(screen.getByText('Option C'));
     await user.press(screen.getByTestId('next-button'));
 
     // Summary Screen
-    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    expect(await screen.findByTestId('summary-title')).toBeOnTheScreen();
 
     // Play Again
     await user.press(screen.getByTestId('play-again-button'));
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
+    expect(await screen.findByText('Start Quiz')).toBeOnTheScreen();
 
     // Go to summary again
     await user.press(screen.getByText('Start Quiz'));
     await user.press(screen.getByText('Option A'));
     await user.press(screen.getByTestId('next-button'));
-    await waitFor(() => expect(screen.getByText('Daily Question 2')).toBeOnTheScreen());
+    expect(await screen.findByText('Daily Question 2')).toBeOnTheScreen();
     await user.press(screen.getByText('Option C'));
     await user.press(screen.getByTestId('next-button'));
 
     // Home button
-    await waitFor(() => expect(screen.getByTestId('summary-title')).toBeOnTheScreen());
+    expect(await screen.findByTestId('summary-title')).toBeOnTheScreen();
     await user.press(screen.getByTestId('home-button'));
-    await waitFor(() => expect(screen.getByText('Home Screen')).toBeOnTheScreen());
+    expect(await screen.findByText('Home Screen')).toBeOnTheScreen();
   });
 
   test('user can bookmark question in daily quiz session', async () => {
-    renderWithProviders({
+    await renderWithProviders({
         profile: {
             profile: {
                 userId: 'user1',
@@ -394,17 +418,15 @@ describe('DailyQuizScreen Acceptance Tests', () => {
             }
         }
     });
-    await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
-    await user.press(screen.getByText('Start Quiz'));
+    const startBtn = await screen.findByText('Start Quiz');
+    await user.press(startBtn);
 
-    await waitFor(() =>
-        expect(screen.getByText(/Daily Question 1/)).toBeOnTheScreen()
-    );
+    expect(await screen.findByText(/Daily Question 1/)).toBeOnTheScreen();
 
     const bookmarkIcon = screen.getByTestId('daily-bookmark-icon');
     await user.press(bookmarkIcon);
 
-    expect(screen.getByTestId('daily-bookmark-icon-active')).toBeOnTheScreen();
+    expect(await screen.findByTestId('daily-bookmark-icon-active')).toBeOnTheScreen();
 
     const state = store.getState();
     expect(state.profile.profile.bookmarks.length).toBe(1);

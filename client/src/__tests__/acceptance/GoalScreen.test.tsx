@@ -3,7 +3,7 @@ import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, userEvent, waitFor, act } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
 
 import { rootReducer } from '../../components/user/store';
@@ -18,7 +18,7 @@ const Stack = createStackNavigator();
 const mockGoBack = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
 
-const renderWithProviders = (preloadedState?: any) => {
+const renderWithProviders = async (preloadedState?: any) => {
   const store = configureStore({
     reducer: {
         user: rootReducer,
@@ -35,15 +35,17 @@ const renderWithProviders = (preloadedState?: any) => {
 
   const navigation = { goBack: mockGoBack, canGoBack: mockCanGoBack };
 
+  const renderResult = await render(
+    <Provider store={store}>
+      <PaperProvider>
+        <GoalScreen navigation={navigation as any} />
+      </PaperProvider>
+    </Provider>
+  );
+
   return {
     store,
-    ...render(
-        <Provider store={store}>
-          <PaperProvider>
-            <GoalScreen navigation={navigation as any} />
-          </PaperProvider>
-        </Provider>
-      )
+    ...renderResult,
   };
 };
 
@@ -71,7 +73,7 @@ describe('GoalScreen Acceptance Tests', () => {
 
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue(mockEngagement);
 
-    const { store } = renderWithProviders({
+    const { store } = await renderWithProviders({
         user: {
             user: { currentUser: { id: userId } },
             profile: { profile: initialProfile }
@@ -123,7 +125,7 @@ describe('GoalScreen Acceptance Tests', () => {
   test('validates percentile input (range 1-100)', async () => {
     const userId = 'user-123';
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
-    renderWithProviders({
+    await renderWithProviders({
         user: {
             user: { currentUser: { id: userId } },
             profile: { profile: new UserProfile(userId) }
@@ -157,7 +159,7 @@ describe('GoalScreen Acceptance Tests', () => {
 
   test('handles intermediate back navigation', async () => {
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
-    renderWithProviders();
+    await renderWithProviders();
 
     // Step 0 -> Step 1
     await user.press(screen.getByTestId('continue-button'));
@@ -178,7 +180,7 @@ describe('GoalScreen Acceptance Tests', () => {
     profile.globalRanking = 50;
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({ rank: 40 });
 
-    renderWithProviders({
+    await renderWithProviders({
         user: { user: { currentUser: { id: userId } }, profile: { profile } }
     });
 
@@ -213,7 +215,7 @@ describe('GoalScreen Acceptance Tests', () => {
     profile.preferredQuizTime = '10:00';
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
 
-    renderWithProviders({
+    await renderWithProviders({
         user: { user: { currentUser: { id: userId } }, profile: { profile } }
     });
 
@@ -227,7 +229,7 @@ describe('GoalScreen Acceptance Tests', () => {
 
     (mediatorService.getUserProgress as jest.Mock).mockResolvedValue({});
 
-    renderWithProviders({
+    await renderWithProviders({
         user: {
             profile: {
                 profile: profile

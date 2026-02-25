@@ -33,6 +33,7 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
     const [showExitModal, setShowExitModal] = useState(false);
     const [subsetCount, setSubsetCount] = useState(1);
     const [showPrevFeedback, setShowPrevFeedback] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Current question IDs should come from the session in store if available
     const activeQuestionIds = useMemo(() => {
@@ -43,10 +44,12 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
         const fetchQuestions = async () => {
             if (activeQuestionIds.length > 0) {
                 try {
+                    setError(null);
                     const fetchedQuestions = await learningService.getQuestionsByIds(activeQuestionIds.map(id => parseInt(id, 10)));
                     setQuestions(fetchedQuestions);
-                } catch (error) {
-                    console.error('Error fetching questions:', error);
+                } catch (err) {
+                    console.error('Error fetching questions:', err);
+                    setError('Failed to load questions. Please try again.');
                 }
             }
         };
@@ -108,6 +111,9 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
 
         const question = questions[currentQuestionIndex];
         if (!question || !currentUser) return;
+
+        // Reset timer immediately to prevent multiple calls from useEffect
+        setTimeLeft(120);
 
         const correctAnswer = question.options.find(o => o.isCorrect)?.text;
         const isCorrect = selectedOption === correctAnswer;
@@ -178,6 +184,17 @@ const Quiz: React.FC<QuizProps> = ({ sessionQuestionIds, onQuizComplete, navigat
         const question = questions[currentQuestionIndex];
         return profile?.bookmarks.some((b: any) => b.questionId === String(question?.id));
     }, [profile?.bookmarks, questions, currentQuestionIndex]);
+
+    if (error) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text testID="error-message">{error}</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.modalButton}>
+                    <Text style={styles.modalButtonText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     if (questions.length === 0) {
         return (

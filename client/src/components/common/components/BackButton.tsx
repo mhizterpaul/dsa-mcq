@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -8,12 +8,29 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface BackButtonProps {
     navigation: NavigationProp;
+    style?: ViewStyle;
+    iconName?: string;
+    iconSize?: number;
+    iconColor?: string;
+    accessibilityLabel?: string;
 }
 
-const BackButton: React.FC<BackButtonProps> = ({ navigation }) => {
+const BackButton: React.FC<BackButtonProps> = ({
+    navigation,
+    style,
+    iconName = "arrow-left",
+    iconSize = 24,
+    iconColor = "#000",
+    accessibilityLabel = "Go back"
+}) => {
     return (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.button} testID="back-button">
-            <Icon name="arrow-left" size={24} color="#000" />
+        <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.button, style]}
+            testID="back-button"
+            accessibilityLabel={accessibilityLabel}
+        >
+            <Icon name={iconName} size={iconSize} color={iconColor} />
         </TouchableOpacity>
     );
 };

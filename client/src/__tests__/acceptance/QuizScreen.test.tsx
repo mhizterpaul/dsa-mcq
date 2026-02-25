@@ -1,3 +1,6 @@
+// @ts-ignore
+global.IS_REACT_ACT_ENVIRONMENT = true;
+
 import * as React from 'react';
 import { View, Text } from 'react-native';
 import { Provider } from 'react-redux';
@@ -5,8 +8,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/native';
-import { render, screen, userEvent, waitFor, within, fireEvent, act } from '@testing-library/react-native';
+import { setupServer } from 'msw/node';
+import { render, screen, userEvent, waitFor, within, act } from '@testing-library/react-native';
 
 import { configureStore } from '@reduxjs/toolkit';
 import type { PreloadedState } from '@reduxjs/toolkit';
@@ -127,7 +130,7 @@ const TestNavigator = ({ sessionQuestionIds }: { sessionQuestionIds?: string[] }
 
 // --- Redux Store + Render Helper ---
 let store: AppStore;
-const renderWithProviders = (
+const renderWithProviders = async (
   preloadedState?: PreloadedState<RootState>,
   sessionQuestionIds?: string[]
 ) => {
@@ -136,16 +139,13 @@ const renderWithProviders = (
     preloadedState,
   });
 
-  return {
-    store,
-    ...render(
+  return await render(
       <Provider store={store}>
         <PaperProvider>
           <TestNavigator sessionQuestionIds={sessionQuestionIds} />
         </PaperProvider>
       </Provider>
-    ),
-  };
+  );
 };
 
 describe('QuizScreen Acceptance Tests', () => {
@@ -207,7 +207,7 @@ describe('QuizScreen Acceptance Tests', () => {
   };
 
   test('renders header elements correctly', async () => {
-    renderWithProviders(initialLoggedInState());
+    await renderWithProviders(initialLoggedInState());
 
     await waitFor(() => expect(screen.getByTestId('quiz-header-title')).toBeOnTheScreen());
 
@@ -217,7 +217,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('renders title block and question count block correctly before start', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
 
     await waitFor(() => expect(screen.getByTestId('quiz-type')).toBeOnTheScreen());
     expect(screen.getByText('ALGORITHMS')).toBeOnTheScreen();
@@ -227,26 +227,26 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('starts countdown and updates question count when Start Quiz is pressed', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
 
-    expect(screen.getByText(/Questions 1 of 1 \(Subset 1 of 4\)/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Questions 1 of 1 \(Subset 1 of 4\)/)).toBeOnTheScreen();
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(1000);
     });
     expect(screen.getByTestId('timer-text')).toHaveTextContent('1:59');
   });
 
   test('timer expiration auto-advances to next question', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
     await user.press(await screen.findByText('Start Quiz'));
 
     expect(screen.getByText(mockQuestions[0].question)).toBeOnTheScreen();
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(120000);
     });
 
@@ -254,7 +254,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('Next button is disabled until an option is selected', async () => {
-    renderWithProviders(initialLoggedInState(), ['1']);
+    await renderWithProviders(initialLoggedInState(), ['1']);
 
     await waitFor(() => expect(screen.getByText('Start Quiz')).toBeOnTheScreen());
     await user.press(screen.getByText('Start Quiz'));
@@ -267,7 +267,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('option selection highlights the option and shows correct icon', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
     await user.press(await screen.findByText('Start Quiz'));
 
     const option0 = screen.getByTestId('option-0');
@@ -283,7 +283,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('navigates through questions and completes quiz', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
     await user.press(await screen.findByText('Start Quiz'));
 
     // Question 1
@@ -298,10 +298,12 @@ describe('QuizScreen Acceptance Tests', () => {
 
     // Question 3
     await waitFor(() => expect(screen.getByText(/Subset 3 of 4/)).toBeOnTheScreen());
+    await user.press(screen.getByTestId('option-0')); // Option text is "Next →"
     await user.press(screen.getByTestId('next-button'));
 
     // Question 4
     await waitFor(() => expect(screen.getByText(/Subset 4 of 4/)).toBeOnTheScreen());
+    await user.press(screen.getByTestId('option-0')); // Option text is "Finish"
     await user.press(screen.getByTestId('next-button'));
 
     expect(await screen.findByTestId('summary-page')).toBeOnTheScreen();
@@ -309,7 +311,7 @@ describe('QuizScreen Acceptance Tests', () => {
 
   test('back button goes to previous question', async () => {
     // 8 questions -> subsetSize 2
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4', '5', '6', '7', '8']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4', '5', '6', '7', '8']);
     await user.press(await screen.findByText('Start Quiz'));
 
     await user.press(screen.getByText(mockQuestions[0].options[0].text));
@@ -323,7 +325,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('back button triggers exit modal on first question', async () => {
-    renderWithProviders(initialLoggedInState());
+    await renderWithProviders(initialLoggedInState());
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeOnTheScreen());
     await user.press(screen.getByTestId('back-button'));
 
@@ -333,7 +335,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('progress bar updates correctly', async () => {
-    renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
+    await renderWithProviders(initialLoggedInState(), ['1', '2', '3', '4']);
     const progressBarFill = await screen.findByTestId('progress-bar-fill');
 
     expect(progressBarFill.props.style).toContainEqual(expect.objectContaining({ width: '0%' }));
@@ -348,7 +350,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('SM-2 Spaced Repetition and Metadata updates', async () => {
-    renderWithProviders(initialLoggedInState([]), ['1']);
+    await renderWithProviders(initialLoggedInState([]), ['1']);
     await user.press(await screen.findByText('Start Quiz'));
 
     await user.press(screen.getByText('Use a hash map')); // Correct
@@ -375,7 +377,7 @@ describe('QuizScreen Acceptance Tests', () => {
         manyUqds.push(q);
     }
 
-    renderWithProviders(initialLoggedInState(manyUqds));
+    await renderWithProviders(initialLoggedInState(manyUqds));
     await waitFor(() => expect(store.getState().learning.learningSession.session).not.toBeNull());
     const session = store.getState().learning.learningSession.session;
 
@@ -402,7 +404,7 @@ describe('QuizScreen Acceptance Tests', () => {
         }
     } as any;
 
-    renderWithProviders(preloadedState, ['1']);
+    await renderWithProviders(preloadedState, ['1']);
 
     expect(await screen.findByTestId('prev-feedback-title')).toBeOnTheScreen();
     await user.press(screen.getByTestId('continue-to-quiz'));
@@ -410,7 +412,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('user can bookmark a question during active quiz', async () => {
-    renderWithProviders(initialLoggedInState(), ['1']);
+    await renderWithProviders(initialLoggedInState(), ['1']);
     await user.press(await screen.findByText('Start Quiz'));
 
     await waitFor(() =>
@@ -430,7 +432,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('user can unbookmark during active quiz', async () => {
-    renderWithProviders(initialLoggedInState(), ['1']);
+    await renderWithProviders(initialLoggedInState(), ['1']);
     await user.press(await screen.findByText('Start Quiz'));
 
     await waitFor(() =>
@@ -450,7 +452,7 @@ describe('QuizScreen Acceptance Tests', () => {
   });
 
   test('bookmarking same question twice does not duplicate', async () => {
-    renderWithProviders(initialLoggedInState(), ['1']);
+    await renderWithProviders(initialLoggedInState(), ['1']);
     await user.press(await screen.findByText('Start Quiz'));
 
     await waitFor(() =>
