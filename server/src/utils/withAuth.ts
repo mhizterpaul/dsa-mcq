@@ -29,6 +29,10 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
+      if (session.expires && session.expires < new Date()) {
+        return res.status(401).json({ message: 'Session expired' });
+      }
+
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = user;
       authenticatedReq.sessionId = sessionId;
