@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { TwitterApi } from 'twitter-api-v2';
-import { PrismaClient } from '@prisma/client';
-import { CacheService } from '../../../services/cacheService';
+import { prisma } from "../../../infra/prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { CacheService } from '../../../infra/cacheService';
 
-const prisma = new PrismaClient();
 const cache = new CacheService();
 
 if (!process.env.TWITTER_CLIENT_ID || !process.env.TWITTER_CLIENT_SECRET) {

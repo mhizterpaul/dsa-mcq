@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { engagementService } from '../services/engagementService';
 
 // Extend global type for Prisma (to persist client across hot reloads in dev)
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };

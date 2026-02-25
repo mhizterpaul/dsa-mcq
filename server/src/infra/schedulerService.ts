@@ -1,8 +1,10 @@
 import cron from 'node-cron';
-import { engagementService } from './engagementService';
+import { EngagementService } from '../controllers/engagementController';
+import { prisma } from './prisma/client';
 
 class SchedulerService {
     start() {
+        const engagementService = new EngagementService(prisma);
         // Schedule a job to run every Sunday at midnight to reset weekly XP
         cron.schedule('0 0 * * 0', () => {
             engagementService.resetWeeklyXP();

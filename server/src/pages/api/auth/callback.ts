@@ -1,8 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { google } from 'googleapis';
-import { PrismaClient } from '@prisma/client';
+import { prisma as defaultPrisma } from "../../../infra/prisma/client";
+import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken';
-import { CacheService } from '../../../services/cacheService';
+import { CacheService } from '../../../infra/cacheService';
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -11,7 +12,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 export async function callbackHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient, cache?: CacheService) {
-  const client = prisma ?? new PrismaClient();
+  const client = prisma ?? defaultPrisma;
   const cacheService = cache ?? new CacheService();
   const { code } = req.query;
 
@@ -51,7 +52,8 @@ export async function callbackHandler(req: NextApiRequest, res: NextApiResponse,
 
     cacheService.set(user.id, user);
 
-    const accessToken = jwt.sign({ user }, 'your-jwt-secret');
+    const secret = process.env.JWT_SECRET || 'your-jwt-secret';
+    const accessToken = jwt.sign({ user }, secret);
     const refreshToken = jwt.sign({ userId: user.id }, 'your-refresh-secret', { expiresIn: '7d' });
 
     res.status(200).json({ user, accessToken, refreshToken });

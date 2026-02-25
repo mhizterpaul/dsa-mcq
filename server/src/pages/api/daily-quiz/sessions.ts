@@ -1,10 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { QuizService } from '../../../controllers/quizController';
+import { QuizService } from "../../../controllers/quizController";
+import { prisma } from "../../../infra/prisma/client";
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { prisma } from '../../../infra/prisma/client';
 
 export async function sessionsHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService) {
-    const user = await getAuthenticatedUser(req);
+    let user;
+    try {
+        user = await getAuthenticatedUser(req);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -35,6 +40,6 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const quizService = new QuizService(prisma);
-    return sessionsHandler(req, res, quizService);
+    const service = new QuizService(prisma);
+    return sessionsHandler(req, res, service);
 }

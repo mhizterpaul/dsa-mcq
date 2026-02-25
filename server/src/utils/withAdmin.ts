@@ -8,8 +8,8 @@ type AdminApiHandler = (
 
 export function withAdmin(handler: AdminApiHandler) {
   return withAuth(async (req, res) => {
-    // Assuming the user object has a 'role' property.
-    if (req.user.role !== 'admin') {
+    // Normalize role comparison to be case-insensitive
+    if (!req.user.role || req.user.role.toLowerCase() !== 'admin') {
       return res.status(403).json({ message: 'Forbidden: Admins only' });
     }
     return handler(req, res);

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../infra/prisma/client';
 import { withAuth } from '../../../utils/withAuth';
-import { StorageService } from '../../../services/storageService';
+import { StorageService } from '../../../infra/storageService';
 
 const storageService = new StorageService();
 
