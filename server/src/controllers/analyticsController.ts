@@ -23,7 +23,7 @@ export class AnalyticsService {
     this.prisma = prisma;
   }
 
-  async getDevOpsMetrics(referenceDate: Date = new Date()): Promise<AnalyticsData> {
+  async getDevOpsMetrics(referenceDate: Date = new Date(), windowMs: number = 30 * 24 * 60 * 60 * 1000): Promise<AnalyticsData> {
     const metrics = await this.prisma.devOpsMetric.findMany();
     const sortedMetrics = [...metrics].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
@@ -77,29 +77,44 @@ export class AnalyticsService {
     const securityTypes = ['AUTHENTICITY', 'SECURITY_BREACH', 'API_ABNORMALITY', 'GAMEPLAY_FRAUD'];
     const securityAnomalies = metrics.filter(m => securityTypes.includes(m.type)).length;
 
-    // Calculate MTTR: Recovery is defined by the first successful APP_STARTUP_TIME after a CRASH
-    let totalRecoveryTime = 0;
-    let recoveryCount = 0;
-    const crashEvents = sortedMetrics.filter(m => m.type === 'CRASH');
+    // Calculate MTTR and Availability:
+    // We group crashes into incidents. An incident starts at the first CRASH and ends at the first APP_STARTUP_TIME after it.
+    let totalDowntime = 0;
+    let totalMTTRTime = 0;
+    let incidentCount = 0;
+    let currentIncidentStart: Date | null = null;
 
-    crashEvents.forEach(crash => {
-      const recoveryEvent = sortedMetrics.find(m =>
-        m.type === 'APP_STARTUP_TIME' &&
-        new Date(m.createdAt).getTime() > new Date(crash.createdAt).getTime()
-      );
-      if (recoveryEvent) {
-        totalRecoveryTime += (new Date(recoveryEvent.createdAt).getTime() - new Date(crash.createdAt).getTime());
-        recoveryCount++;
+    sortedMetrics.forEach(m => {
+      if (m.type === 'CRASH') {
+        if (!currentIncidentStart) {
+          currentIncidentStart = new Date(m.createdAt);
+        }
+      } else if (m.type === 'APP_STARTUP_TIME') {
+        if (currentIncidentStart) {
+          const downtime = new Date(m.createdAt).getTime() - currentIncidentStart.getTime();
+          totalDowntime += downtime;
+          totalMTTRTime += downtime;
+          incidentCount++;
+          currentIncidentStart = null;
+        }
       }
     });
-    const mttr = recoveryCount > 0 ? (totalRecoveryTime / recoveryCount) / (1000 * 60) : 0;
 
-    // Calculate Availability
+    // Handle ongoing incident or crashes without recovery
+    if (currentIncidentStart) {
+      // If the last incident didn't have a recovery, we assume it's still down or fixed without startup event
+      // We add a default 15 min penalty for the "unresolved" crash to availability
+      totalDowntime += 15 * 60 * 1000;
+    }
+
+    const mttr = incidentCount > 0 ? (totalMTTRTime / incidentCount) / (1000 * 60) : 0;
+
+    // Calculate Availability based on total observation window
     const totalTimeRange = metrics.length > 1
-      ? new Date(sortedMetrics[sortedMetrics.length - 1].createdAt).getTime() - new Date(sortedMetrics[0].createdAt).getTime()
-      : thirtyDaysMs;
-    const estimatedDowntime = crashes * 15 * 60 * 1000; // Assume 15 mins per crash if no recovery found
-    const availability = Math.max(0, Math.min(100, (1 - (estimatedDowntime / totalTimeRange)) * 100));
+      ? Math.max(windowMs, new Date(sortedMetrics[sortedMetrics.length - 1].createdAt).getTime() - new Date(sortedMetrics[0].createdAt).getTime())
+      : windowMs;
+
+    const availability = Math.max(0, Math.min(100, (1 - (totalDowntime / totalTimeRange)) * 100));
 
     return {
       rawMetrics: metrics,
