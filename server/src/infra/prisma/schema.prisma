@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 model Category { 
     id String @id @default(uuid()) 
@@ -16,7 +15,7 @@ model Category {
 model DevOpsMetric {
   id        String   @id @default(cuid())
   type      String
-  payload   String   @db.Text
+  payload   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -74,10 +73,10 @@ model Outbox {
   id        String   @id @default(cuid())
   to        String
   subject   String
-  html      String   @db.Text
+  html      String
   retries   Int
   lastRetry DateTime
-  error     String   @db.Text
+  error     String
   createdAt DateTime @default(now())
 }
 enum Difficulty {
@@ -89,21 +88,21 @@ enum Difficulty {
 model Question {
   id                    Int             @id @default(autoincrement())
   title                 String
-  body                  String          @db.Text
+  body                  String
   difficulty            Difficulty
   categoryId            String
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
-  tagsText              String[]
+  tagsText              String
   successRate           Float           @default(0)
   totalSubmissions      Int             @default(0)
   totalAccepted         Int             @default(0)
-  companyTags           String[]
+  companyTags           String
   likes                 Int             @default(0)
   dislikes              Int             @default(0)
-  hints                 String[]
-  similarQuestionIds    String[]
-  similarQuestionsText  String[]
+  hints                 String
+  similarQuestionIds    String
+  similarQuestionsText  String
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   quizQuestions       QuizQuestion[]
@@ -117,11 +116,10 @@ model Question {
 
   @@index([difficulty])
   @@index([categoryId])
-  @@index([tagsText], type: Gin)
 }
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime @unique @db.Date
+  date        DateTime @unique
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]
@@ -175,12 +173,12 @@ model Account {
   type               String
   provider           String
   providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
+  refresh_token      String?
+  access_token       String?
   expires_at         Int?
   token_type         String?
   scope              String?
-  id_token           String?  @db.Text
+  id_token           String?
   session_state      String?
   user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -194,6 +192,8 @@ model User {
   emailVerified     DateTime?
   image             String?
   password          String?
+  role              String    @default("USER")
+  createdAt         DateTime  @default(now())
   accounts          Account[]
   sessions          Session[]
   engagement        Engagement?
@@ -211,6 +211,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  userAgent    String?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

@@ -7,21 +7,21 @@ enum Difficulty {
 model Question {
   id                    Int             @id @default(autoincrement())
   title                 String
-  body                  String          @db.Text
+  body                  String
   difficulty            Difficulty
   categoryId            String
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
-  tagsText              String[]
+  tagsText              String
   successRate           Float           @default(0)
   totalSubmissions      Int             @default(0)
   totalAccepted         Int             @default(0)
-  companyTags           String[]
+  companyTags           String
   likes                 Int             @default(0)
   dislikes              Int             @default(0)
-  hints                 String[]
-  similarQuestionIds    String[]
-  similarQuestionsText  String[]
+  hints                 String
+  similarQuestionIds    String
+  similarQuestionsText  String
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   quizQuestions       QuizQuestion[]
@@ -35,5 +35,4 @@ model Question {
 
   @@index([difficulty])
   @@index([categoryId])
-  @@index([tagsText], type: Gin)
 }
