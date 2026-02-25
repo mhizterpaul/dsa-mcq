@@ -42,7 +42,7 @@ export class EngagementService {
     const engagements = await this.prisma.engagement.findMany({
       orderBy: [
           { xp: 'desc' },
-          { userId: 'asc' }
+          { userId: 'asc' } // Deterministic tie-breaking
       ],
       take: 10,
       include: {
@@ -73,13 +73,14 @@ export class EngagementService {
     const now = new Date();
     const startOfWeek = new Date(now);
     const day = now.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
+    const diff = day === 0 ? -6 : 1 - day; // Monday as start of week
     startOfWeek.setDate(now.getDate() + diff);
     startOfWeek.setHours(0, 0, 0, 0);
 
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 7);
 
+    // Dynamic aggregation from quiz participants (strictly quiz data)
     const participants = await this.prisma.quizParticipant.groupBy({
         by: ['userId'],
         where: {
@@ -95,6 +96,7 @@ export class EngagementService {
 
     if (participants.length === 0) return null;
 
+    // Deterministic sort: Sum of score desc, then userId asc
     participants.sort((a, b) => {
         const scoreA = a._sum.score || 0;
         const scoreB = b._sum.score || 0;
@@ -112,7 +114,7 @@ export class EngagementService {
     return {
         userId: user.id,
         name: user.name,
-        score: (topParticipant._sum.score || 0) * 5,
+        score: (topParticipant._sum.score || 0) * 5, // XP = score * 5
         avatar: user.image || 'https://via.placeholder.com/150',
         avatarUrl: user.image || 'https://via.placeholder.com/150'
     };
@@ -138,13 +140,13 @@ export class EngagementService {
   }
 
   async getAchievements(userId: string) {
+      const userCount = await this.prisma.user.count();
       const engagement = await this.prisma.engagement.findUnique({
           where: { userId },
           include: {
               user: {
                   include: {
-                      leaderboard: true,
-                      quizParticipants: true
+                      leaderboard: true
                   }
               }
           }
@@ -164,7 +166,7 @@ export class EngagementService {
           },
           leaderboard: {
               score: xp,
-              rank: rank,
+              rank: rank || userCount, // Default to last place if no engagement
               competitors: await this.getCompetitors()
           },
           stats: {
@@ -299,13 +301,11 @@ export class EngagementService {
   async getNotifications(userId: string) {
       return this.prisma.notification.findMany({
           where: { userId },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' } // Most recent first
       });
   }
 
   async getEarnedBadgesForSession(userId: string, sessionId: string) {
-      // In a real app, this would check if any new badges were unlocked during this session.
-      // For now, we mock some badges if the user did well in the session.
       const participant = await this.prisma.quizParticipant.findUnique({
           where: { userId_sessionId: { userId, sessionId } }
       });
