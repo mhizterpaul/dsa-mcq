@@ -18,16 +18,23 @@ export async function eventsHandler(req: NextApiRequest, res: NextApiResponse, q
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        res.flushHeaders();
+        if (res.flushHeaders) res.flushHeaders();
 
-        const session = await quizService.getOrCreateDailyQuizSession();
-        quizService.addSseConnection(session.id, user.id, res);
+        const session = await quizService.getOrCreateDailyQuizSession(user);
 
-        // Send a connected event
-        res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+        if (!session) {
+            quizService.addToWaitingList(user.id, res);
+            res.write(`data: ${JSON.stringify({ type: 'waiting' })}\n\n`);
+        } else {
+            quizService.addSseConnection(session.id, user.id, res);
+            // Send a connected event
+            res.write(`data: ${JSON.stringify({ type: 'connected', sessionId: session.id })}\n\n`);
+        }
 
         req.on('close', () => {
-            quizService.removeSseConnection(session.id, user.id);
+            if (session) {
+                quizService.removeSseConnection(session.id, user.id);
+            }
             res.end();
         });
     } else {
@@ -36,7 +43,7 @@ export async function eventsHandler(req: NextApiRequest, res: NextApiResponse, q
     }
 }
 
-export default function handler(
+export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {

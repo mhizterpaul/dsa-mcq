@@ -16,16 +16,19 @@ export async function sessionsHandler(req: NextApiRequest, res: NextApiResponse,
 
     if (req.method === 'GET') {
         try {
-            let session = await quizService.getOrCreateDailyQuizSession();
+            let session = await quizService.getOrCreateDailyQuizSession(user);
+            if (!session) {
+                return res.status(404).json({ message: 'No available groups. Please try again later.' });
+            }
             await quizService.findOrCreateParticipant(session, user);
 
             // Re-fetch session to get the latest participant list
-            session = await quizService.getOrCreateDailyQuizSession();
+            session = await quizService.getOrCreateDailyQuizSession(user);
 
             res.status(200).json(session);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            res.status(500).json({ message: 'Internal Server Error' });
+            res.status(500).json({ message: error.message || 'Internal Server Error' });
         }
     } else {
         res.setHeader('Allow', ['GET']);
