@@ -1,31 +1,24 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { EngagementService } from '../../../../controllers/engagementController';
+import { prisma } from '../../../../infra/prisma/client';
 
-// This should match the UserEngagement primitive on the client
-// For simplicity, we define a subset here.
-interface UserEngagement {
-    userId: string;
-    unlockedAchievementIds: string[];
-    // other fields...
-}
-
-const userEngagementData: { [key: string]: UserEngagement } = {
-    'user-123': {
-        userId: 'user-123',
-        unlockedAchievementIds: ['1', '3'],
-    }
-};
-
-export default function handler(
+export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<UserEngagement | { error: string }>
+  res: NextApiResponse
 ) {
     const { userId } = req.query;
+    const service = new EngagementService(prisma);
 
     if (req.method === 'GET') {
-        if (typeof userId === 'string' && userEngagementData[userId]) {
-            res.status(200).json(userEngagementData[userId]);
+        if (typeof userId === 'string') {
+            try {
+                const data = await service.getUserEngagement(userId);
+                res.status(200).json(data);
+            } catch (error) {
+                res.status(500).json({ message: 'Internal Server Error' });
+            }
         } else {
-            res.status(404).json({ error: 'User engagement data not found.' });
+            res.status(400).json({ error: 'Invalid userId' });
         }
     } else {
         res.setHeader('Allow', ['GET']);
