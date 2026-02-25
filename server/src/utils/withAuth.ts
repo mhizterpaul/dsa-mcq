@@ -31,6 +31,10 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
     try {
       const { user, sessionId } = decoded;
 
+      if (!user || !user.id || !sessionId) {
+        return res.status(401).json({ message: 'Invalid token payload' });
+      }
+
       const session = await prisma.session.findFirst({
         where: { id: sessionId, userId: user.id },
         include: { user: true },

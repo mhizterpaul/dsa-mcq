@@ -4,7 +4,12 @@ import { prisma } from "../../../infra/prisma/client";
 import { getAuthenticatedUser } from '../../../utils/auth';
 
 export async function exitHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService) {
-    const user = await getAuthenticatedUser(req);
+    let user;
+    try {
+        user = await getAuthenticatedUser(req);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
     if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
     }

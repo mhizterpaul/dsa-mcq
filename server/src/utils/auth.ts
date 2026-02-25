@@ -27,6 +27,10 @@ export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheSer
     try {
         const { user, sessionId } = decoded;
 
+        if (!user || !user.id || !sessionId) {
+            return null;
+        }
+
         if (sessionId) {
             const session = await prisma.session.findFirst({
                 where: { id: sessionId, userId: user.id },
@@ -39,9 +43,10 @@ export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheSer
         }
 
         return user;
-    } catch (error) {
-        // For utilities like this, returning null on error is common,
-        // but handlers using it should be aware.
-        return null;
+    } catch (error: any) {
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return null;
+        }
+        throw error;
     }
 }

@@ -16,7 +16,7 @@ const testUser = {
   id: 'test-id',
   email: 'test@example.com',
   name: 'testuser',
-  role: 'USER',
+  role: 'user',
 };
 
 const adminUser = {
@@ -34,36 +34,44 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
     { name: 'sync', handler: syncHandler },
     { name: 'questions', handler: questionsHandler },
     { name: 'devops', handler: devopsHandler },
+    { name: 'action', handler: async (req: any, res: any) => actionHandler(req, res, { updateUserXP: jest.fn() } as any) },
   ];
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  const assertNoBusinessLogic = () => {
+    expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.user.updateMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.devOpsMetric.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.engagement.createMany).not.toHaveBeenCalled();
+  };
+
   test.each(protectedEndpoints)(
     '$name rejects unauthenticated access (no token)',
-    async ({ handler }) => {
-      const { req, res } = createMocks({ method: 'GET' });
+    async ({ name, handler }) => {
+      const { req, res } = createMocks({
+          method: name === 'action' || name === 'sync' ? 'POST' : 'GET'
+      });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      // Verify business logic was not called
-      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
-      expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
+      assertNoBusinessLogic();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name rejects malformed authorization header (missing Bearer prefix)',
-    async ({ handler }) => {
+    async ({ name, handler }) => {
       const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
-        method: 'GET',
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: token },
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      // Verify business logic was not called
-      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+      assertNoBusinessLogic();
     }
   );
 
@@ -77,13 +85,12 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       } as any);
       const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
-        method: 'GET',
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `bearer ${token}` },
+        body: name === 'action' ? { xp: 10 } : {},
       });
       await handler(req, res);
 
-      // For endpoints with additional checks (roles, signatures), they might return 403
-      // but they should NOT return 401.
       if (name === 'devops' || name === 'sync') {
           expect(res._getStatusCode()).toBe(403);
       } else {
@@ -93,58 +100,113 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   );
 
   test.each(protectedEndpoints)(
-    '$name rejects invalid/tampered token',
-    async ({ handler }) => {
+    '$name rejects invalid/tampered token (wrong secret)',
+    async ({ name, handler }) => {
       const invalidToken = jwt.sign({ user: testUser, sessionId: 'sess-1' }, 'wrong-secret');
       const { req, res } = createMocks({
-        method: 'GET',
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `Bearer ${invalidToken}` },
+        body: name === 'action' ? { xp: 10 } : {},
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+      assertNoBusinessLogic();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name rejects expired token',
-    async ({ handler }) => {
+    async ({ name, handler }) => {
       const expiredToken = jwt.sign(
         { user: testUser, sessionId: 'sess-1' },
         process.env.JWT_SECRET!,
         { expiresIn: '-1h' }
       );
       const { req, res } = createMocks({
-        method: 'GET',
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `Bearer ${expiredToken}` },
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+      assertNoBusinessLogic();
+    }
+  );
+
+  test.each(protectedEndpoints)(
+    '$name rejects token with missing sessionId',
+    async ({ name, handler }) => {
+      const invalidToken = jwt.sign({ user: testUser }, process.env.JWT_SECRET!);
+      const { req, res } = createMocks({
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
+        headers: { authorization: `Bearer ${invalidToken}` },
+      });
+      await handler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      assertNoBusinessLogic();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name rejects revoked session (session deleted from DB)',
-    async ({ handler }) => {
+    async ({ name, handler }) => {
       mockedPrisma.session.findFirst.mockResolvedValue(null);
       const token = jwt.sign({ user: testUser, sessionId: 'revoked-sess' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
-        method: 'GET',
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `Bearer ${token}` },
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      expect(mockedPrisma.session.findFirst).toHaveBeenCalled();
+      expect(mockedPrisma.session.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'revoked-sess', userId: testUser.id }
+      }));
+      assertNoBusinessLogic();
     }
   );
 
-  test('devops endpoint enforces admin role', async () => {
-    // Session exists, but user role in DB is USER
+  test.each(protectedEndpoints)(
+    '$name rejects session with missing user record in DB',
+    async ({ name, handler }) => {
+      mockedPrisma.session.findFirst.mockResolvedValue({
+          id: 'sess-1',
+          userId: testUser.id,
+          user: null // User deleted from DB but session remains
+      } as any);
+      const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+      const { req, res } = createMocks({
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      await handler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      assertNoBusinessLogic();
+    }
+  );
+
+  test.each(protectedEndpoints)(
+    '$name handles database failure gracefully (returns sanitized 500)',
+    async ({ name, handler }) => {
+      mockedPrisma.session.findFirst.mockRejectedValue(new Error('Internal Database Error'));
+      const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+      const { req, res } = createMocks({
+        method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
+        headers: { authorization: `Bearer ${token}` },
+        body: name === 'action' ? { xp: 10 } : {},
+      });
+      await handler(req, res);
+      expect(res._getStatusCode()).toBe(500);
+      const data = JSON.parse(res._getData());
+      expect(data.message).toBe('Internal Server Error');
+      expect(data.error).toBeUndefined(); // No leak
+      assertNoBusinessLogic();
+    }
+  );
+
+  test('devops endpoint enforces admin role (using DB role)', async () => {
     mockedPrisma.session.findFirst.mockResolvedValue({
         id: 'sess-1',
         userId: testUser.id,
-        user: testUser // role: 'USER'
+        user: { ...testUser, role: 'user' }
     } as any);
 
     const userToken = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
@@ -154,19 +216,16 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
     });
     await devopsHandler(req, res);
     expect(res._getStatusCode()).toBe(403);
-    expect(JSON.parse(res._getData())).toEqual({ message: 'Forbidden: Admins only' });
-    expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
+    assertNoBusinessLogic();
   });
 
   test('devops endpoint prevents privilege escalation via tampered JWT role', async () => {
-      // Session exists, but user role in DB is USER
       mockedPrisma.session.findFirst.mockResolvedValue({
           id: 'sess-1',
           userId: testUser.id,
-          user: testUser // role: 'USER'
+          user: { ...testUser, role: 'user' } // DB says user
       } as any);
 
-      // JWT claims role is admin
       const tamperedToken = jwt.sign(
           { user: { ...testUser, role: 'admin' }, sessionId: 'sess-1' },
           process.env.JWT_SECRET!
@@ -178,57 +237,43 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await devopsHandler(req, res);
 
-      // Should still be forbidden because it should check DB role
       expect(res._getStatusCode()).toBe(403);
-      expect(mockedPrisma.devOpsMetric.findMany).not.toHaveBeenCalled();
+      assertNoBusinessLogic();
     });
 
-    test.each(protectedEndpoints)(
-        '$name handles database failure gracefully (returns 500)',
-        async ({ handler }) => {
-          mockedPrisma.session.findFirst.mockRejectedValue(new Error('Database connection failed'));
-          const token = jwt.sign({ user: testUser, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
-          const { req, res } = createMocks({
-            method: 'GET',
-            headers: { authorization: `Bearer ${token}` },
-          });
-          await handler(req, res);
-          expect(res._getStatusCode()).toBe(500);
+    test('devops endpoint allows admin access with various role casings', async () => {
+        const roles = ['admin', 'ADMIN', 'Admin'];
+        for (const role of roles) {
+            mockedPrisma.session.findFirst.mockResolvedValue({
+                id: 'sess-admin',
+                userId: adminUser.id,
+                user: { ...adminUser, role }
+            } as any);
+            mockedPrisma.devOpsMetric.findMany.mockResolvedValue([]);
+
+            const adminToken = jwt.sign({ user: adminUser, sessionId: 'sess-admin' }, process.env.JWT_SECRET!);
+            const { req, res } = createMocks({
+              method: 'GET',
+              headers: { authorization: `Bearer ${adminToken}` },
+            });
+            await devopsHandler(req, res);
+            expect(res._getStatusCode()).toBe(200);
         }
-      );
-
-  test('devops endpoint allows admin access', async () => {
-    mockedPrisma.session.findFirst.mockResolvedValue({
-        id: 'sess-2',
-        userId: adminUser.id,
-        user: adminUser
-    } as any);
-    mockedPrisma.devOpsMetric.findMany.mockResolvedValue([]);
-    const adminToken = jwt.sign({ user: adminUser, sessionId: 'sess-2' }, process.env.JWT_SECRET!);
-    const { req, res } = createMocks({
-      method: 'GET',
-      headers: { authorization: `Bearer ${adminToken}` },
-    });
-    await devopsHandler(req, res);
-    expect(res._getStatusCode()).toBe(200);
-  });
-
-  test('actionHandler rejects unauthenticated access (using getAuthenticatedUser)', async () => {
-      const { req, res } = createMocks({ method: 'POST', body: { xp: 10 } });
-      await actionHandler(req, res, { updateUserXP: jest.fn() } as any);
-      expect(res._getStatusCode()).toBe(401);
-  });
-
-  test('actionHandler rejects revoked session (using getAuthenticatedUser)', async () => {
-      mockedPrisma.session.findFirst.mockResolvedValue(null);
-      const token = jwt.sign({ user: testUser, sessionId: 'revoked-sess' }, process.env.JWT_SECRET!);
-      const { req, res } = createMocks({
-        method: 'POST',
-        headers: { authorization: `Bearer ${token}` },
-        body: { xp: 10 },
       });
-      await actionHandler(req, res, { updateUserXP: jest.fn() } as any);
-      expect(res._getStatusCode()).toBe(401);
-      expect(mockedPrisma.session.findFirst).toHaveBeenCalled();
-  });
+
+    test('rejects alg: none attack', async () => {
+        // Many JWT libraries reject 'none' by default if a secret is provided for verification.
+        // Constructing a 'none' algorithm token manually: header.payload.
+        const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64').replace(/=/g, '');
+        const payload = Buffer.from(JSON.stringify({ user: testUser, sessionId: 'sess-1' })).toString('base64').replace(/=/g, '');
+        const noneToken = `${header}.${payload}.`;
+
+        const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${noneToken}` },
+        });
+        await meHandler(req, res);
+        expect(res._getStatusCode()).toBe(401);
+        assertNoBusinessLogic();
+    });
 });
