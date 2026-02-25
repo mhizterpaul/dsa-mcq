@@ -10,6 +10,7 @@ datasource db {
 model Category { 
     id String @id @default(uuid()) 
     name String @unique 
+    featured Boolean @default(false)
     questions Question[] 
 }
 model DevOpsMetric {
@@ -119,7 +120,7 @@ model Question {
 }
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime @unique
+  date        DateTime
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]

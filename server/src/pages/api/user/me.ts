@@ -1,5 +1,5 @@
 import { NextApiResponse } from 'next';
-import { withAuth, AuthenticatedRequest } from '../../utils/withAuth';
+import { withAuth, AuthenticatedRequest } from '../../../utils/withAuth';
 
 function meHandler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

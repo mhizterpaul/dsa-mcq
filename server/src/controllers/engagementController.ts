@@ -18,7 +18,6 @@ export class EngagementService {
     });
   }
 
-<<<<<<< HEAD
   async getLeaderboard() {
     return this.prisma.user.findMany({
       orderBy: { xp: 'desc' },
@@ -54,7 +53,8 @@ export class EngagementService {
     return this.prisma.user.updateMany({
       data: { xp_monthly: 0 },
     });
-=======
+  }
+
   async getAverageUserPerformance(): Promise<number> {
     const aggregate = await this.prisma.engagement.aggregate({
       _avg: {
@@ -62,6 +62,5 @@ export class EngagementService {
       },
     });
     return aggregate._avg.xp || 0;
->>>>>>> analytics-dashboard-v2-5051008972193503984
   }
 }

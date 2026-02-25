@@ -21,6 +21,30 @@ export class QuizService {
         categoryId,
         difficulty: difficulty.toUpperCase() as any,
       },
+      include: {
+        category: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getQuestionsByIds(ids: number[]) {
+    return this.prisma.question.findMany({
+      where: {
+        id: { in: ids },
+      },
+      include: {
+        category: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
     });
   }
 
