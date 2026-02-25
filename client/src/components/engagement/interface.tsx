@@ -6,7 +6,7 @@ import NotificationButton from './components/NotificationButton';
 import Leaderboard from './components/Leaderboard';
 import UserScore from './components/UserScore';
 import WeeklyKingOfQuiz from './components/WeeklyKingOfQuiz';
-import DailyQuizBanner from '../learning/components/DailyQuizBanner';
+import DailyQuizBanner from '../../learning/components/DailyQuizBanner';
 import AchievementsView from './screens/AchievementsView';
 import LeaderboardView from './components/LeaderboardView';
 import engagementService from './services/engagementService';
@@ -32,6 +32,7 @@ export interface IEngagementComponent {
   renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement;
   renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement;
   getUserMetrics(userId: string): Promise<any>;
+  fetchBadgesForSession(sessionId: string): Promise<any[]>;
 }
 
 export class EngagementComponent implements IEngagementComponent {
@@ -53,11 +54,11 @@ export class EngagementComponent implements IEngagementComponent {
     }
 
     renderLeaderboard(screen: string): React.ReactElement {
-        return <Leaderboard />;
+        return <Leaderboard players={[]} />;
     }
 
     renderAchievements(screen: string, navigation: any): React.ReactElement {
-        return <AchievementsView navigation={navigation} />;
+        return <AchievementsView navigation={navigation} data={{} as any} />;
     }
 
     renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement {
@@ -93,7 +94,6 @@ export class EngagementComponent implements IEngagementComponent {
     }
 
     async getUserMetrics(userId: string): Promise<any> {
-        // Retrieve metrics from UserEngagement primitive via store or API
         console.log(`EngagementComponent retrieving metrics for ${userId}`);
         return {
             average_response_time: 120.5,
@@ -102,5 +102,13 @@ export class EngagementComponent implements IEngagementComponent {
             session_attendance: 0.85,
             leaderboard_rank: 15
         };
+    }
+
+    async fetchBadgesForSession(sessionId: string): Promise<any[]> {
+        const response = await fetch(`http://localhost:3000/api/engagement/badges?sessionId=${sessionId}`);
+        if (!response.ok) {
+            return [];
+        }
+        return await response.json();
     }
 }

@@ -154,7 +154,6 @@ export class EngagementService {
       const weeklyKing = await this.getWeeklyKing();
       const isWeeklyKing = weeklyKing?.userId === userId;
 
-      // On-the-fly rank calculation
       const rank = await this.calculateRank(xp);
 
       return {
@@ -302,5 +301,23 @@ export class EngagementService {
           where: { userId },
           orderBy: { createdAt: 'desc' }
       });
+  }
+
+  async getEarnedBadgesForSession(userId: string, sessionId: string) {
+      // In a real app, this would check if any new badges were unlocked during this session.
+      // For now, we mock some badges if the user did well in the session.
+      const participant = await this.prisma.quizParticipant.findUnique({
+          where: { userId_sessionId: { userId, sessionId } }
+      });
+
+      const badges = [];
+      if (participant && participant.score >= 50) {
+          badges.push({ id: 'fast-learner', name: 'Fast Learner' });
+      }
+      if (participant && participant.streak >= 5) {
+          badges.push({ id: 'streak-master', name: 'Streak Master' });
+      }
+
+      return badges;
   }
 }
