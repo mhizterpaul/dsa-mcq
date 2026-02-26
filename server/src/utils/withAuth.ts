@@ -21,28 +21,7 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       return res.status(401).json({ message: 'Unauthorized: Token not provided' });
     }
 
-    let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-    } catch (error) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    try {
-<<<<<<< HEAD
-      const { user, sessionId } = decoded;
-
-      if (!user || !user.id || !sessionId) {
-        return res.status(401).json({ message: 'Invalid token payload' });
-      }
-
-      const session = await prisma.session.findFirst({
-        where: { id: sessionId, userId: user.id },
-        include: { user: true },
-      });
-
-      if (!session || !session.user) {
-=======
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
 
       // Enforce payload structure
@@ -53,13 +32,12 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       const { user: tokenUser, sessionId } = decoded;
 
       // Re-fetch session AND user from DB to ensure they are still valid and have correct roles
-      const session = await prisma.session.findUnique({
-        where: { id: sessionId },
+      const session = await prisma.session.findFirst({
+        where: { id: sessionId, userId: tokenUser.id },
         include: { user: true }
       });
 
-      if (!session || session.userId !== tokenUser.id) {
->>>>>>> analytics-dashboard-v2-5051008972193503984
+      if (!session) {
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
@@ -77,6 +55,12 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
 
       return handler(authenticatedReq, res);
     } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+          return res.status(401).json({ message: 'Token expired' });
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+          return res.status(401).json({ message: 'Invalid token' });
+      }
       return res.status(500).json({ message: 'Internal Server Error' });
     }
   };

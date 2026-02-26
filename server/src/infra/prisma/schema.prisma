@@ -10,6 +10,7 @@ datasource db {
 model Category { 
     id String @id @default(uuid()) 
     name String @unique 
+    featured Boolean @default(false)
     questions Question[] 
 }
 model DevOpsMetric {

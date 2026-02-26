@@ -334,4 +334,18 @@ export class EngagementService {
 
       return badges;
   }
+  async resetMonthlyXP() {
+    return this.prisma.user.updateMany({
+      data: { xp_monthly: 0 },
+    });
+  }
+
+  async getAverageUserPerformance(): Promise<number> {
+    const aggregate = await this.prisma.engagement.aggregate({
+      _avg: {
+        xp: true,
+      },
+    });
+    return aggregate._avg.xp || 0;
+  }
 }

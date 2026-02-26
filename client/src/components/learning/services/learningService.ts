@@ -16,10 +16,11 @@ export interface SM2Data {
 }
 
 /**
- * Represents the updated SM-2 data, including the last reviewed timestamp.
+ * Represents the updated SM-2 data, including timestamps for tracking.
  */
 export interface UpdatedSM2Data extends SM2Data {
   lastReviewedTimestamp: number;
+  nextDueTimestamp: number;
 }
 
 /**
@@ -51,7 +52,7 @@ const updateSM2Data = (
   // 2. Update Repetition Count and Interval
   if (quality < 3) {
     repetitionCount = 0;
-    interval = 0; // Due immediately
+    interval = 1; // Due tomorrow rather than instantly
   } else {
     repetitionCount += 1;
     if (repetitionCount === 1) {
@@ -63,11 +64,15 @@ const updateSM2Data = (
     }
   }
 
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
   return {
     repetitionCount: repetitionCount,
     easinessFactor: newEasinessFactor,
     interval: interval,
-    lastReviewedTimestamp: Date.now(),
+    lastReviewedTimestamp: now,
+    nextDueTimestamp: now + interval * DAY_MS,
   };
 };
 
@@ -93,13 +98,35 @@ const getTopKQuestionRecommendations = (
   userQuestionData: UserQuestionData[],
   k: number,
   beta: number = 1.0,
+  epsilon: number = 0.1,
 ): QuestionRecommendation[] => {
   const uqdMap = new Map(userQuestionData.map(u => [u.questionId, u]));
+  const now = Date.now();
 
   const recommendations = allQuestionIds.map((id) => {
     const uqd = uqdMap.get(id);
+
+    // Weighted scoring model
+    // 1. Due status (priority)
+    const isDue = !uqd || !uqd.sm2.nextDueTimestamp || uqd.sm2.nextDueTimestamp <= now;
+    const dueScore = isDue ? 1.0 : 0.0;
+
+    // 2. Mastery Score (inverse priority)
     const masteryScore = uqd ? uqd.recallStrength : 0;
-    const recommendationScore = Math.exp(-beta * masteryScore);
+
+    // 3. Uncertainty (fewer attempts means higher uncertainty)
+    const uncertaintyScore = 1 / (1 + (uqd?.totalAttempts || 0));
+
+    // Exploration: Epsilon-greedy
+    if (Math.random() < epsilon) {
+        return { questionId: id, recommendationScore: Math.random() * 2 }; // Random boost
+    }
+
+    const recommendationScore =
+        0.6 * dueScore +
+        0.3 * (1 - masteryScore) +
+        0.1 * uncertaintyScore;
+
     return {
       questionId: id,
       recommendationScore,
@@ -119,14 +146,26 @@ export interface CategoryRecommendation {
 
 const getCategoryRecommendations = (
   categories: Category[],
-  userQuestionData: UserQuestionData[]
+  userQuestionData: UserQuestionData[],
+  questions: Question[]
 ): CategoryRecommendation[] => {
-  // Group UQD by category
-  // This is a bit simplified as UQD doesn't store category
-  // In a real app we'd join with questions
+  const questionCategoryMap = new Map<string, string>(
+    questions.map(q => [String(q.id), q.category])
+  );
+
+  const categoryBuckets = new Map<string, UserQuestionData[]>();
+  for (const uqd of userQuestionData) {
+    const categoryId = questionCategoryMap.get(uqd.questionId);
+    if (categoryId) {
+        if (!categoryBuckets.has(categoryId)) {
+            categoryBuckets.set(categoryId, []);
+        }
+        categoryBuckets.get(categoryId)!.push(uqd);
+    }
+  }
+
   return categories.map(category => {
-    // For now let's just assume we can find them or use dummy logic
-    const categoryQuestions = userQuestionData; // Simplified
+    const categoryQuestions = categoryBuckets.get(category.id) || [];
 
     const avgMastery = categoryQuestions.length > 0
         ? categoryQuestions.reduce((acc, uqd) => acc + uqd.recallStrength, 0) / categoryQuestions.length
@@ -170,7 +209,17 @@ const getTopKQuestionsForSession = (
   excludeIds: string[] = []
 ): string[] => {
   const filteredIds = allQuestionIds.filter(id => !excludeIds.includes(id));
-  const pool = filteredIds.length >= k ? filteredIds : allQuestionIds;
+
+  const uqdMap = new Map(userQuestionData.map(u => [u.questionId, u]));
+  const now = Date.now();
+
+  // Prioritize due questions
+  const dueIds = filteredIds.filter(id => {
+    const uqd = uqdMap.get(id);
+    return !uqd || !uqd.sm2.nextDueTimestamp || uqd.sm2.nextDueTimestamp <= now;
+  });
+
+  const pool = dueIds.length >= k ? dueIds : filteredIds;
   const recommendations = getTopKQuestionRecommendations(pool, userQuestionData, k, beta);
   return recommendations.map(r => r.questionId);
 };
@@ -181,7 +230,8 @@ const startNewSession = (
   userQuestionData: UserQuestionData[],
   subsetSize: number
 ): LearningSession => {
-  const newSession = new LearningSession('session1', userId, allQuestionIds);
+  const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
+  const newSession = new LearningSession(sessionId, userId, allQuestionIds);
   const nextSubset = getTopKQuestionsForSession(allQuestionIds, userQuestionData, subsetSize);
   newSession.questionIds = nextSubset;
   newSession.subsetHistory.push(nextSubset);
@@ -194,7 +244,18 @@ const processAnswer = (
   quality: number,
   techniqueIds: string[] = [],
 ): UserQuestionData => {
-  const updatedUqd = Object.assign(new UserQuestionData(uqd.userId, uqd.questionId), uqd);
+  // Invariant: correctness and quality must align
+  if (!isCorrect && quality >= 3) {
+      throw new Error("Invalid state: incorrect answers must have quality < 3");
+  }
+
+  // Use structuredClone to avoid mutation risks (shallow copy was risky)
+  const updatedUqd = typeof structuredClone !== 'undefined'
+    ? structuredClone(uqd) as UserQuestionData
+    : JSON.parse(JSON.stringify(uqd)) as UserQuestionData;
+
+  // Re-prototype if necessary as structuredClone might strip methods depending on environment
+  Object.setPrototypeOf(updatedUqd, UserQuestionData.prototype);
 
   if (isCorrect) {
     updatedUqd.updateRecallOnCorrectAnswer(techniqueIds);
@@ -228,25 +289,42 @@ const compileSessionSummary = (
 export const API_BASE_URL = 'http://localhost:3000/api';
 
 const getFeaturedCategories = async (): Promise<Category[]> => {
-    const response = await fetch(`${API_BASE_URL}/learning/featured-categories`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch featured categories');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/learning/featured-categories`, {
+            signal: controller.signal
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch featured categories: ${response.statusText}`);
+        }
+        return await response.json();
+    } finally {
+        clearTimeout(timeoutId);
     }
-    return await response.json();
 };
 
 const getQuestionsByIds = async (ids: number[]): Promise<Question[]> => {
-    const response = await fetch(`${API_BASE_URL}/learning/questions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ids }),
-    });
-    if (!response.ok) {
-        throw new Error('Failed to fetch questions by IDs');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/learning/questions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ids, revealAnswers: true }),
+            signal: controller.signal
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch questions by IDs: ${response.statusText}`);
+        }
+        return await response.json();
+    } finally {
+        clearTimeout(timeoutId);
     }
-    return await response.json();
 };
 
 export const learningService = {

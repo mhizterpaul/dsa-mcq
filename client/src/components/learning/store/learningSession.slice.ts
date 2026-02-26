@@ -177,8 +177,10 @@ export const generateRecommendations = createAsyncThunk(
 
     const allQuestionIds = Array.from({ length: 20 }, (_, i) => String(i + 1)); // This should ideally come from a questions slice
     const categories = Object.values(learningState.categories?.entities || {}).filter(Boolean);
+    const questions = Object.values(learningState.questions?.entities || {}).filter(Boolean) as any[];
+
     const questionRecommendations = learningService.getTopKQuestionRecommendations(allQuestionIds, userQuestionData, 3);
-    const categoryRecommendations = learningService.getCategoryRecommendations(categories as any[], userQuestionData);
+    const categoryRecommendations = learningService.getCategoryRecommendations(categories as any[], userQuestionData, questions);
     return {
       questions: questionRecommendations,
       categories: categoryRecommendations,
