@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = 'test-secret';
 process.env.JWT_SECRET = JWT_SECRET;
 
-const createToken = (user: any, options = {}) => jwt.sign({ user }, JWT_SECRET, options);
+const createToken = (user: any, sessionId: string, options = {}) => jwt.sign({ user, sessionId }, JWT_SECRET, options);
 
 const userA = { id: 'user-a', name: 'Alice', email: 'alice@example.com', image: 'avatar-a' };
 const userB = { id: 'user-b', name: 'Bob', email: 'bob@example.com', image: 'avatar-b' };
@@ -20,6 +20,21 @@ const userC = { id: 'user-c', name: 'Charlie', email: 'charlie@example.com', ima
 const leaderboardA = { userId: 'user-a', rank: 10, xp: 1000, userHighestBadge: 'gold' };
 const leaderboardB = { userId: 'user-b', rank: 15, xp: 1200, userHighestBadge: 'gold' };
 const leaderboardC = { userId: 'user-c', rank: 100, xp: 5000, userHighestBadge: 'bronze' };
+
+async function createTestSession(user: any) {
+    const sessionId = `sess-${user.id}`;
+    await prisma.session.upsert({
+        where: { id: sessionId },
+        update: { expires: new Date(Date.now() + 3600000) },
+        create: {
+            id: sessionId,
+            userId: user.id,
+            sessionToken: `token-${user.id}-${Math.random()}`,
+            expires: new Date(Date.now() + 3600000)
+        }
+    });
+    return sessionId;
+}
 
 describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     beforeEach(async () => {
@@ -31,6 +46,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
         await prisma.userQuestionData.deleteMany();
         await prisma.engagement.deleteMany();
         await prisma.leaderboard.deleteMany();
+        await prisma.session.deleteMany();
         await prisma.user.deleteMany();
         await prisma.question.deleteMany();
         await prisma.category.deleteMany();
@@ -54,7 +70,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
         });
 
         test('rejects expired tokens', async () => {
-            const expiredToken = createToken(userA, { expiresIn: '-1s' });
+            const expiredToken = createToken(userA, 'some-sess', { expiresIn: '-1s' });
             const { req, res } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${expiredToken}` }
@@ -69,7 +85,8 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             await prisma.user.createMany({ data: [userA, userB, userC] });
             await prisma.leaderboard.createMany({ data: [leaderboardA, leaderboardB, leaderboardC] });
 
-            const tokenA = createToken(userA);
+            const sessA = await createTestSession(userA);
+            const tokenA = createToken(userA, sessA);
             const { req: reqA, res: resA } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
@@ -78,7 +95,8 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(resA._getStatusCode()).toBe(200);
             const dataA = JSON.parse(resA._getData());
 
-            const tokenB = createToken(userB);
+            const sessB = await createTestSession(userB);
+            const tokenB = createToken(userB, sessB);
             const { req: reqB, res: resB } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
@@ -89,7 +107,8 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
             expect(dataB.id).toBe(dataA.id);
 
-            const tokenC = createToken(userC);
+            const sessC = await createTestSession(userC);
+            const tokenC = createToken(userC, sessC);
             const { req: reqC, res: resC } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenC}` }
@@ -103,7 +122,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
         test('findOrCreateParticipant enforces capacity limits atomically', async () => {
             process.env.SIMULATE_CONCURRENCY = 'true';
-            await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4' }, { id: 'u5' }, { id: 'u6' }] });
+            await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4', email: 'u4@t.com' }, { id: 'u5', email: 'u5@t.com' }, { id: 'u6', email: 'u6@t.com' }] });
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const session = await prisma.quizSession.create({
@@ -154,9 +173,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 data: { userId: userA.id, sessionId: session.id }
             });
 
+            const sessId = await createTestSession(userA);
             const { req, res } = createMocks({
                 method: 'POST',
-                headers: { authorization: `Bearer ${createToken(userA)}` },
+                headers: { authorization: `Bearer ${createToken(userA, sessId)}` },
                 body: { questionId: 1, answer: 'A' }
             });
 
@@ -181,10 +201,11 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 data: { userId: userA.id, sessionId: session.id }
             });
 
+            const sessId = await createTestSession(userA);
             const answer = async () => {
                 const { req, res } = createMocks({
                     method: 'POST',
-                    headers: { authorization: `Bearer ${createToken(userA)}` },
+                    headers: { authorization: `Bearer ${createToken(userA, sessId)}` },
                     body: { questionId: 1, answer: 'A' }
                 });
                 await answerHandler(req, res);
@@ -215,9 +236,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 ]
             });
 
+            const sessId = await createTestSession(userA);
             const { req, res } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${createToken(userA)}` }
+                headers: { authorization: `Bearer ${createToken(userA, sessId)}` }
             });
 
             await resultsHandler(req, res);
@@ -247,32 +269,36 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 { userId: userC.id, rank: 1000, xp: 10000, userHighestBadge: 'bronze' },
             ] });
 
+            const sessA = await createTestSession(userA);
+            const sessB = await createTestSession(userB);
+            const sessC = await createTestSession(userC);
+
             // User A joins and creates participant (creates s1)
             const resInitA = createMocks().res;
-            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req, resInitA);
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA, sessA)}` } }).req, resInitA);
             const s1Id = JSON.parse(resInitA._getData()).id;
 
             // User A opens SSE
             const resA = createMocks().res;
             resA.write = jest.fn();
-            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req, resA);
+            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA, sessA)}` } }).req, resA);
 
             // User C joins and creates participant (creates s2)
             const resInitC = createMocks().res;
-            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC)}` } }).req, resInitC);
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC, sessC)}` } }).req, resInitC);
             const s2Id = JSON.parse(resInitC._getData()).id;
 
             // User C opens SSE
             const resC = createMocks().res;
             resC.write = jest.fn();
-            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC)}` } }).req, resC);
+            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userC, sessC)}` } }).req, resC);
 
             expect(s1Id).not.toBe(s2Id);
 
             // User B joins Session 1
             await sessionsHandler(createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${createToken(userB)}` }
+                headers: { authorization: `Bearer ${createToken(userB, sessB)}` }
             }).req, createMocks().res);
 
             // User A should get update, User C should NOT
@@ -289,6 +315,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             for (let i = 0; i < 10; i++) {
+                // All sessions for TODAY
                 const s = await prisma.quizSession.create({ data: { id: `full-${i}`, date: today, startTime: new Date() } });
                 for (let j = 0; j < 5; j++) {
                     await prisma.user.create({ data: { id: `u-${i}-${j}`, email: `u-${i}-${j}@x.com` }});
@@ -296,9 +323,12 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 }
             }
 
+            const sessA = await createTestSession(userA);
+            const sessB = await createTestSession(userB);
+
             const resEv = createMocks().res;
             resEv.write = jest.fn();
-            const reqEv = createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA)}` } }).req;
+            const reqEv = createMocks({ method: 'GET', headers: { authorization: `Bearer ${createToken(userA, sessA)}` } }).req;
             await eventsHandler(reqEv, resEv);
 
             expect(resEv.write).toHaveBeenCalledWith(expect.stringContaining('"type":"waiting"'));
@@ -308,7 +338,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
             const { req: reqS, res: resS } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${createToken(userB)}` }
+                headers: { authorization: `Bearer ${createToken(userB, sessB)}` }
             });
             await sessionsHandler(reqS, resS);
 

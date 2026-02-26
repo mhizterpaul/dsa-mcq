@@ -33,12 +33,13 @@ const createDataWrapper = (
           await sqliteService.init();
 
           const dispatch = store.dispatch as typeof store.dispatch;
+          const getState = store.getState as typeof store.getState;
           for (const actionCreator of actions) {
             await dispatch(actionCreator());
           }
 
           console.log(`[HOC] ${domainName} state hydrated.`);
-          syncService.performSync();
+          syncService.performSync(dispatch, getState);
 
         } catch (error) {
           console.error(`[HOC] Failed to initialize ${domainName} data:`, error);

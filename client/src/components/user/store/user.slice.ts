@@ -15,12 +15,16 @@ export interface UserObject {
 
 interface UserState {
   currentUser: UserObject | null;
+  token: string | null;
+  syncKey: string | null;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: UserState = {
   currentUser: null,
+  token: null,
+  syncKey: null,
   loading: false,
   error: null,
 };
@@ -30,6 +34,7 @@ const API_BASE_URL = 'http://localhost:3000/api';
 export interface AuthResponse {
   token: string;
   user: UserObject;
+  syncKey: string;
 }
 
 // -------------------- Async Thunks --------------------
@@ -112,9 +117,10 @@ export const loginWithTwitter = createAsyncThunk<
     const decodedUrl = decodeURIComponent(url);
     const params = new URLSearchParams(decodedUrl.split('?')[1]);
     const token = params.get('token');
+    const syncKey = params.get('syncKey');
     const user = JSON.parse(params.get('user') || '{}');
 
-    if (!token || !user) {
+    if (!token || !user || !syncKey) {
       throw new Error('Invalid Twitter login data');
     }
 
@@ -123,7 +129,7 @@ export const loginWithTwitter = createAsyncThunk<
       user.fullName = user.name;
     }
 
-    return { token, user };
+    return { token, user, syncKey };
   } catch (err: any) {
     return rejectWithValue(err.message || 'Twitter login failed');
   }
@@ -272,6 +278,12 @@ const userSlice = createSlice({
     setCurrentUser: (state, action: PayloadAction<UserObject>) => {
       state.currentUser = action.payload;
     },
+    setToken: (state, action: PayloadAction<string>) => {
+        state.token = action.payload;
+    },
+    setSyncKey: (state, action: PayloadAction<string>) => {
+        state.syncKey = action.payload;
+    },
     clearAuthError: (state) => {
       state.error = null;
     },
@@ -291,7 +303,8 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.currentUser = action.payload.user;
-      // ⚠️ persist token securely if needed
+      state.token = action.payload.token;
+      state.syncKey = action.payload.syncKey;
     };
 
     builder
@@ -334,6 +347,8 @@ const userSlice = createSlice({
         state.loading = false;
         state.error = null;
         state.currentUser = null;
+        state.token = null;
+        state.syncKey = null;
       })
       .addCase(logoutUser.rejected, setError)
 
@@ -361,5 +376,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { setCurrentUser, clearAuthError } = userSlice.actions;
+export const { setCurrentUser, setToken, setSyncKey, clearAuthError } = userSlice.actions;
 export default userSlice.reducer;

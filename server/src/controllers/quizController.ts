@@ -53,12 +53,7 @@ export class QuizService {
         if (existing) return existing;
     }
 
-    const sessions = await this.prisma.quizSession.findMany({
-      where: {
-        date: today,
-        endTime: null,
-      },
-      include: {
+    const sessionIncludes = {
         participants: {
           include: {
             user: {
@@ -69,7 +64,14 @@ export class QuizService {
             },
           },
         },
+    };
+
+    const sessions = await this.prisma.quizSession.findMany({
+      where: {
+        date: today,
+        endTime: null,
       },
+      include: sessionIncludes,
     });
 
     if (user) {
@@ -95,21 +97,25 @@ export class QuizService {
        return null;
     }
 
-    // Use transaction to ensure session creation doesn't double up unexpectedly
-    // though here we're more concerned with participant capacity.
-    const newSession = await this.prisma.quizSession.create({
-      data: {
-        date: today,
-        startTime: new Date(),
-      },
-      include: {
-        participants: true
-      }
-    });
-
-    this.notifyWaitingUsers();
-
-    return newSession;
+    try {
+        const newSession = await this.prisma.quizSession.create({
+          data: {
+            date: today,
+            startTime: new Date(),
+          },
+          include: sessionIncludes
+        });
+        this.notifyWaitingUsers();
+        return newSession;
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return this.prisma.quizSession.findUnique({
+                where: { date: today },
+                include: sessionIncludes
+            });
+        }
+        throw error;
+    }
   }
 
   private isSimilar(l1: any, l2: any) {
@@ -162,9 +168,6 @@ export class QuizService {
             },
         });
 
-        // Broadcasting should happen after transaction success, but we can't easily do that inside $transaction's return
-        // without a separate step. In a real system we might use an outbox or post-commit hook.
-        // For now, we'll return it and the caller or a subsequent step can handle broadcast.
         return participant;
     }).then(async (participant) => {
         this.broadcastToSession(session.id, {

@@ -1,6 +1,7 @@
 import { PrismaClient, User } from '@prisma/client';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 
 export class AuthService {
   private prisma: PrismaClient;
@@ -25,11 +26,12 @@ export class AuthService {
         userAgent: data.userAgent || '',
         sessionToken: Math.random().toString(36).substring(7),
         expires: new Date(Date.now() + 3600000),
+        syncKey: uuidv4(),
       },
     });
 
     const token = this.generateToken(user, session.id);
-    return { user, token };
+    return { user, token, syncKey: session.syncKey };
   }
 
   async login(email: string, password: string, userAgent: string = '') {
@@ -49,11 +51,12 @@ export class AuthService {
         userAgent,
         sessionToken: Math.random().toString(36).substring(7),
         expires: new Date(Date.now() + 3600000),
+        syncKey: uuidv4(),
       },
     });
 
     const token = this.generateToken(user, session.id);
-    return { user, token };
+    return { user, token, syncKey: session.syncKey };
   }
 
   async logout(sessionId: string) {

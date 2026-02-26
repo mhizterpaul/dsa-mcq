@@ -25,6 +25,7 @@ model User {
   password          String?
   role              String    @default("USER")
   createdAt         DateTime  @default(now())
+  isSyncing         Boolean   @default(false)
   accounts          Account[]
   sessions          Session[]
   engagement        Engagement?
@@ -43,6 +44,8 @@ model Session {
   userId       String
   expires      DateTime
   userAgent    String?
+  syncKey      String?
+  lastSyncedAt DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

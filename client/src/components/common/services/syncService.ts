@@ -1,9 +1,5 @@
 import { sqliteService } from './sqliteService';
-import { AppDispatch } from '../../mediator/store';
-// Import all the actions needed to update the store
-import { setCategories } from '../../learning/store/category.slice';
-import { setWeeklyKingOfQuiz, setLeaderboard } from '../../engagement/store/globalEngagement.slice';
-// ... import other actions as needed
+import CryptoJS from 'crypto-js';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 const SYNC_ENDPOINT = `${API_BASE_URL}/sync`;
@@ -19,9 +15,18 @@ const TABLES_TO_SYNC = [
 class SyncService {
   private isSyncing = false;
 
-  public async performSync(dispatch: AppDispatch): Promise<void> {
+  public async performSync(dispatch: any, getState: () => any): Promise<void> {
     if (this.isSyncing) {
       console.log('[SyncService] Sync already in progress. Skipping.');
+      return;
+    }
+
+    const state = getState();
+    const token = state.user.token;
+    const syncKey = state.user.syncKey;
+
+    if (!token || !syncKey) {
+      console.log('[SyncService] No authenticated session found. Skipping sync.');
       return;
     }
 
@@ -42,12 +47,24 @@ class SyncService {
         }
       }
 
-      // 2. Send dirty data to the server and get the merged data back
+      // 2. Sign and send dirty data to the server
+      const body = JSON.stringify(dirtyData);
+      const signature = CryptoJS.HmacSHA256(body, syncKey).toString();
+
       const response = await fetch(SYNC_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dirtyData),
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'x-client-signature': signature
+        },
+        body: body,
       });
+
+      if (response.status === 409) {
+          console.log('[SyncService] Server is currently syncing this user. Will retry later.');
+          return;
+      }
 
       if (!response.ok) {
         throw new Error(`Server responded with status ${response.status}`);
@@ -59,29 +76,27 @@ class SyncService {
       // 3. Update local DB with the server's version of the truth
       for (const tableName in syncedData) {
         const serverRecords = syncedData[tableName];
-        // This is a simplification. A real implementation would be more careful
-        // about deleting records that no longer exist on the server.
-        // For now, we just insert/update.
         for (const record of serverRecords) {
             // All records from server are considered "clean"
             record.is_dirty = 0;
-            // Upsert logic (simplified)
+
+            // Convert server column names if necessary (e.g., camelCase to snake_case if DB expects it)
+            // Assuming DB matches server model for now as per sqliteService.ts
+
+            const columns = Object.keys(record);
+            const placeholders = columns.map(() => '?').join(',');
+            const values = Object.values(record);
+
             await sqliteService.runQuery(
-                `INSERT OR REPLACE INTO ${tableName} (${Object.keys(record).join(',')}) VALUES (${Object.keys(record).map(() => '?').join(',')})`,
-                Object.values(record)
+                `INSERT OR REPLACE INTO ${tableName} (${columns.join(',')}) VALUES (${placeholders})`,
+                values
             );
         }
       }
 
-      // 4. Dispatch actions to update the Redux store with the new, synced data
-      // This is a simplified example. A real implementation would be more generic.
-      if (syncedData.categories) {
-        dispatch(setCategories(syncedData.categories));
-      }
-      if (syncedData.user_engagement) {
-        // Dispatch actions to update user engagement slices
-      }
-      // ... and so on for other tables
+      // 4. Update the Redux store
+      // This part depends on how you want to notify slices about new data.
+      // One way is to dispatch a global "syncCompleted" action that slices can listen to.
 
       console.log('[SyncService] Sync completed successfully.');
     } catch (error) {

@@ -11,6 +11,8 @@ model Category {
     id String @id @default(uuid()) 
     name String @unique 
     questions Question[] 
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
 model DevOpsMetric {
   id        String   @id @default(cuid())
@@ -93,16 +95,16 @@ model Question {
   categoryId            String
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
-  tagsText              String
+  tagsText              String          @default("")
   successRate           Float           @default(0)
   totalSubmissions      Int             @default(0)
   totalAccepted         Int             @default(0)
-  companyTags           String
+  companyTags           String          @default("")
   likes                 Int             @default(0)
   dislikes              Int             @default(0)
-  hints                 String
-  similarQuestionIds    String
-  similarQuestionsText  String
+  hints                 String          @default("")
+  similarQuestionIds    String          @default("")
+  similarQuestionsText  String          @default("")
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   quizQuestions       QuizQuestion[]
@@ -119,13 +121,15 @@ model Question {
 }
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime @unique
+  date        DateTime
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]
   questions   QuizQuestion[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([date])
 }
 
 model QuizParticipant {
@@ -194,6 +198,7 @@ model User {
   password          String?
   role              String    @default("USER")
   createdAt         DateTime  @default(now())
+  isSyncing         Boolean   @default(false)
   accounts          Account[]
   sessions          Session[]
   engagement        Engagement?
@@ -212,6 +217,8 @@ model Session {
   userId       String
   expires      DateTime
   userAgent    String?
+  syncKey      String?
+  lastSyncedAt DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

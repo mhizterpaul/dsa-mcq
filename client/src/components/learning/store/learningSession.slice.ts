@@ -6,6 +6,7 @@ import { UserQuestionData } from './primitives/UserQuestionData';
 import { setUserQuestionDataDb } from './userQuestionData.slice';
 import { sqliteService } from '../../common/services/sqliteService';
 import { fetchBatchFeedback } from './question.slice';
+import { syncService } from '../../common/services/syncService';
 
 
 // --- STATE AND INITIAL STATE ---
@@ -49,12 +50,18 @@ const parseSession = (dbSession: any): LearningSession => {
 
 // --- ASYNC THUNKS ---
 
-export const hydrateLearningSession = createAsyncThunk<any | null>(
+export const hydrateLearningSession = createAsyncThunk<any | null, void, { state: any }>(
   'learningSession/hydrate',
-  async () => {
+  async (_, thunkAPI) => {
 
     const sessions = await sqliteService.getAll('learning_sessions');
-    if (sessions.length > 0) return JSON.parse(JSON.stringify(parseSession(sessions[sessions.length - 1])));
+
+    await syncService.performSync(thunkAPI.dispatch, thunkAPI.getState);
+
+    // Re-fetch after sync
+    const syncedSessions = await sqliteService.getAll('learning_sessions');
+
+    if (syncedSessions.length > 0) return JSON.parse(JSON.stringify(parseSession(syncedSessions[syncedSessions.length - 1])));
 
     return null;
   },

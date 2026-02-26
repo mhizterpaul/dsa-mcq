@@ -18,11 +18,11 @@ export class EngagementService {
     });
   }
 
-<<<<<<< HEAD
   async getLeaderboard() {
     return this.prisma.user.findMany({
-      orderBy: { xp: 'desc' },
+      orderBy: { engagement: { xp: 'desc' } },
       take: 10,
+      include: { engagement: true }
     });
   }
 
@@ -33,28 +33,30 @@ export class EngagementService {
 
   async getWeeklyKing() {
     return this.prisma.user.findFirst({
-      orderBy: { xp_weekly: 'desc' },
+      orderBy: { engagement: { xp_weekly: 'desc' } },
+      include: { engagement: true }
     });
   }
 
   async updateUserXP(userId: string, xp: number) {
-    return this.prisma.user.update({
-      where: { id: userId },
+    return this.prisma.engagement.update({
+      where: { userId: userId },
       data: { xp: { increment: xp } },
     });
   }
 
   async resetWeeklyXP() {
-    return this.prisma.user.updateMany({
+    return this.prisma.engagement.updateMany({
       data: { xp_weekly: 0 },
     });
   }
 
   async resetMonthlyXP() {
-    return this.prisma.user.updateMany({
+    return this.prisma.engagement.updateMany({
       data: { xp_monthly: 0 },
     });
-=======
+  }
+
   async getAverageUserPerformance(): Promise<number> {
     const aggregate = await this.prisma.engagement.aggregate({
       _avg: {
@@ -62,6 +64,5 @@ export class EngagementService {
       },
     });
     return aggregate._avg.xp || 0;
->>>>>>> analytics-dashboard-v2-5051008972193503984
   }
 }

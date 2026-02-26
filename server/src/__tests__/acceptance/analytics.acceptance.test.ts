@@ -1,4 +1,3 @@
-process.env.DATABASE_URL = "file:./test.db";
 process.env.JWT_SECRET = "test-secret";
 
 import { createMocks } from 'node-mocks-http';
@@ -26,7 +25,7 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
     test('should return precise metrics and enforce admin access', async () => {
       // 1. Seed data
       const admin = await prisma.user.create({
-        data: { email: 'admin@test.com', name: 'Admin', role: 'admin' } as any
+        data: { email: 'admin@test.com', name: 'Admin', role: 'admin' }
       });
 
       const tenMinsAgo = new Date(fixedDate.getTime() - 10 * 60 * 1000); // 11:50
@@ -79,7 +78,7 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
 
     test('should reject expired sessions in DB', async () => {
         const admin = await prisma.user.create({
-            data: { email: 'expired@test.com', name: 'Admin', role: 'admin' } as any
+            data: { email: 'expired@test.com', name: 'Admin', role: 'admin' }
         });
         const token = jwt.sign({ user: { id: admin.id }, sessionId: 'expired-session' }, process.env.JWT_SECRET!);
 
@@ -105,7 +104,7 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
 
     test('should reject adversarial token with wrong userId', async () => {
         const admin = await prisma.user.create({
-            data: { email: 'admin2@test.com', role: 'admin' } as any
+            data: { email: 'admin2@test.com', role: 'admin' }
         });
         // Token claims to be admin, but userId in payload doesn't match session
         const token = jwt.sign({ user: { id: 'WRONG-ID' }, sessionId: 'admin-session-2' }, process.env.JWT_SECRET!);
@@ -137,7 +136,7 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
         data: [
           // Previous period (Day -60 to Day -30): 2 users
           { email: 'p1@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
-          { email: 'p2@t.com', createdAt: new Date(fixedDate.getTime() - 40 * 24 * 60 * 60 * 1000) },
+          { email: 'p2@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
           // Current period (Day -30 to Now): 3 users
           { email: 'c1@t.com', createdAt: new Date(fixedDate.getTime() - 5 * 24 * 60 * 60 * 1000) },
           { email: 'c2@t.com', createdAt: new Date(fixedDate.getTime() - 10 * 24 * 60 * 60 * 1000) },
@@ -155,10 +154,10 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
         data: [
           // Previous: 5
           { email: 'p1@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
-          { email: 'p2@t.com', createdAt: new Date(fixedDate.getTime() - 40 * 24 * 60 * 60 * 1000) },
-          { email: 'p3@t.com', createdAt: new Date(fixedDate.getTime() - 40 * 24 * 60 * 60 * 1000) },
-          { email: 'p4@t.com', createdAt: new Date(fixedDate.getTime() - 40 * 24 * 60 * 60 * 1000) },
-          { email: 'p5@t.com', createdAt: new Date(fixedDate.getTime() - 40 * 24 * 60 * 60 * 1000) },
+          { email: 'p2@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
+          { email: 'p3@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
+          { email: 'p4@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
+          { email: 'p5@t.com', createdAt: new Date(fixedDate.getTime() - 45 * 24 * 60 * 60 * 1000) },
           // Current: 2
           { email: 'c1@t.com', createdAt: new Date(fixedDate.getTime() - 5 * 24 * 60 * 60 * 1000) },
           { email: 'c2@t.com', createdAt: new Date(fixedDate.getTime() - 10 * 24 * 60 * 60 * 1000) },
@@ -235,7 +234,7 @@ describe('Analytics Acceptance Tests (Rigorous & Real DB)', () => {
 
   describe('Service Logic: EngagementService', () => {
     test('should calculate average performance correctly across multiple users', async () => {
-      await prisma.user.createMany({ data: [{ id: 'u1' }, { id: 'u2' }] });
+      await prisma.user.createMany({ data: [{ id: 'u1', email: 'u1@t.com' }, { id: 'u2', email: 'u2@t.com' }] });
       await prisma.engagement.createMany({
         data: [
           { userId: 'u1', xp: 500 },

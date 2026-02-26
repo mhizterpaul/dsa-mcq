@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 export type AuthenticatedRequest = NextApiRequest & {
   user: any;
   sessionId: string;
+  syncKey?: string;
 };
 
 export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => void | Promise<void>) {
@@ -21,28 +22,7 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       return res.status(401).json({ message: 'Unauthorized: Token not provided' });
     }
 
-    let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-    } catch (error) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    try {
-<<<<<<< HEAD
-      const { user, sessionId } = decoded;
-
-      if (!user || !user.id || !sessionId) {
-        return res.status(401).json({ message: 'Invalid token payload' });
-      }
-
-      const session = await prisma.session.findFirst({
-        where: { id: sessionId, userId: user.id },
-        include: { user: true },
-      });
-
-      if (!session || !session.user) {
-=======
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
 
       // Enforce payload structure
@@ -59,7 +39,6 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       });
 
       if (!session || session.userId !== tokenUser.id) {
->>>>>>> analytics-dashboard-v2-5051008972193503984
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
@@ -74,10 +53,11 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = session.user;
       authenticatedReq.sessionId = sessionId;
+      authenticatedReq.syncKey = session.syncKey || undefined;
 
       return handler(authenticatedReq, res);
     } catch (error) {
-      return res.status(500).json({ message: 'Internal Server Error' });
+      return res.status(401).json({ message: 'Invalid token' });
     }
   };
 }

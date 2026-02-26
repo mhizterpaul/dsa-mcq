@@ -20,10 +20,7 @@ yarn-error.log
 
 # next.js
 .next/
-<<<<<<< HEAD
-=======
 
 # SQLite
->>>>>>> analytics-dashboard-v2-5051008972193503984
 *.db
 *.db-journal
