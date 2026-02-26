@@ -108,6 +108,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
         test('findOrCreateParticipant enforces capacity limits atomically', async () => {
             process.env.SIMULATE_CONCURRENCY = 'true';
+            process.env.USE_REAL_DB = 'true';
             await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4' }, { id: 'u5' }, { id: 'u6' }] });
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -138,6 +139,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(rejected).toHaveLength(1);
             expect((rejected[0] as any).reason.message).toContain('Session is full');
             delete process.env.SIMULATE_CONCURRENCY;
+            delete process.env.USE_REAL_DB;
         });
     });
 

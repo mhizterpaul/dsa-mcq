@@ -8,6 +8,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === 'GET') {
     const { categoryId, difficulty } = req.query;
+    if (difficulty && !['easy', 'medium', 'hard'].includes((difficulty as string).toLowerCase())) {
+        return res.status(400).json({ message: 'Invalid difficulty' });
+    }
     const questions = await quizService.getQuestions(
       categoryId as string,
       difficulty as string

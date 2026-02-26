@@ -1,5 +1,5 @@
 import { createMocks } from 'node-mocks-http';
-import meHandler from '../../pages/api/me';
+import meHandler from '../../pages/api/user/me';
 import syncHandler from '../../pages/api/sync';
 import questionsHandler from '../../pages/api/learning/questions';
 import devopsHandler from '../../pages/api/analytics/devops';
@@ -7,10 +7,36 @@ import { actionHandler } from '../../pages/api/engagement/action';
 import { prisma } from '../../infra/prisma/client';
 import jwt from 'jsonwebtoken';
 
-jest.mock('../../infra/prisma/client');
+jest.mock('../../infra/prisma/client', () => ({
+  prisma: {
+    session: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    user: {
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      count: jest.fn(),
+    },
+    devOpsMetric: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    engagement: {
+      createMany: jest.fn(),
+      aggregate: jest.fn().mockResolvedValue({ _avg: { xp: 0 } }),
+    },
+    question: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    category: {
+        findMany: jest.fn().mockResolvedValue([]),
+    }
+  },
+}));
 jest.mock('../../infra/cacheService');
 
-const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
+const mockedPrisma = prisma as any;
 
 const testUser = {
   id: 'test-id',

@@ -15,12 +15,13 @@ export class QuizService {
     this.prisma = prisma;
   }
 
-  async getQuestions(categoryId: string, difficulty: string) {
+  async getQuestions(categoryId: string, difficulty?: string) {
+    const where: any = { categoryId };
+    if (difficulty) {
+        where.difficulty = difficulty.toUpperCase() as any;
+    }
     return this.prisma.question.findMany({
-      where: {
-        categoryId,
-        difficulty: difficulty.toUpperCase() as any,
-      },
+      where,
       include: {
         category: true,
         tags: {

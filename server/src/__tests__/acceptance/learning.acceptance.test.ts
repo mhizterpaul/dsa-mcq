@@ -46,6 +46,49 @@ describe('Learning Route Acceptance Tests', () => {
       await questionsHandler(req, res);
       expect(res._getStatusCode()).toBe(401);
     });
+
+    test('rejects expired session in DB', async () => {
+      const expiredSession = await prisma.session.create({
+        data: {
+          id: 'expired-sid',
+          userId: testUser.id,
+          expires: new Date(Date.now() - 3600000),
+          sessionToken: 'expired-token'
+        }
+      });
+      const token = createToken(testUser, expiredSession.id);
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${token}` }
+      });
+      await featuredCategoriesHandler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      expect(JSON.parse(res._getData()).message).toBe('Session expired');
+    });
+
+    test('rejects session-user mismatch', async () => {
+      const otherUser = { id: 'other-user', email: 'other@example.com', name: 'Other' };
+      await prisma.user.create({ data: otherUser });
+      const token = createToken(otherUser, testSession.id); // Valid session but belongs to testUser
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${token}` }
+      });
+      await featuredCategoriesHandler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      expect(JSON.parse(res._getData()).message).toBe('Session not found or invalid');
+    });
+
+    test('rejects invalid JWT signature', async () => {
+      const invalidToken = jwt.sign({ user: testUser, sessionId: testSession.id }, 'WRONG_SECRET');
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${invalidToken}` }
+      });
+      await featuredCategoriesHandler(req, res);
+      expect(res._getStatusCode()).toBe(401);
+      expect(JSON.parse(res._getData()).message).toBe('Invalid token');
+    });
   });
 
   describe('GET /api/learning/featured-categories', () => {
@@ -88,6 +131,28 @@ describe('Learning Route Acceptance Tests', () => {
       expect(data[0].id).toBe('cat1');
       expect(data[0].name).toBe('Algorithms');
       expect(data[0]._count.questions).toBe(1);
+    });
+
+    test('returns empty array when no featured categories exist', async () => {
+      await prisma.category.updateMany({ data: { featured: false } });
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+        method: 'GET',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      await featuredCategoriesHandler(req, res);
+      expect(res._getStatusCode()).toBe(200);
+      expect(JSON.parse(res._getData())).toEqual([]);
+    });
+
+    test('returns 405 for POST to featured-categories', async () => {
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      await featuredCategoriesHandler(req, res);
+      expect(res._getStatusCode()).toBe(405);
     });
   });
 
@@ -162,6 +227,52 @@ describe('Learning Route Acceptance Tests', () => {
       await questionsHandler(req, res);
       expect(res._getStatusCode()).toBe(400);
     });
+
+    test('returns empty array for empty ids', async () => {
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: { ids: [] },
+      });
+      await questionsHandler(req, res);
+      expect(res._getStatusCode()).toBe(200);
+      expect(JSON.parse(res._getData())).toEqual([]);
+    });
+
+    test('ignores non-existent ids', async () => {
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: { ids: [9999] },
+      });
+      await questionsHandler(req, res);
+      expect(res._getStatusCode()).toBe(200);
+      expect(JSON.parse(res._getData())).toEqual([]);
+    });
+
+    test('handles duplicate ids', async () => {
+      const cat = await prisma.category.create({ data: { name: 'Dups' } });
+      const q = await prisma.question.create({
+        data: {
+          id: 501, title: 'Q', body: 'B', difficulty: 'EASY', categoryId: cat.id,
+          a: 'A', b: 'B', c: 'C', d: 'D', correct: 'A',
+          tagsText: '', companyTags: '', hints: '', similarQuestionIds: '', similarQuestionsText: ''
+        }
+      });
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: { ids: [501, 501] },
+      });
+      await questionsHandler(req, res);
+      expect(res._getStatusCode()).toBe(200);
+      const data = JSON.parse(res._getData());
+      expect(data).toHaveLength(1);
+      expect(data[0].id).toBe(501);
+    });
   });
 
   describe('GET /api/learning/questions', () => {
@@ -201,6 +312,41 @@ describe('Learning Route Acceptance Tests', () => {
         expect(data).toHaveLength(1);
         expect(data[0].id).toBe(201);
         expect(data[0].options[1].isCorrect).toBe(true);
+
+      // Contract DTO Test: Assert exact response schema shape
+      const question = data[0];
+      expect(Object.keys(question).sort()).toEqual([
+        'category',
+        'id',
+        'options',
+        'question',
+        'tags'
+      ].sort());
+      expect(Object.keys(question.options[0]).sort()).toEqual([
+        'isCorrect',
+        'text'
+      ].sort());
+    });
+
+    test('returns 400 for invalid difficulty', async () => {
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+          method: 'GET',
+          headers: { authorization: `Bearer ${token}` },
+          query: { categoryId: 'cat2', difficulty: 'invalid' },
+      });
+      await questionsHandler(req, res);
+      expect(res._getStatusCode()).toBe(400);
+    });
+
+    test('returns 405 for PUT to questions', async () => {
+      const token = createToken(testUser, testSession.id);
+      const { req, res } = createMocks({
+          method: 'PUT',
+          headers: { authorization: `Bearer ${token}` },
+      });
+      await questionsHandler(req, res);
+      expect(res._getStatusCode()).toBe(405);
     });
   });
 });

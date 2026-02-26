@@ -32,12 +32,12 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       const { user: tokenUser, sessionId } = decoded;
 
       // Re-fetch session AND user from DB to ensure they are still valid and have correct roles
-      const session = await prisma.session.findUnique({
-        where: { id: sessionId },
+      const session = await prisma.session.findFirst({
+        where: { id: sessionId, userId: tokenUser.id },
         include: { user: true }
       });
 
-      if (!session || session.userId !== tokenUser.id) {
+      if (!session) {
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
