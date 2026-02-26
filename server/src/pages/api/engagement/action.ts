@@ -17,7 +17,9 @@ export async function actionHandler(req: NextApiRequest, res: NextApiResponse, s
 
     if (req.method === 'POST') {
         const { xp } = req.body;
-        if (typeof xp !== 'number' || xp < 0) {
+
+        // Validation: required field and non-negative (including zero validation check if needed)
+        if (xp === undefined || typeof xp !== 'number' || xp < 0) {
             return res.status(400).json({ message: 'Invalid XP amount' });
         }
 
@@ -25,7 +27,7 @@ export async function actionHandler(req: NextApiRequest, res: NextApiResponse, s
             await service.updateUserXP(user.id, xp);
             res.status(200).json({ success: true });
         } catch (error: any) {
-            res.status(500).json({ message: error.message || 'Internal Server Error' });
+            res.status(400).json({ message: error.message });
         }
     } else {
         res.setHeader('Allow', ['POST']);

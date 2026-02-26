@@ -24,8 +24,8 @@ export async function notificationsHandler(req: NextApiRequest, res: NextApiResp
         }
     } else if (req.method === 'POST') {
         const { message, type } = req.body;
-        if (!message || !type) {
-            return res.status(400).json({ message: 'Missing message or type' });
+        if (!message || !type || typeof message !== 'string' || !['reminder', 'nudge'].includes(type)) {
+            return res.status(400).json({ message: 'Missing or invalid message/type' });
         }
         try {
             const notification = await service.createNotification(user.id, message, type);

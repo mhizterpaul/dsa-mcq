@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { ENGAGEMENT_CONSTANTS } from '../utils/constants';
 
 export interface Player {
     id: string;
@@ -114,7 +115,7 @@ export class EngagementService {
     return {
         userId: user.id,
         name: user.name,
-        score: (topParticipant._sum.score || 0) * 5, // XP = score * 5
+        score: (topParticipant._sum.score || 0) * ENGAGEMENT_CONSTANTS.XP_MULTIPLIER,
         avatar: user.image || 'https://via.placeholder.com/150',
         avatarUrl: user.image || 'https://via.placeholder.com/150'
     };
@@ -122,6 +123,17 @@ export class EngagementService {
 
   async updateUserXP(userId: string, xp: number) {
     if (xp < 0) throw new Error('XP cannot be negative');
+
+    // Safety check for large XP values to prevent database overflow
+    // Prisma Int is 32-bit (up to 2,147,483,647)
+    if (xp > 2000000000) {
+        throw new Error('XP value too large');
+    }
+
+    const currentEngagement = await this.prisma.engagement.findUnique({ where: { userId } });
+    if (currentEngagement && currentEngagement.xp + xp > 2000000000) {
+        throw new Error('XP value too large');
+    }
 
     return this.prisma.engagement.upsert({
       where: { userId },
@@ -166,7 +178,7 @@ export class EngagementService {
           },
           leaderboard: {
               score: xp,
-              rank: rank || userCount, // Default to last place if no engagement
+              rank: rank || userCount,
               competitors: await this.getCompetitors()
           },
           stats: {
@@ -174,7 +186,8 @@ export class EngagementService {
               longestStreak: engagement ? '14' : '0',
               longestExercise: engagement ? '60' : '0',
               longestReps: engagement ? '120' : '0',
-              longestSets: engagement ? '20' : '0'
+              longestSets: engagement ? '20' : '0',
+              quizzesPlayed: 0 // Mocked for now
           }
       };
   }
@@ -254,6 +267,7 @@ export class EngagementService {
         name: e.user.name || 'Unknown',
         score: e.xp,
         level: Math.floor(e.xp / 1000) + 1,
+        avatar: e.user.image || 'https://via.placeholder.com/150',
         badgeText: (index === 0) ? '80' : undefined,
         badgeIcon: e.user.leaderboard?.userHighestBadge || (index === 1 ? 'dumbbell' : undefined)
     }));
