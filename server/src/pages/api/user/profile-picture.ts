@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const url = await storageService.upload(file, `profile-pictures/${userId}`);
       await prisma.user.update({
         where: { id: userId },
-        data: { profilePicture: url },
+        data: { image: url },
       });
       res.status(200).json({ url });
     } catch (error: any) {

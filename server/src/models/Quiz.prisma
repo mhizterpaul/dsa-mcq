@@ -1,6 +1,6 @@
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime @unique
+  date        DateTime
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]

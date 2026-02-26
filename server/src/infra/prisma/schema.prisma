@@ -119,7 +119,7 @@ model Question {
 }
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime @unique
+  date        DateTime
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]
@@ -188,11 +188,17 @@ model Account {
 model User {
   id                String    @id @default(cuid())
   name              String?
+  fullName          String?
   email             String?   @unique
   emailVerified     DateTime?
   image             String?
   password          String?
   role              String    @default("USER")
+  level             Int       @default(1)
+  achievementsCount Int       @default(0)
+  weeklyGiftsCount  Int       @default(0)
+  preferences       String?   // JSON string
+  metadata          String?   // JSON string
   createdAt         DateTime  @default(now())
   accounts          Account[]
   sessions          Session[]

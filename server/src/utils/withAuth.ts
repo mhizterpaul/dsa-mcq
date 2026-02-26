@@ -29,23 +29,6 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
     }
 
     try {
-<<<<<<< HEAD
-      const { user, sessionId } = decoded;
-
-      if (!user || !user.id || !sessionId) {
-        return res.status(401).json({ message: 'Invalid token payload' });
-      }
-
-      const session = await prisma.session.findFirst({
-        where: { id: sessionId, userId: user.id },
-        include: { user: true },
-      });
-
-      if (!session || !session.user) {
-=======
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-
-      // Enforce payload structure
       if (!decoded.user?.id || !decoded.sessionId) {
         return res.status(401).json({ message: 'Invalid token payload' });
       }
@@ -59,7 +42,6 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       });
 
       if (!session || session.userId !== tokenUser.id) {
->>>>>>> analytics-dashboard-v2-5051008972193503984
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 
