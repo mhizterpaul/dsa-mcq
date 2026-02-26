@@ -8,6 +8,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === 'GET') {
     const { categoryId, difficulty, revealAnswers } = req.query;
+    if (!categoryId) {
+        return res.status(400).json({ message: 'categoryId is required' });
+    }
     if (difficulty && !['easy', 'medium', 'hard'].includes((difficulty as string).toLowerCase())) {
         return res.status(400).json({ message: 'Invalid difficulty' });
     }

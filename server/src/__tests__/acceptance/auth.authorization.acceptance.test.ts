@@ -113,6 +113,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       const { req, res } = createMocks({
         method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `bearer ${token}` },
+        query: name === 'questions' ? { categoryId: 'cat-1' } : {},
         body: name === 'action' ? { xp: 10 } : {},
       });
       await handler(req, res);

@@ -432,6 +432,18 @@ describe('Learning Route Acceptance Tests', () => {
       expect(res._getStatusCode()).toBe(400);
     });
 
+    test('returns 400 for missing categoryId', async () => {
+        const token = createToken(testUser, testSession.id);
+        const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${token}` },
+            query: { difficulty: 'easy' },
+        });
+        await questionsHandler(req, res);
+        expect(res._getStatusCode()).toBe(400);
+        expect(JSON.parse(res._getData()).message).toContain('categoryId is required');
+    });
+
     test('returns 405 for PUT to questions', async () => {
       const token = createToken(testUser, testSession.id);
       const { req, res } = createMocks({
