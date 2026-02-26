@@ -11,6 +11,7 @@ export class UserQuestionData {
     easinessFactor: number;
     interval: number;
     lastReviewedTimestamp: number | null;
+    nextDueTimestamp: number | null;
   };
 
   constructor(userId: string, questionId: string) {
@@ -26,6 +27,7 @@ export class UserQuestionData {
       easinessFactor: 2.5,
       interval: 0,
       lastReviewedTimestamp: null,
+      nextDueTimestamp: null,
     };
   }
 
