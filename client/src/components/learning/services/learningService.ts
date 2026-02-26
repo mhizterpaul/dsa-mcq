@@ -241,7 +241,7 @@ const getQuestionsByIds = async (ids: number[]): Promise<Question[]> => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids, revealAnswers: true }),
     });
     if (!response.ok) {
         throw new Error('Failed to fetch questions by IDs');

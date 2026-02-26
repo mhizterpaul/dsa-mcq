@@ -310,7 +310,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             await prisma.quizSession.deleteMany({ where: { date: today } });
 
             for (let i = 0; i < 10; i++) {
-                const s = await prisma.quizSession.create({ data: { id: `full-${i}`, date: today, startTime: new Date() } });
+                const s = await prisma.quizSession.create({ data: { id: `full-${i}`, date: new Date(today.getTime() + i * 1000), startTime: new Date() } });
                 for (let j = 0; j < 5; j++) {
                     await prisma.user.create({ data: { id: `u-${i}-${j}`, email: `u-${i}-${j}@x.com` }});
                     await prisma.quizParticipant.create({ data: { userId: `u-${i}-${j}`, sessionId: s.id } });

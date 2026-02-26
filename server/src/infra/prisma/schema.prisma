@@ -120,7 +120,7 @@ model Question {
 }
 model QuizSession {
   id          String   @id @default(cuid())
-  date        DateTime
+  date        DateTime @unique
   startTime   DateTime
   endTime     DateTime?
   participants QuizParticipant[]

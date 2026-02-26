@@ -22,6 +22,7 @@ export class QuizService {
     }
     return this.prisma.question.findMany({
       where,
+      orderBy: { id: 'asc' },
       include: {
         category: true,
         tags: {
@@ -38,6 +39,7 @@ export class QuizService {
       where: {
         id: { in: ids },
       },
+      orderBy: { id: 'asc' },
       include: {
         category: true,
         tags: {
@@ -52,9 +54,15 @@ export class QuizService {
   async getUserActiveSession(userId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     return this.prisma.quizSession.findFirst({
         where: {
-            date: today,
+            date: {
+                gte: today,
+                lt: tomorrow,
+            },
             endTime: null,
             participants: { some: { userId } }
         },
@@ -71,6 +79,8 @@ export class QuizService {
   async getOrCreateDailyQuizSession(user?: any) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     // First check if user is already in a session today
     if (user) {
@@ -80,7 +90,10 @@ export class QuizService {
 
     const sessions = await this.prisma.quizSession.findMany({
       where: {
-        date: today,
+        date: {
+            gte: today,
+            lt: tomorrow,
+        },
         endTime: null,
       },
       include: {
@@ -124,7 +137,7 @@ export class QuizService {
     // though here we're more concerned with participant capacity.
     const newSession = await this.prisma.quizSession.create({
       data: {
-        date: today,
+        date: new Date(), // Use current time to ensure uniqueness with @unique constraint
         startTime: new Date(),
       },
       include: {
@@ -217,10 +230,19 @@ export class QuizService {
   async handleAnswer(userId: string, questionId: number, answer: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     return await this.prisma.$transaction(async (tx) => {
         const session = await tx.quizSession.findFirst({
-            where: { date: today, endTime: null, participants: { some: { userId } } }
+            where: {
+                date: {
+                    gte: today,
+                    lt: tomorrow,
+                },
+                endTime: null,
+                participants: { some: { userId } }
+            }
         });
 
         if (!session) throw new Error('No active daily quiz session found for user');

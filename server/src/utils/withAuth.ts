@@ -55,6 +55,9 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
 
       return handler(authenticatedReq, res);
     } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+          return res.status(401).json({ message: 'Token expired' });
+      }
       if (error instanceof jwt.JsonWebTokenError) {
           return res.status(401).json({ message: 'Invalid token' });
       }

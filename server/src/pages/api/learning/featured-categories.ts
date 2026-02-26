@@ -8,6 +8,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       where: {
         featured: true,
       },
+      orderBy: {
+        name: 'asc',
+      },
+      take: 20,
       include: {
         _count: {
           select: {
