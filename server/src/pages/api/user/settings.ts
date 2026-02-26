@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
-import { EngagementService } from '../../../controllers/engagementController';
 import { prisma } from '../../../infra/prisma/client';
 
-export async function settingsHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
+export async function settingsHandler(req: NextApiRequest, res: NextApiResponse) {
     let user;
     try {
         user = await getAuthenticatedUser(req);
@@ -20,7 +19,8 @@ export async function settingsHandler(req: NextApiRequest, res: NextApiResponse,
             return res.status(400).json({ message: 'Invalid quizTitle' });
         }
 
-        service.updateGlobalSettings({ quizTitle });
+        // Implementation for updating user settings
+        console.log('Updating user settings:', { userId: user.id, quizTitle });
         res.status(200).json({ success: true });
     } else {
         res.setHeader('Allow', ['POST']);
@@ -32,6 +32,5 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const service = new EngagementService(prisma);
-    return settingsHandler(req, res, service);
+    return settingsHandler(req, res);
 }

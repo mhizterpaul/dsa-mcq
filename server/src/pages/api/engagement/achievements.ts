@@ -3,7 +3,7 @@ import { getAuthenticatedUser } from '../../../utils/auth';
 import { EngagementService } from '../../../controllers/engagementController';
 import { prisma } from '../../../infra/prisma/client';
 
-export async function actionHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
+export async function achievementsHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
     let user;
     try {
         user = await getAuthenticatedUser(req);
@@ -15,22 +15,15 @@ export async function actionHandler(req: NextApiRequest, res: NextApiResponse, s
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (req.method === 'POST') {
-        const { xp } = req.body;
-
-        // Validation: required field and non-negative (including zero validation check if needed)
-        if (xp === undefined || typeof xp !== 'number' || xp < 0) {
-            return res.status(400).json({ message: 'Invalid XP amount' });
-        }
-
+    if (req.method === 'GET') {
         try {
-            await service.updateUserXP(user.id, xp);
-            res.status(200).json({ success: true });
-        } catch (error: any) {
-            res.status(400).json({ message: error.message });
+            const achievements = await service.getAchievements(user.id);
+            res.status(200).json(achievements);
+        } catch (error) {
+            res.status(500).json({ message: 'Internal Server Error' });
         }
     } else {
-        res.setHeader('Allow', ['POST']);
+        res.setHeader('Allow', ['GET']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }
@@ -40,5 +33,5 @@ export default async function handler(
     res: NextApiResponse
 ) {
     const service = new EngagementService(prisma);
-    return actionHandler(req, res, service);
+    return achievementsHandler(req, res, service);
 }

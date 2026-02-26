@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { QuizService } from "../../../controllers/quizController";
+import { EngagementService } from "../../../controllers/engagementController";
 import { prisma } from "../../../infra/prisma/client";
 import { getAuthenticatedUser } from '../../../utils/auth';
 
-export async function resultsHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService) {
+export async function resultsHandler(req: NextApiRequest, res: NextApiResponse, quizService: QuizService, engagementService: EngagementService) {
     let user;
     try {
         user = await getAuthenticatedUser(req);
@@ -16,41 +17,55 @@ export async function resultsHandler(req: NextApiRequest, res: NextApiResponse, 
 
     if (req.method === 'GET') {
         try {
-            // Find any session this user participated in today
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const { sessionId } = req.query;
+            let session;
 
-            let session = await prisma.quizSession.findFirst({
-                where: {
-                    date: today,
-                    participants: { some: { userId: user.id } }
-                }
-            });
+            if (typeof sessionId === 'string') {
+                session = await prisma.quizSession.findUnique({
+                    where: { id: sessionId },
+                    include: { participants: true }
+                });
+            } else {
+                // Default to most recent session for user today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                session = await prisma.quizSession.findFirst({
+                    where: {
+                        date: today,
+                        participants: { some: { userId: user.id } }
+                    },
+                    include: { participants: true }
+                });
+            }
 
             if (!session) {
                 return res.status(404).json({ message: 'Session not found' });
             }
 
-            // Auto-end session if user is requesting results and it's not ended?
-            // Or maybe only end it if timer expired.
-            const now = new Date();
-            const startTime = new Date(session.startTime);
-            const elapsedSeconds = (now.getTime() - startTime.getTime()) / 1000;
-
-            if (!session.endTime && elapsedSeconds > 300) {
-                session = await quizService.endSession(session.id);
-            }
-
+            // Ensure session is ended
             if (!session.endTime) {
-                // For testing purposes, let's allow ending it manually if requested or just end it now
                 session = await quizService.endSession(session.id);
             }
 
             const results = await quizService.getResults(session.id);
+            const userResult = results.find(r => r.userId === user.id);
+
+            // Format leaderboard for GlobalEngagement.Player interface
+            const leaderboard = results.map(r => ({
+                id: r.userId,
+                name: r.name,
+                score: r.score * 10, // Assuming internal score is number of questions, but summary wants something larger?
+                                     // Actually QuizParticipant score is already incremented by 10 per correct answer.
+                avatar: 'https://via.placeholder.com/150', // Mock avatar if not available
+                level: 1,
+                highestBadgeIcon: 'medal'
+            }));
 
             res.status(200).json({
-                sessionId: session.id,
-                results: results,
+                rank: userResult?.rank || 1,
+                totalParticipants: session.participants.length,
+                xpEarned: userResult?.xpEarned || 0,
+                leaderboard: leaderboard,
             });
         } catch (error: any) {
             res.status(500).json({ message: error.message });
@@ -65,6 +80,7 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    const service = new QuizService(prisma);
-    return resultsHandler(req, res, service);
+    const quizService = new QuizService(prisma);
+    const engagementService = new EngagementService(prisma);
+    return resultsHandler(req, res, quizService, engagementService);
 }

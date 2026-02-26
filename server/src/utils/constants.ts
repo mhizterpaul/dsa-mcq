@@ -1,0 +1,9 @@
+export const ENGAGEMENT_CONSTANTS = {
+    XP_MULTIPLIER: 5,
+    BADGE_THRESHOLDS: {
+        QUICK_LEARNER: 50,
+        KNOWLEDGE_SEEKER: 100,
+        QUIZ_MASTER: 200,
+        QUIZ_LEGEND: 500
+    }
+};
