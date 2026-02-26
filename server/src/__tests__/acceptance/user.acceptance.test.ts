@@ -21,6 +21,8 @@ const testUser = {
   achievementsCount: 10,
   weeklyGiftsCount: 3,
   image: 'https://example.com/avatar.png',
+  isPremium: true,
+  isVerified: false,
 };
 
 const testEngagement = {
@@ -61,8 +63,46 @@ describe('User Acceptance Tests (Real DB)', () => {
     await prisma.$disconnect();
   });
 
+  describe('Authentication & Authorization', () => {
+    test('rejects expired JWT', async () => {
+        const expiredToken = jwt.sign(
+            { user: { id: testUser.id }, sessionId },
+            process.env.JWT_SECRET!,
+            { expiresIn: '-1h' }
+        );
+        const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${expiredToken}` },
+        });
+        await profileSummaryHandler(req, res);
+        expect(res._getStatusCode()).toBe(401);
+    });
+
+    test('rejects malformed JWT', async () => {
+        const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: 'Bearer malformed-token' },
+        });
+        await profileSummaryHandler(req, res);
+        expect(res._getStatusCode()).toBe(401);
+    });
+
+    test('rejects token with invalid sessionId', async () => {
+        const invalidSessToken = jwt.sign(
+            { user: { id: testUser.id }, sessionId: 'invalid-sess' },
+            process.env.JWT_SECRET!
+        );
+        const { req, res } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${invalidSessToken}` },
+        });
+        await profileSummaryHandler(req, res);
+        expect(res._getStatusCode()).toBe(401);
+    });
+  });
+
   describe('GET /api/user/profile-summary', () => {
-    test('returns user profile summary correctly', async () => {
+    test('returns user profile summary with all client-required fields', async () => {
       const { req, res } = createMocks({
         method: 'GET',
         headers: { authorization: `Bearer ${token}` },
@@ -72,33 +112,41 @@ describe('User Acceptance Tests (Real DB)', () => {
 
       expect(res._getStatusCode()).toBe(200);
       const data = JSON.parse(res._getData());
-      expect(data.user).toBeDefined();
-      expect(data.user.id).toBe(testUser.id);
-      expect(data.user.fullName).toBe(testUser.fullName);
-      expect(data.user.xp).toBe(testEngagement.xp);
-      expect(data.user.level).toBe(testUser.level);
+      expect(data.user).toMatchObject({
+          id: testUser.id,
+          fullName: testUser.fullName,
+          email: testUser.email,
+          image: testUser.image,
+          level: testUser.level,
+          achievementsCount: testUser.achievementsCount,
+          weeklyGiftsCount: testUser.weeklyGiftsCount,
+          xp: testEngagement.xp,
+          isPremium: testUser.isPremium,
+          isVerified: testUser.isVerified,
+      });
     });
 
-    test('returns 401 if unauthorized', async () => {
-      const { req, res } = createMocks({
-        method: 'GET',
-      });
-
-      await profileSummaryHandler(req, res);
-      expect(res._getStatusCode()).toBe(401);
+    test('returns 405 for invalid methods', async () => {
+        const { req, res } = createMocks({
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}` },
+        });
+        await profileSummaryHandler(req, res);
+        expect(res._getStatusCode()).toBe(405);
     });
   });
 
   describe('PUT /api/user/profile', () => {
-    test('updates user preferences and metadata', async () => {
-      const newPreferences = { theme: 'light' };
-      const newMetadata = { lastLogin: '2023-02-01' };
+    test('updates user preferences, metadata, and email', async () => {
+      const newPreferences = { theme: 'light', notifications: true };
+      const newMetadata = { lastLogin: '2023-02-01', device: 'iPhone' };
 
       const { req, res } = createMocks({
         method: 'PUT',
         headers: { authorization: `Bearer ${token}` },
         body: {
             fullName: 'New Name',
+            email: 'newemail@example.com',
             preferences: newPreferences,
             metadata: newMetadata
         }
@@ -110,14 +158,27 @@ describe('User Acceptance Tests (Real DB)', () => {
 
       const updatedUser = await prisma.user.findUnique({ where: { id: testUser.id } });
       expect(updatedUser?.fullName).toBe('New Name');
+      expect(updatedUser?.email).toBe('newemail@example.com');
       expect(JSON.parse(updatedUser?.preferences || '{}')).toEqual(newPreferences);
       expect(JSON.parse(updatedUser?.metadata || '{}')).toEqual(newMetadata);
+    });
+
+    test('handles partial updates', async () => {
+        const { req, res } = createMocks({
+            method: 'PUT',
+            headers: { authorization: `Bearer ${token}` },
+            body: { fullName: 'Partial Name Update' }
+        });
+        await profileHandler(req, res);
+        expect(res._getStatusCode()).toBe(200);
+        const updatedUser = await prisma.user.findUnique({ where: { id: testUser.id } });
+        expect(updatedUser?.fullName).toBe('Partial Name Update');
+        expect(updatedUser?.email).toBe(testUser.email); // Unchanged
     });
   });
 
   describe('POST /api/user/profile-picture', () => {
     test('updates user profile picture', async () => {
-        // Mock StorageService upload
         const uploadMock = jest.spyOn(StorageService.prototype, 'upload').mockResolvedValue('https://example.com/new-avatar.png');
 
         const { req, res } = createMocks({
@@ -129,16 +190,24 @@ describe('User Acceptance Tests (Real DB)', () => {
         await profilePictureHandler(req, res);
 
         expect(res._getStatusCode()).toBe(200);
-
         const updatedUser = await prisma.user.findUnique({ where: { id: testUser.id } });
         expect(updatedUser?.image).toBe('https://example.com/new-avatar.png');
-
         uploadMock.mockRestore();
+    });
+
+    test('returns 400 for missing file', async () => {
+        const { req, res } = createMocks({
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}` },
+            body: {}
+        });
+        await profilePictureHandler(req, res);
+        expect(res._getStatusCode()).toBe(400);
     });
   });
 
   describe('POST /api/user/settings', () => {
-    test('updates global settings (legacy logic moved to user route)', async () => {
+    test('updates settings and validates persistence', async () => {
         const { req, res } = createMocks({
             method: 'POST',
             headers: { authorization: `Bearer ${token}` },
@@ -149,6 +218,16 @@ describe('User Acceptance Tests (Real DB)', () => {
 
         expect(res._getStatusCode()).toBe(200);
         expect(JSON.parse(res._getData())).toEqual({ success: true });
+    });
+
+    test('returns 400 for invalid setting value type', async () => {
+        const { req, res } = createMocks({
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}` },
+            body: { quizTitle: 123 }
+        });
+        await settingsHandler(req, res);
+        expect(res._getStatusCode()).toBe(400);
     });
   });
 });

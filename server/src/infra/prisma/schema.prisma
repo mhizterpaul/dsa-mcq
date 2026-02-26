@@ -199,6 +199,8 @@ model User {
   weeklyGiftsCount  Int       @default(0)
   preferences       String?   // JSON string
   metadata          String?   // JSON string
+  isPremium         Boolean   @default(false)
+  isVerified        Boolean   @default(false)
   createdAt         DateTime  @default(now())
   accounts          Account[]
   sessions          Session[]

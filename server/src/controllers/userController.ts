@@ -25,15 +25,18 @@ export const userController = {
         xp: user.engagement?.xp || 0,
         preferences: user.preferences ? JSON.parse(user.preferences) : null,
         metadata: user.metadata ? JSON.parse(user.metadata) : null,
+        isPremium: user.isPremium,
+        isVerified: user.isVerified,
       },
     };
   },
 
   async updateProfile(userId: string, data: any) {
-    const { fullName, preferences, metadata } = data;
+    const { fullName, email, preferences, metadata } = data;
 
     const updateData: any = {};
     if (fullName !== undefined) updateData.fullName = fullName;
+    if (email !== undefined) updateData.email = email;
     if (preferences !== undefined) updateData.preferences = JSON.stringify(preferences);
     if (metadata !== undefined) updateData.metadata = JSON.stringify(metadata);
 
@@ -46,6 +49,7 @@ export const userController = {
       user: {
         id: updatedUser.id,
         fullName: updatedUser.fullName,
+        email: updatedUser.email,
         preferences: updatedUser.preferences ? JSON.parse(updatedUser.preferences) : null,
         metadata: updatedUser.metadata ? JSON.parse(updatedUser.metadata) : null,
       },

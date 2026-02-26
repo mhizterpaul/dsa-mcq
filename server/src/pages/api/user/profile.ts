@@ -4,7 +4,8 @@ import { userController } from '../../../controllers/userController';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    res.setHeader('Allow', ['PUT']);
+    return res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 
   try {
