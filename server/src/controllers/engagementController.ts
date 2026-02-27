@@ -39,6 +39,7 @@ export class EngagementService {
     }
   }
 
+<<<<<<< HEAD
   async getLeaderboard(): Promise<Player[]> {
     const engagements = await this.prisma.engagement.findMany({
       orderBy: [
@@ -53,6 +54,13 @@ export class EngagementService {
             }
         }
       }
+=======
+  async getLeaderboard() {
+    return this.prisma.leaderboard.findMany({
+      orderBy: { xp: 'desc' },
+      take: 10,
+      include: { user: true }
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
     });
 
     return engagements.map((e, index) => ({
@@ -71,6 +79,7 @@ export class EngagementService {
   }
 
   async getWeeklyKing() {
+<<<<<<< HEAD
     const now = new Date();
     const startOfWeek = new Date(now);
     const day = now.getDay();
@@ -93,6 +102,11 @@ export class EngagementService {
         _sum: {
             score: true
         }
+=======
+    return this.prisma.engagement.findFirst({
+      orderBy: { xp_weekly: 'desc' },
+      include: { user: true }
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
     });
 
     if (participants.length === 0) return null;
@@ -122,6 +136,7 @@ export class EngagementService {
   }
 
   async updateUserXP(userId: string, xp: number) {
+<<<<<<< HEAD
     if (xp < 0) throw new Error('XP cannot be negative');
 
     // Safety check for large XP values to prevent database overflow
@@ -190,6 +205,18 @@ export class EngagementService {
               quizzesPlayed: 0 // Mocked for now
           }
       };
+=======
+    return this.prisma.engagement.update({
+      where: { userId: userId },
+      data: { xp: { increment: xp } },
+    });
+  }
+
+  async resetWeeklyXP() {
+    return this.prisma.engagement.updateMany({
+      data: { xp_weekly: 0 },
+    });
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
   }
 
   private async calculateRank(xp: number): Promise<number> {
@@ -335,7 +362,7 @@ export class EngagementService {
       return badges;
   }
   async resetMonthlyXP() {
-    return this.prisma.user.updateMany({
+    return this.prisma.engagement.updateMany({
       data: { xp_monthly: 0 },
     });
   }

@@ -1,10 +1,16 @@
 process.env.DATABASE_URL = "file:./test.db";
 process.env.JWT_SECRET = 'test-secret';
+process.env.USE_REAL_DB = 'true';
+
 import { createMocks } from 'node-mocks-http';
 import registerHandler from '../../pages/api/auth/register';
 import loginHandler from '../../pages/api/auth/login';
 import { rawLogoutHandler as logoutHandler } from '../../pages/api/auth/logout';
 import meHandler from '../../pages/api/user/me';
+<<<<<<< HEAD
+=======
+import { providerSigninHandler } from '../../pages/api/auth/provider-signin';
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
 import { prisma } from '../../infra/prisma/client';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -68,7 +74,11 @@ describe('Auth Session Acceptance Tests (Real DB)', () => {
     expect(tokenA).not.toEqual(tokenB);
 
     // 4. Logout from Client A
-    const { req: logoutReq, res: logoutRes } = createMocks({ method: 'POST' });
+    const { req: logoutReq, res: logoutRes } = createMocks({
+        method: 'POST',
+        headers: { authorization: `Bearer ${tokenA}` }
+    });
+    // Need to simulate withAuth or similar if calling handler directly with user/sessionId
     (logoutReq as any).user = user;
     (logoutReq as any).sessionId = sessionA?.id;
     await logoutHandler(logoutReq as any, logoutRes, { prisma });
@@ -126,4 +136,32 @@ describe('Auth Session Acceptance Tests (Real DB)', () => {
     await logoutHandler(req as any, res, { prisma });
     expect(res._getStatusCode()).toBe(401);
   });
+<<<<<<< HEAD
+=======
+
+  test('OAuth Provider Sign-in', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: { provider: 'google', token: 'valid-token' },
+    });
+
+    await providerSigninHandler(req, res, prisma);
+
+    expect(res._getStatusCode()).toBe(200);
+    const data = JSON.parse(res._getData());
+    expect(data.token).toBeDefined();
+    expect(data.user.email).toBeDefined();
+  });
+
+  test('OAuth Provider Sign-in Fails with Invalid Token', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: { provider: 'google', token: 'invalid-token' },
+    });
+
+    await providerSigninHandler(req, res, prisma);
+
+    expect(res._getStatusCode()).toBe(401);
+  });
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
 });

@@ -22,9 +22,18 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
     }
 
     try {
+<<<<<<< HEAD
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
 
       // Enforce payload structure
+=======
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    try {
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
       if (!decoded.user?.id || !decoded.sessionId) {
         return res.status(401).json({ message: 'Invalid token payload' });
       }
@@ -37,7 +46,11 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
         include: { user: true }
       });
 
+<<<<<<< HEAD
       if (!session) {
+=======
+      if (!session || session.userId !== tokenUser.id) {
+>>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
         return res.status(401).json({ message: 'Session not found or invalid' });
       }
 

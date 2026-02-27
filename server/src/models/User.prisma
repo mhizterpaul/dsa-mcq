@@ -19,11 +19,19 @@ model Account {
 model User {
   id                String    @id @default(cuid())
   name              String?
+  fullName          String?
   email             String?   @unique
   emailVerified     DateTime?
   image             String?
   password          String?
   role              String    @default("USER")
+  level             Int       @default(1)
+  achievementsCount Int       @default(0)
+  weeklyGiftsCount  Int       @default(0)
+  preferences       String?   // JSON string
+  metadata          String?   // JSON string
+  isPremium         Boolean   @default(false)
+  isVerified        Boolean   @default(false)
   createdAt         DateTime  @default(now())
   accounts          Account[]
   sessions          Session[]
