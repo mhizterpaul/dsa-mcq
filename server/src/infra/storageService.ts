@@ -1,9 +1,9 @@
 import { GoogleStorageService } from './googleStorageService';
 import { DropboxStorageService } from './dropboxStorageService';
-import { formidable } from 'formidable';
+import { SupabaseStorageService } from './supabaseStorageService';
 
 export interface IStorageService {
-  upload(file: formidable.File | formidable.File[], userId: string): Promise<string>;
+  upload(file: any, userId: string): Promise<string>;
   delete(fileId: string): Promise<void>;
   update(fileId: string, file: any): Promise<void>;
 }
@@ -24,17 +24,21 @@ class MockStorageService implements IStorageService {
 export class StorageService implements IStorageService {
   private provider: IStorageService;
 
-  constructor(provider: 'google' | 'dropbox' | 'mock' = 'google') {
+  constructor(provider: 'google' | 'dropbox' | 'supabase' | 'mock' = 'google') {
     if (process.env.NODE_ENV === 'test') {
         this.provider = new MockStorageService();
     } else if (provider === 'google') {
       this.provider = new GoogleStorageService();
-    } else {
+    } else if (provider === 'dropbox') {
       this.provider = new DropboxStorageService();
+    } else if (provider === 'supabase') {
+      this.provider = new SupabaseStorageService();
+    } else {
+      this.provider = new MockStorageService();
     }
   }
 
-  async upload(file: formidable.File | formidable.File[], userId: string): Promise<string> {
+  async upload(file: any, userId: string): Promise<string> {
     return this.provider.upload(file, userId);
   }
 

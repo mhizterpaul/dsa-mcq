@@ -32,14 +32,10 @@ async function syncHandler(
   }
 }
 
-// We swap the order: check method and signature FIRST, then auth.
-// Actually withClientSignature requires the syncKey from auth.
-// So we wrap syncHandler with signature check, then auth check.
-
-export default withAuth((req, res) => {
-    // For non-POST methods, we can skip signature check
+export default withAuth(async (req, res) => {
     if (req.method !== 'POST') {
-        return syncHandler(req, res);
+        await syncHandler(req, res);
+        return;
     }
-    return withClientSignature(syncHandler)(req, res);
+    await withClientSignature(syncHandler)(req, res);
 });

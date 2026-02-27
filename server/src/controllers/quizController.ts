@@ -103,7 +103,10 @@ export class QuizService {
 
     const sessions = await this.prisma.quizSession.findMany({
       where: {
-        date: today,
+        date: {
+            gte: today,
+            lt: tomorrow,
+        },
         endTime: null,
       },
       include: sessionIncludes,
@@ -144,8 +147,13 @@ export class QuizService {
         return newSession;
     } catch (error: any) {
         if (error.code === 'P2002') {
-            return this.prisma.quizSession.findUnique({
-                where: { date: today },
+            return this.prisma.quizSession.findFirst({
+                where: {
+                    date: {
+                        gte: today,
+                        lt: tomorrow
+                    }
+                },
                 include: sessionIncludes
             });
         }

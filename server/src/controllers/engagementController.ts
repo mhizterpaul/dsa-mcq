@@ -110,10 +110,6 @@ export class EngagementService {
     });
 
     if (!user) return null;
-    // return this.prisma.engagement.findFirst({
-    //   orderBy: { xp_weekly: 'desc' },
-    //   include: { user: true }
-    // });
 
     return {
         userId: user.id,
@@ -125,9 +121,14 @@ export class EngagementService {
   }
 
   async updateUserXP(userId: string, xp: number) {
-    return this.prisma.engagement.update({
+    return this.prisma.engagement.upsert({
       where: { userId: userId },
-      data: { xp: { increment: xp } },
+      update: {
+          xp: { increment: xp },
+          xp_weekly: { increment: xp },
+          xp_monthly: { increment: xp }
+      },
+      create: { userId, xp, xp_weekly: xp, xp_monthly: xp }
     });
   }
 
@@ -264,6 +265,29 @@ export class EngagementService {
       });
   }
 
+  async getAchievements(userId: string) {
+      const engagement = await this.prisma.engagement.findUnique({
+          where: { userId },
+          include: { user: { include: { leaderboard: true } } }
+      });
+
+      const weeklyKing = await this.getWeeklyKing();
+      const isWeeklyKing = weeklyKing?.userId === userId;
+
+      return {
+          badges: this.getBadgesList(engagement, isWeeklyKing),
+          leaderboard: {
+              score: engagement?.xp || 0,
+              rank: engagement ? await this.calculateRank(engagement.xp) : 0,
+          },
+          stats: {
+              highScore: engagement?.xp || 0,
+              longestStreak: '0 days',
+              quizzesPlayed: 0
+          }
+      };
+  }
+
   async getEarnedBadgesForSession(userId: string, sessionId: string) {
       const participant = await this.prisma.quizParticipant.findUnique({
           where: { userId_sessionId: { userId, sessionId } }
@@ -279,6 +303,7 @@ export class EngagementService {
 
       return badges;
   }
+
   async resetMonthlyXP() {
     return this.prisma.engagement.updateMany({
       data: { xp_monthly: 0 },

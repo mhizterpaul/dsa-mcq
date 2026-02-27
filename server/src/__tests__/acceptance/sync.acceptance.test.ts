@@ -1,5 +1,5 @@
 process.env.JWT_SECRET = 'test-secret';
-import { createMocks } from 'node-mocks-http';
+import { createMocks, RequestMethod, Body } from 'node-mocks-http';
 import registerHandler from '../../pages/api/auth/register';
 import syncHandler from '../../pages/api/sync';
 import { prisma } from '../../infra/prisma/client';
@@ -35,7 +35,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
           method: 'POST',
           body: testUser,
         });
-        await registerHandler(req, res, { prisma });
+        await registerHandler(req, res);
         const data = JSON.parse(res._getData());
         token = data.token;
         syncKey = data.syncKey;
@@ -52,8 +52,8 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
 
   describe('Method Enforcement', () => {
       test.each(['GET', 'PUT', 'DELETE'])('Rejects %s method', async (method) => {
-          const { req, res } = createMocks({ method, headers: { authorization: `Bearer ${token}` } });
-          await syncHandler(req as any, res as any, { prisma });
+          const { req, res } = createMocks({ method: method as RequestMethod, headers: { authorization: `Bearer ${token}` } });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(405);
       });
   });
@@ -61,13 +61,13 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
   describe('Authentication & Security', () => {
       test('401 if missing token', async () => {
           const { req, res } = createMocks({ method: 'POST' });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(401);
       });
 
       test('401 if invalid token', async () => {
           const { req, res } = createMocks({ method: 'POST', headers: { authorization: 'Bearer invalid' } });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(401);
       });
 
@@ -77,7 +77,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}` },
               body: { learning_sessions: [] }
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(403);
       });
 
@@ -95,7 +95,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               },
               body: tamperedBody
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(403);
       });
   });
@@ -107,9 +107,9 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
           const { req, res } = createMocks({
               method: 'POST',
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
-              body: body
+              body: body as any as Body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(400);
       });
 
@@ -121,7 +121,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(400);
       });
 
@@ -133,7 +133,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(400);
       });
   });
@@ -142,7 +142,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
       test('Strict userId isolation: Cannot sync data for another user', async () => {
           // Register another user
           const { res: otherRes } = createMocks({ method: 'POST', body: otherUser });
-          await registerHandler(createMocks({ method: 'POST', body: otherUser }).req, otherRes, { prisma });
+          await registerHandler(createMocks({ method: 'POST', body: otherUser }).req, otherRes);
           const otherUserId = JSON.parse(otherRes._getData()).user.id;
 
           const body = {
@@ -156,7 +156,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(200);
 
           // Verify it was NOT created for the other user or the current user
@@ -179,7 +179,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
           expect(res._getStatusCode()).toBe(200);
 
           const catAfter = await prisma.category.findUnique({ where: { id: cat.id } });
@@ -208,7 +208,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
 
           const result = JSON.parse(res._getData());
           const ls = result.learning_sessions.find((s: any) => s.id === lsId);
@@ -235,7 +235,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
 
           const result = JSON.parse(res._getData());
           const ls = result.learning_sessions.find((s: any) => s.id === lsId);
@@ -260,7 +260,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
 
           expect(res._getStatusCode()).toBe(200);
           const result = JSON.parse(res._getData());
@@ -279,7 +279,7 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
               headers: { authorization: `Bearer ${token}`, 'x-client-signature': signature },
               body: body
           });
-          await syncHandler(req as any, res as any, { prisma });
+          await syncHandler(req as any, res as any);
 
           expect(res._getStatusCode()).toBe(409);
           expect(JSON.parse(res._getData()).message).toContain('Sync already in progress');

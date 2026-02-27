@@ -39,16 +39,16 @@ export class GoogleStorageService implements IStorageService {
     }
   }
 
-  async upload(file: any, userId: string, provider: 'google' | 'dropbox'): Promise<string> {
+  async upload(file: any, userId: string): Promise<string> {
     const userFolderId = await this.getOrCreateUserFolder(userId);
-    const fileName = `${uuidv4()}-${file.originalname}`;
+    const fileName = `${uuidv4()}-${file.originalname || file.newFilename}`;
     const fileMetadata = {
       name: fileName,
       parents: [userFolderId],
     };
     const media = {
       mimeType: file.mimetype,
-      body: fs.createReadStream(file.path),
+      body: fs.createReadStream(file.filepath || file.path),
     };
     const response = await this.drive.files.create({
       requestBody: fileMetadata,
@@ -61,7 +61,7 @@ export class GoogleStorageService implements IStorageService {
     await this.prisma.media.create({
       data: {
         userId,
-        provider,
+        provider: 'google',
         providerId: fileId,
         url,
       },
@@ -85,11 +85,11 @@ export class GoogleStorageService implements IStorageService {
       throw new Error('Media not found');
     }
     const fileMetadata = {
-      name: file.originalname,
+      name: file.originalname || file.newFilename,
     };
     const mediaBody = {
       mimeType: file.mimetype,
-      body: fs.createReadStream(file.path),
+      body: fs.createReadStream(file.filepath || file.path),
     };
     await this.drive.files.update({
       fileId: media.providerId,

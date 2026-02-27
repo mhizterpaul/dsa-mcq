@@ -10,6 +10,7 @@ const prisma =
   });
 
 // Middleware for Engagement model XP updates
+// @ts-ignore
 prisma.$use(async (params, next) => {
   if (params.model === 'Engagement' && params.action === 'update') {
     if (params.args.data.xp && typeof params.args.data.xp.increment === 'number') {

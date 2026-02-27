@@ -1,69 +1,46 @@
 import { NextApiHandler, NextApiRequest, NextApiResponse } from 'next';
-import { getAuthenticatedUser } from './auth';
+import { authorizeRequest } from './auth';
 import { CacheService } from '../infra/cacheService';
-import { prisma } from '../infra/prisma/client';
-import jwt from 'jsonwebtoken';
 
 export type AuthenticatedRequest = NextApiRequest & {
   user: any;
   sessionId: string;
+  syncKey?: string;
 };
 
 export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => void | Promise<void>) {
   return async (req: NextApiRequest, res: NextApiResponse, deps?: { cache?: CacheService }) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !/^Bearer /i.test(authHeader)) {
-      return res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header' });
-    }
-    const token = authHeader.split(' ')[1];
-    let decoded;
-    if (!token) {
-      return res.status(401).json({ message: 'Unauthorized: Token not provided' });
-    }
-
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-    } catch (error) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    try {
-      if (!decoded.user?.id || !decoded.sessionId) {
-        return res.status(401).json({ message: 'Invalid token payload' });
-      }
-
-      const { user: tokenUser, sessionId } = decoded;
-
-      // Re-fetch session AND user from DB to ensure they are still valid and have correct roles
-      const session = await prisma.session.findFirst({
-        where: { id: sessionId, userId: tokenUser.id },
-        include: { user: true }
-      });
-
-      if (!session || session.userId !== tokenUser.id) {
-        return res.status(401).json({ message: 'Session not found or invalid' });
-      }
-
-      if (session.expires && session.expires < new Date()) {
-        return res.status(401).json({ message: 'Session expired' });
-      }
-
-      if (!session.user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
+      const authContext = await authorizeRequest(req, deps?.cache);
 
       const authenticatedReq = req as AuthenticatedRequest;
-      authenticatedReq.user = session.user;
-      authenticatedReq.sessionId = sessionId;
+      authenticatedReq.user = authContext.user;
+      authenticatedReq.sessionId = authContext.sessionId;
+      authenticatedReq.syncKey = authContext.syncKey;
 
       return handler(authenticatedReq, res);
-    } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
-          return res.status(401).json({ message: 'Token expired' });
+    } catch (error: any) {
+      if (error.message === 'Database Connection Error' || error.message === 'Internal Database Error' || (error.code && typeof error.code === 'string' && error.code.startsWith('P'))) {
+          console.error('withAuth database error:', error);
+          return res.status(500).json({ message: 'Internal Server Error' });
       }
-      if (error instanceof jwt.JsonWebTokenError) {
-          return res.status(401).json({ message: 'Invalid token' });
+
+      const clientErrors = [
+          'Missing or invalid Authorization header',
+          'Invalid token',
+          'Token expired',
+          'Invalid token payload',
+          'Session not found or invalid',
+          'Session expired',
+          'User not found'
+      ];
+
+      if (clientErrors.includes(error.message)) {
+          return res.status(401).json({ message: error.message });
       }
+
+      // Fallback for any other unexpected errors
+      console.error('withAuth unexpected error:', error);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
   };
