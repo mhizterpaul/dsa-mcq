@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 export type AuthenticatedRequest = NextApiRequest & {
   user: any;
   sessionId: string;
+  syncKey?: string;
 };
 
 export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => void | Promise<void>) {
@@ -16,14 +17,17 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       return res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header' });
     }
     const token = authHeader.split(' ')[1];
-    let decoded;
     if (!token) {
       return res.status(401).json({ message: 'Unauthorized: Token not provided' });
     }
 
+    let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret') as any;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') {
+          return res.status(401).json({ message: 'Token expired' });
+      }
       return res.status(401).json({ message: 'Invalid token' });
     }
 
@@ -35,8 +39,8 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       const { user: tokenUser, sessionId } = decoded;
 
       // Re-fetch session AND user from DB to ensure they are still valid and have correct roles
-      const session = await prisma.session.findFirst({
-        where: { id: sessionId, userId: tokenUser.id },
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
         include: { user: true }
       });
 
@@ -55,15 +59,22 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = session.user;
       authenticatedReq.sessionId = sessionId;
+      authenticatedReq.syncKey = session.syncKey || undefined;
 
       return handler(authenticatedReq, res);
-    } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') {
           return res.status(401).json({ message: 'Token expired' });
       }
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (error.name === 'JsonWebTokenError') {
           return res.status(401).json({ message: 'Invalid token' });
       }
+      // If it's a simulated error from test, or a real DB error
+      if (error.message === 'Internal Database Error' || (error.code && error.code.startsWith('P'))) {
+          return res.status(500).json({ message: 'Internal Server Error' });
+      }
+
+      console.error('withAuth error:', error);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
   };

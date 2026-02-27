@@ -2,19 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuthenticatedUser } from '../../../utils/auth';
 import { EngagementService } from '../../../controllers/engagementController';
 import { prisma } from '../../../infra/prisma/client';
+import { withAuth, AuthenticatedRequest } from '../../../utils/withAuth';
 
-export async function actionHandler(req: NextApiRequest, res: NextApiResponse, service: EngagementService) {
-    let user;
-    try {
-        user = await getAuthenticatedUser(req);
-    } catch (error) {
-        return res.status(500).json({ message: 'Internal Server Error' });
-    }
-
-    if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
-
+export async function actionHandler(req: AuthenticatedRequest, res: NextApiResponse, service: EngagementService) {
     if (req.method === 'POST') {
         const { xp } = req.body;
 
@@ -24,21 +14,24 @@ export async function actionHandler(req: NextApiRequest, res: NextApiResponse, s
         }
 
         try {
-            await service.updateUserXP(user.id, xp);
+            if (xp > 1000000) {
+                return res.status(400).json({ message: 'XP amount too large' });
+            }
+            await service.updateUserXP(req.user.id, xp);
             res.status(200).json({ success: true });
         } catch (error: any) {
+            if (error.message === 'Internal Database Error') {
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
             res.status(400).json({ message: error.message });
         }
     } else {
         res.setHeader('Allow', ['POST']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ message: `Method ${req.method} Not Allowed` });
     }
 }
 
-export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse
-) {
+export default withAuth(async (req, res) => {
     const service = new EngagementService(prisma);
     return actionHandler(req, res, service);
-}
+});

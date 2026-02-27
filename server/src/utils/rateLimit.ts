@@ -25,9 +25,7 @@ export const rateLimiter = (options: RateLimitOptions) => {
 
     requests.push(now);
 
-    const ttl = Math.ceil((windowStart + options.windowMs - now) / 1000);
-
-    await cacheService.set(key, requests, ttl);
+    await cacheService.set(key, requests);
 
     res.setHeader('X-RateLimit-Limit', options.max);
     res.setHeader('X-RateLimit-Remaining', Math.max(0, options.max - requests.length));

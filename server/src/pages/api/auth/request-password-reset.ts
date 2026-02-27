@@ -14,7 +14,7 @@ export async function requestPasswordResetHandler(
     const client = prisma ?? defaultPrisma;
     const mailer = mailService ?? new MailService(client);
 
-    if (!verifySignature(req)) {
+    if (!verifySignature(req, process.env.JWT_SECRET || 'secret')) {
         return res.status(403).json({ message: 'Invalid signature' });
     }
 

@@ -20,7 +20,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         },
       },
     });
-    res.status(200).json(categories);
+    const sanitizedCategories = categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      featured: cat.featured,
+      _count: cat._count
+    }));
+    res.status(200).json(sanitizedCategories);
   } else {
     res.setHeader('Allow', ['GET']);
     res.status(405).json({ message: `Method ${req.method} Not Allowed` });

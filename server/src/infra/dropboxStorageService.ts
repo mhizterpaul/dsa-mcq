@@ -17,12 +17,12 @@ export class DropboxStorageService implements IStorageService {
     this.dbx = new Dropbox({ accessToken: process.env.DROPBOX_ACCESS_TOKEN });
   }
 
-  async upload(file: any, userId: string, provider: 'google' | 'dropbox'): Promise<string> {
-    const fileName = `${uuidv4()}-${file.originalname}`;
+  async upload(file: any, userId: string): Promise<string> {
+    const fileName = `${uuidv4()}-${file.originalname || file.newFilename}`;
     const path = `/uploads/${userId}/${fileName}`;
     const response = await this.dbx.filesUpload({
       path,
-      contents: fs.createReadStream(file.path),
+      contents: fs.createReadStream(file.filepath || file.path),
     });
     const fileId = response.result.id;
     const { url } = await this.dbx.sharingCreateSharedLinkWithSettings({ path: response.result.path_display! });
@@ -31,7 +31,7 @@ export class DropboxStorageService implements IStorageService {
     await this.prisma.media.create({
       data: {
         userId,
-        provider,
+        provider: 'dropbox',
         providerId: fileId,
         url: directUrl,
       },
@@ -56,7 +56,7 @@ export class DropboxStorageService implements IStorageService {
     }
     await this.dbx.filesUpload({
       path: media.providerId,
-      contents: fs.createReadStream(file.path),
+      contents: fs.createReadStream(file.filepath || file.path),
       mode: { '.tag': 'overwrite' },
     });
   }

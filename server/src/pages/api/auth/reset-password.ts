@@ -7,7 +7,7 @@ import { verifySignature } from '../../../utils/signature';
 export async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse, prisma?: PrismaClient) {
     const client = prisma ?? defaultPrisma;
 
-    if (!verifySignature(req)) {
+    if (!verifySignature(req, process.env.JWT_SECRET || 'secret')) {
         return res.status(403).json({ message: 'Invalid signature' });
     }
 
