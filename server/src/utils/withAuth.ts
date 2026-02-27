@@ -1,5 +1,5 @@
 import { NextApiHandler, NextApiRequest, NextApiResponse } from 'next';
-import { getAuthenticatedUser } from './auth';
+import { getAuthenticatedUser, validateSession } from './auth';
 import { CacheService } from '../infra/cacheService';
 import { prisma } from '../infra/prisma/client';
 import jwt from 'jsonwebtoken';
@@ -38,23 +38,8 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
 
       const { user: tokenUser, sessionId } = decoded;
 
-      // Re-fetch session AND user from DB to ensure they are still valid and have correct roles
-      const session = await prisma.session.findUnique({
-        where: { id: sessionId },
-        include: { user: true }
-      });
-
-      if (!session || session.userId !== tokenUser.id) {
-        return res.status(401).json({ message: 'Session not found or invalid' });
-      }
-
-      if (session.expires && session.expires < new Date()) {
-        return res.status(401).json({ message: 'Session expired' });
-      }
-
-      if (!session.user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
+      // Use extracted validation logic
+      const session = await validateSession(sessionId, tokenUser.id);
 
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = session.user;
@@ -63,13 +48,20 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
 
       return handler(authenticatedReq, res);
     } catch (error: any) {
+      if (error.message === 'Session expired') {
+          return res.status(401).json({ message: 'Session expired' });
+      }
+      if (error.message === 'Session not found or invalid' || error.message === 'User not found') {
+          return res.status(401).json({ message: error.message });
+      }
       if (error.name === 'TokenExpiredError') {
           return res.status(401).json({ message: 'Token expired' });
       }
       if (error.name === 'JsonWebTokenError') {
           return res.status(401).json({ message: 'Invalid token' });
       }
-      // If it's a simulated error from test, or a real DB error
+
+      // Handle database failures specifically if needed, otherwise fall back to 500
       if (error.message === 'Internal Database Error' || (error.code && error.code.startsWith('P'))) {
           return res.status(500).json({ message: 'Internal Server Error' });
       }

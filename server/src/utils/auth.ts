@@ -3,6 +3,27 @@ import jwt from 'jsonwebtoken';
 import { CacheService } from '../infra/cacheService';
 import { prisma } from '../infra/prisma/client';
 
+export async function validateSession(sessionId: string, userId: string) {
+    const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: { user: true }
+    });
+
+    if (!session || session.userId !== userId) {
+        throw new Error('Session not found or invalid');
+    }
+
+    if (session.expires && session.expires < new Date()) {
+        throw new Error('Session expired');
+    }
+
+    if (!session.user) {
+        throw new Error('User not found');
+    }
+
+    return session;
+}
+
 export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheService) {
     const cacheService = cache || new CacheService();
     const authHeader = req.headers.authorization;
@@ -31,20 +52,10 @@ export async function getAuthenticatedUser(req: NextApiRequest, cache?: CacheSer
             return null;
         }
 
-        if (sessionId) {
-            const session = await prisma.session.findFirst({
-                where: { id: sessionId, userId: user.id },
-                include: { user: true },
-            });
-            if (!session || !session.user) {
-                return null;
-            }
-            return session.user;
-        }
-
-        return user;
+        const session = await validateSession(sessionId, user.id);
+        return session.user;
     } catch (error: any) {
-        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError' || error.message.includes('Session') || error.message.includes('User not found')) {
             return null;
         }
         throw error;

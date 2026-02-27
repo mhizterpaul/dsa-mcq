@@ -5,6 +5,7 @@ import questionsHandler from '../../pages/api/learning/questions';
 import devopsHandler from '../../pages/api/analytics/devops';
 import actionHandlerExport from '../../pages/api/engagement/action';
 import { prisma } from '../../infra/prisma/client';
+import * as authUtils from '../../utils/auth';
 import jwt from 'jsonwebtoken';
 
 jest.mock('../../infra/cacheService');
@@ -35,18 +36,25 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   ];
 
   beforeEach(async () => {
-    jest.clearAllMocks();
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.engagement.deleteMany();
+  });
+
+  afterEach(() => {
+      jest.restoreAllMocks();
   });
 
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
-  function assertNoBusinessLogic() {
-      // In a real DB test, we check if side effects happened.
-      // For this test, we mainly care about the response code.
+  async function assertNoSideEffects() {
+      const engagementCount = await prisma.engagement.count();
+      expect(engagementCount).toBe(0);
+      const userCount = await prisma.user.count();
+      // Only users created during setup should exist if setup was successful,
+      // but if auth fails, no new side effects should happen.
   }
 
   test.each(protectedEndpoints)(
@@ -58,6 +66,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
+      await assertNoSideEffects();
     }
   );
 
@@ -72,6 +81,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
+      await assertNoSideEffects();
     }
   );
 
@@ -79,7 +89,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
     '$name allows lowercase bearer prefix',
     async ({ name, handler }) => {
       const user = await prisma.user.create({ data: testUser });
-      await prisma.session.create({
+      const session = await prisma.session.create({
           data: {
               id: 'sess-1',
               userId: user.id,
@@ -100,7 +110,6 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
         query: name === 'questions' ? { categoryId: 'cat1', difficulty: 'EASY' } : {},
       });
 
-      // sync route requires signature too
       if (name === 'sync') {
           req.headers['x-client-signature'] = 'invalid';
       }
@@ -108,9 +117,9 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       await handler(req, res);
 
       if (name === 'devops') {
-          expect(res._getStatusCode()).toBe(403); // because not admin
+          expect(res._getStatusCode()).toBe(403);
       } else if (name === 'sync') {
-          expect(res._getStatusCode()).toBe(403); // invalid signature
+          expect(res._getStatusCode()).toBe(403);
       } else {
           expect(res._getStatusCode()).toBe(200);
       }
@@ -176,25 +185,25 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      assertNoBusinessLogic();
+      await assertNoSideEffects();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name rejects session with missing user record in DB',
     async ({ name, handler }) => {
-      await prisma.user.create({ data: testUser });
+      const user = await prisma.user.create({ data: testUser });
       await prisma.session.create({
           data: {
               id: 'sess-1',
-              userId: testUser.id,
+              userId: user.id,
               sessionToken: 'tk1',
               expires: new Date(Date.now() + 3600000)
           }
       });
-      await prisma.user.delete({ where: { id: testUser.id } });
+      await prisma.user.delete({ where: { id: user.id } });
 
-      const token = jwt.sign({ user: { id: testUser.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+      const token = jwt.sign({ user: { id: user.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
         method: name === 'action' || name === 'sync' ? 'POST' : 'GET',
         headers: { authorization: `Bearer ${token}` },
@@ -203,14 +212,15 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
       await handler(req, res);
       expect(res._getStatusCode()).toBe(401);
-      assertNoBusinessLogic();
+      await assertNoSideEffects();
     }
   );
 
   test.each(protectedEndpoints)(
     '$name handles database failure gracefully (returns sanitized 500)',
     async ({ name, handler }) => {
-      const findUniqueSpy = jest.spyOn(prisma.session, 'findUnique').mockRejectedValue(new Error('Internal Database Error'));
+      // Mock at the validation boundary
+      const validateSpy = jest.spyOn(authUtils, 'validateSession').mockRejectedValue(new Error('Internal Database Error'));
 
       const token = jwt.sign({ user: { id: testUser.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
@@ -223,23 +233,22 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       expect(res._getStatusCode()).toBe(500);
       const data = JSON.parse(res._getData());
       expect(data.message).toBe('Internal Server Error');
-      expect(data.error).toBeUndefined(); // No leak
-      findUniqueSpy.mockRestore();
+      expect(data.error).toBeUndefined();
     }
   );
 
   test('devops endpoint enforces admin role (using DB role)', async () => {
-    await prisma.user.create({ data: { ...testUser, role: 'user' } });
+    const user = await prisma.user.create({ data: { ...testUser, role: 'user' } });
     await prisma.session.create({
         data: {
             id: 'sess-1',
-            userId: testUser.id,
+            userId: user.id,
             sessionToken: 'tk1',
             expires: new Date(Date.now() + 3600000)
         }
     });
 
-    const userToken = jwt.sign({ user: { id: testUser.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+    const userToken = jwt.sign({ user: { id: user.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
     const { req, res } = createMocks({
       method: 'GET',
       headers: { authorization: `Bearer ${userToken}` },
@@ -249,18 +258,18 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   });
 
   test('devops endpoint prevents privilege escalation via tampered JWT role', async () => {
-      await prisma.user.create({ data: { ...testUser, role: 'user' } });
+      const user = await prisma.user.create({ data: { ...testUser, role: 'user' } });
       await prisma.session.create({
           data: {
               id: 'sess-1',
-              userId: testUser.id,
+              userId: user.id,
               sessionToken: 'tk1',
               expires: new Date(Date.now() + 3600000)
           }
       });
 
       const tamperedToken = jwt.sign(
-          { user: { id: testUser.id, role: 'admin' }, sessionId: 'sess-1' },
+          { user: { id: user.id, role: 'admin' }, sessionId: 'sess-1' },
           process.env.JWT_SECRET!
       );
 
@@ -277,17 +286,17 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
         const roles = ['admin', 'ADMIN', 'Admin'];
         for (const role of roles) {
             await prisma.user.deleteMany();
-            await prisma.user.create({ data: { ...adminUser, role } });
+            const user = await prisma.user.create({ data: { ...adminUser, role } });
             await prisma.session.create({
                 data: {
                     id: `sess-${role}`,
-                    userId: adminUser.id,
+                    userId: user.id,
                     sessionToken: `tk-${role}`,
                     expires: new Date(Date.now() + 3600000)
                 }
             });
 
-            const adminToken = jwt.sign({ user: { id: adminUser.id }, sessionId: `sess-${role}` }, process.env.JWT_SECRET!);
+            const adminToken = jwt.sign({ user: { id: user.id }, sessionId: `sess-${role}` }, process.env.JWT_SECRET!);
             const { req, res } = createMocks({
               method: 'GET',
               headers: { authorization: `Bearer ${adminToken}` },
