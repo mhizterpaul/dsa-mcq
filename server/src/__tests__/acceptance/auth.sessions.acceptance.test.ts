@@ -7,10 +7,7 @@ import registerHandler from '../../pages/api/auth/register';
 import loginHandler from '../../pages/api/auth/login';
 import { rawLogoutHandler as logoutHandler } from '../../pages/api/auth/logout';
 import meHandler from '../../pages/api/user/me';
-<<<<<<< HEAD
-=======
 import { providerSigninHandler } from '../../pages/api/auth/provider-signin';
->>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
 import { prisma } from '../../infra/prisma/client';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -136,8 +133,6 @@ describe('Auth Session Acceptance Tests (Real DB)', () => {
     await logoutHandler(req as any, res, { prisma });
     expect(res._getStatusCode()).toBe(401);
   });
-<<<<<<< HEAD
-=======
 
   test('OAuth Provider Sign-in', async () => {
     const { req, res } = createMocks({
@@ -163,5 +158,4 @@ describe('Auth Session Acceptance Tests (Real DB)', () => {
 
     expect(res._getStatusCode()).toBe(401);
   });
->>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
 });

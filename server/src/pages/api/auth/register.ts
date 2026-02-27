@@ -17,13 +17,13 @@ export default async function registerHandler(
   const userAgent = req.headers['user-agent'] || '';
 
   try {
-    const { user, token } = await authService.register({
+    const { user, token, syncKey } = await authService.register({
       email,
       password,
       name: name || fullName,
       userAgent,
     });
-    res.status(201).json({ user, token });
+    res.status(201).json({ user, token, syncKey });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }

@@ -8,7 +8,6 @@ import {
 import { Category } from './primitives/Category';
 import { sqliteService } from '../../common/services/sqliteService';
 import { syncService } from '../../common/services/syncService';
-import { AppDispatch } from '../../mediator/store';
 
 // --- ENTITY ADAPTER ---
 const categoriesAdapter = createEntityAdapter<Category>({
@@ -20,12 +19,12 @@ const categoriesAdapter = createEntityAdapter<Category>({
 /**
  * Hydrates the categories state from the SQLite database.
  */
-export const hydrateCategories = createAsyncThunk<Category[], void, { dispatch: AppDispatch }>(
+export const hydrateCategories = createAsyncThunk<Category[], void, { state: any }>(
   'categories/hydrate',
   async (_, thunkAPI) => {
     const categories = await sqliteService.getAll('categories');
 
-    await syncService.performSync(thunkAPI.dispatch);
+    await syncService.performSync(thunkAPI.dispatch, thunkAPI.getState);
 
     const syncedCategories = await sqliteService.getAll('categories');
     return syncedCategories as Category[];

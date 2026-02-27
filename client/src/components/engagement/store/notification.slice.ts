@@ -7,6 +7,7 @@ import {
 } from '@reduxjs/toolkit';
 import { Notification } from './primitives/Notification';
 import { sqliteService } from '../../common/services/sqliteService';
+import { syncService } from '../../common/services/syncService';
 
 // --- ENTITY ADAPTER ---
 const notificationsAdapter = createEntityAdapter<Notification>({
@@ -15,12 +16,16 @@ const notificationsAdapter = createEntityAdapter<Notification>({
 
 // --- ASYNC THUNKS ---
 
-export const hydrateNotifications = createAsyncThunk<Notification[]>(
+export const hydrateNotifications = createAsyncThunk<Notification[], void, { state: any }>(
   'notifications/hydrate',
-  async () => {
+  async (_, thunkAPI) => {
     const notifications = await sqliteService.getAll('notifications');
+
+    await syncService.performSync(thunkAPI.dispatch, thunkAPI.getState);
+
+    const syncedNotifications = await sqliteService.getAll('notifications');
     // The data from DB is plain object, we can cast it if structure matches
-    return notifications as Notification[];
+    return syncedNotifications as Notification[];
   },
 );
 

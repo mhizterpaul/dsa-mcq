@@ -17,8 +17,8 @@ export default async function loginHandler(
   const userAgent = req.headers['user-agent'] || '';
 
   try {
-    const { user, token } = await authService.login(email, password, userAgent);
-    res.status(200).json({ token, user });
+    const { user, token, syncKey } = await authService.login(email, password, userAgent);
+    res.status(200).json({ token, user, syncKey });
   } catch (error: any) {
     res.status(401).json({ message: error.message });
   }

@@ -39,7 +39,6 @@ export class EngagementService {
     }
   }
 
-<<<<<<< HEAD
   async getLeaderboard(): Promise<Player[]> {
     const engagements = await this.prisma.engagement.findMany({
       orderBy: [
@@ -54,13 +53,6 @@ export class EngagementService {
             }
         }
       }
-=======
-  async getLeaderboard() {
-    return this.prisma.leaderboard.findMany({
-      orderBy: { xp: 'desc' },
-      take: 10,
-      include: { user: true }
->>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
     });
 
     return engagements.map((e, index) => ({
@@ -79,7 +71,6 @@ export class EngagementService {
   }
 
   async getWeeklyKing() {
-<<<<<<< HEAD
     const now = new Date();
     const startOfWeek = new Date(now);
     const day = now.getDay();
@@ -102,13 +93,7 @@ export class EngagementService {
         _sum: {
             score: true
         }
-=======
-    return this.prisma.engagement.findFirst({
-      orderBy: { xp_weekly: 'desc' },
-      include: { user: true }
->>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
     });
-
     if (participants.length === 0) return null;
 
     // Deterministic sort: Sum of score desc, then userId asc
@@ -125,6 +110,10 @@ export class EngagementService {
     });
 
     if (!user) return null;
+    // return this.prisma.engagement.findFirst({
+    //   orderBy: { xp_weekly: 'desc' },
+    //   include: { user: true }
+    // });
 
     return {
         userId: user.id,
@@ -136,76 +125,6 @@ export class EngagementService {
   }
 
   async updateUserXP(userId: string, xp: number) {
-<<<<<<< HEAD
-    if (xp < 0) throw new Error('XP cannot be negative');
-
-    // Safety check for large XP values to prevent database overflow
-    // Prisma Int is 32-bit (up to 2,147,483,647)
-    if (xp > 2000000000) {
-        throw new Error('XP value too large');
-    }
-
-    const currentEngagement = await this.prisma.engagement.findUnique({ where: { userId } });
-    if (currentEngagement && currentEngagement.xp + xp > 2000000000) {
-        throw new Error('XP value too large');
-    }
-
-    return this.prisma.engagement.upsert({
-      where: { userId },
-      update: {
-          xp: { increment: xp },
-          xp_weekly: { increment: xp },
-          xp_monthly: { increment: xp }
-      },
-      create: {
-          userId,
-          xp,
-          xp_weekly: xp,
-          xp_monthly: xp
-      },
-    });
-  }
-
-  async getAchievements(userId: string) {
-      const userCount = await this.prisma.user.count();
-      const engagement = await this.prisma.engagement.findUnique({
-          where: { userId },
-          include: {
-              user: {
-                  include: {
-                      leaderboard: true
-                  }
-              }
-          }
-      });
-
-      const xp = engagement?.xp || 0;
-      const weeklyKing = await this.getWeeklyKing();
-      const isWeeklyKing = weeklyKing?.userId === userId;
-
-      const rank = await this.calculateRank(xp);
-
-      return {
-          badges: {
-              totalUnlocked: this.calculateBadgesCount(engagement, isWeeklyKing),
-              list: this.getBadgesList(engagement, isWeeklyKing),
-              nextBadge: this.getNextBadges(engagement)
-          },
-          leaderboard: {
-              score: xp,
-              rank: rank || userCount,
-              competitors: await this.getCompetitors()
-          },
-          stats: {
-              highScore: Math.max(980, xp),
-              longestStreak: engagement ? '14' : '0',
-              longestExercise: engagement ? '60' : '0',
-              longestReps: engagement ? '120' : '0',
-              longestSets: engagement ? '20' : '0',
-              quizzesPlayed: 0 // Mocked for now
-          }
-      };
-=======
     return this.prisma.engagement.update({
       where: { userId: userId },
       data: { xp: { increment: xp } },
@@ -216,7 +135,6 @@ export class EngagementService {
     return this.prisma.engagement.updateMany({
       data: { xp_weekly: 0 },
     });
->>>>>>> origin/user-route-acceptance-tests-and-logic-18439727907489162357
   }
 
   private async calculateRank(xp: number): Promise<number> {

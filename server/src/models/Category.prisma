@@ -3,4 +3,6 @@ model Category {
     name String @unique 
     featured Boolean @default(false)
     questions Question[] 
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }

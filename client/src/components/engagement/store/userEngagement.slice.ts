@@ -28,13 +28,13 @@ const initialState: UserEngagementState = {
 
 // --- ASYNC THUNKS FOR DB OPERATIONS ---
 
-export const hydrateUserEngagements = createAsyncThunk<UserEngagement[], void, { dispatch: AppDispatch }>(
+export const hydrateUserEngagements = createAsyncThunk<UserEngagement[], void, { state: any }>(
   'userEngagement/hydrate',
   async (_, thunkAPI) => {
     const engagements = await sqliteService.getAll('user_engagement');
 
     // After hydrating from local DB, perform a two-way sync
-    await syncService.performSync(thunkAPI.dispatch);
+    await syncService.performSync(thunkAPI.dispatch, thunkAPI.getState);
 
     // Re-fetch from local DB to get the synced data
     const syncedEngagements = await sqliteService.getAll('user_engagement');

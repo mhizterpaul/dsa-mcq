@@ -8,6 +8,7 @@ import {
 import { UserQuestionData } from './primitives/UserQuestionData';
 import { sqliteService } from '../../common/services/sqliteService';
 import { learningService } from '../services/learningService';
+import { syncService } from '../../common/services/syncService';
 
 // --- UTILITY FUNCTIONS FOR DB ---
 const stringifyUqd = (uqd: UserQuestionData) => ({
@@ -34,11 +35,15 @@ const userQuestionDataAdapter = createEntityAdapter<UserQuestionData>({
 
 // --- ASYNC THUNKS ---
 
-export const hydrateUserQuestionData = createAsyncThunk<UserQuestionData[]>(
+export const hydrateUserQuestionData = createAsyncThunk<UserQuestionData[], void, { state: any }>(
   'userQuestionData/hydrate',
-  async () => {
+  async (_, thunkAPI) => {
     const data = await sqliteService.getAll('user_question_data');
-    return data.map(dbUqd => JSON.parse(JSON.stringify(parseUqd(dbUqd))));
+
+    await syncService.performSync(thunkAPI.dispatch, thunkAPI.getState);
+
+    const syncedData = await sqliteService.getAll('user_question_data');
+    return syncedData.map(dbUqd => JSON.parse(JSON.stringify(parseUqd(dbUqd))));
   },
 );
 
