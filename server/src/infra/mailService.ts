@@ -16,16 +16,21 @@ export class MailService {
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
-    // These are test credentials. In a production environment, these should be
-    // replaced with actual credentials from a secure source.
+    /**
+     * Mail Service configuration.
+     * The following credentials (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+     * are required to be set as environment variables.
+     */
+    const host = process.env.SMTP_HOST || 'smtp.ethereal.email';
+    const port = parseInt(process.env.SMTP_PORT || '587');
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'testuser',
-        pass: 'testpass',
-      },
+      host,
+      port,
+      secure: port === 465,
+      auth: user && pass ? { user, pass } : undefined,
     });
   }
 

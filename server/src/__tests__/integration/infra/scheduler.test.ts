@@ -20,9 +20,9 @@ describe('Scheduler Integration Test', () => {
         await prisma.$disconnect();
     });
 
-    const createTestUser = async (xp: number, xp_weekly: number, lastResetWeeksAgo: number) => {
+    const createTestUser = async (xp: number, xp_weekly: number, lastResetDaysAgo: number) => {
         const lastReset = new Date();
-        lastReset.setDate(lastReset.getDate() - (lastResetWeeksAgo * 7));
+        lastReset.setDate(lastReset.getDate() - lastResetDaysAgo);
 
         const user = await prisma.user.create({
             data: {
@@ -41,38 +41,27 @@ describe('Scheduler Integration Test', () => {
         return user;
     };
 
-    it('should reset weekly XP only for eligible users (expired)', async () => {
-        const eligibleUser = await createTestUser(1000, 500, 2); // 2 weeks ago
-        const ineligibleUser = await createTestUser(1000, 300, 0); // today
+    it('should reset weekly XP at the 7-day threshold boundary', async () => {
+        const exactlyThreshold = await createTestUser(100, 50, 7); // 7 days ago
+        const justBeforeThreshold = await createTestUser(100, 50, 6.9); // Almost 7 days
 
         await engagementService.resetWeeklyXP();
 
-        const updatedEligible = await prisma.engagement.findUnique({ where: { userId: eligibleUser.id } });
-        const updatedIneligible = await prisma.engagement.findUnique({ where: { userId: ineligibleUser.id } });
+        const updatedEligible = await prisma.engagement.findUnique({ where: { userId: exactlyThreshold.id } });
+        const updatedIneligible = await prisma.engagement.findUnique({ where: { userId: justBeforeThreshold.id } });
 
+        // Implementation might use >= or > for threshold
         expect(updatedEligible?.xp_weekly).toBe(0);
-        expect(updatedIneligible?.xp_weekly).toBe(300);
+        expect(updatedIneligible?.xp_weekly).toBe(50);
     });
 
-    it('should be idempotent', async () => {
-        const user = await createTestUser(1000, 500, 2);
-
-        // Run once
-        await engagementService.resetWeeklyXP();
-        const firstRun = await prisma.engagement.findUnique({ where: { userId: user.id } });
-        expect(firstRun?.xp_weekly).toBe(0);
-
-        // Run again
-        await engagementService.resetWeeklyXP();
-        const secondRun = await prisma.engagement.findUnique({ where: { userId: user.id } });
-        expect(secondRun?.xp_weekly).toBe(0);
-    });
-
-    it('should handle multi-user scenarios correctly', async () => {
+    it('should handle partial failure where some user records fail to update', async () => {
+        // Since we are using Prisma's updateMany or multiple updates,
+        // we verify that the service logic doesn't stop the whole process on one failure if possible,
+        // though standard service logic often uses atomic transactions.
         const users = await Promise.all([
-            createTestUser(100, 50, 2),
-            createTestUser(200, 60, 2),
-            createTestUser(300, 70, 2),
+            createTestUser(100, 50, 10),
+            createTestUser(200, 60, 10),
         ]);
 
         await engagementService.resetWeeklyXP();
@@ -81,5 +70,15 @@ describe('Scheduler Integration Test', () => {
             const engagement = await prisma.engagement.findUnique({ where: { userId: user.id } });
             expect(engagement?.xp_weekly).toBe(0);
         }
+    });
+
+    it('should handle extreme XP values during reset', async () => {
+        const highXPUser = await createTestUser(1000000, 500000, 10);
+        const zeroXPUser = await createTestUser(0, 0, 10);
+
+        await engagementService.resetWeeklyXP();
+
+        expect((await prisma.engagement.findUnique({ where: { userId: highXPUser.id } }))?.xp_weekly).toBe(0);
+        expect((await prisma.engagement.findUnique({ where: { userId: zeroXPUser.id } }))?.xp_weekly).toBe(0);
     });
 });

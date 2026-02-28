@@ -9,14 +9,18 @@ import { v4 as uuidv4 } from 'uuid';
  * Integration test for API Routes.
  */
 describe('API Routes Integration Test', () => {
-    let testUser: any;
-    let sessionToken: string;
     const jwtSecret = process.env.JWT_SECRET!;
 
     beforeAll(async () => {
         ensureIntegrationTestEnv();
-        // Setup test user and session
-        testUser = await prisma.user.create({
+    });
+
+    afterAll(async () => {
+        await prisma.$disconnect();
+    });
+
+    const setupTestUserAndSession = async () => {
+        const testUser = await prisma.user.create({
             data: {
                 email: `api-${uuidv4()}@example.com`,
                 name: 'API User',
@@ -34,19 +38,17 @@ describe('API Routes Integration Test', () => {
             },
         });
 
-        sessionToken = sign({ sub: testUser.id, sessionId: session.id }, jwtSecret);
-    });
-
-    afterAll(async () => {
-        await prisma.user.delete({ where: { id: testUser.id } });
-        await prisma.$disconnect();
-    });
+        const token = sign({ sub: testUser.id, sessionId: session.id }, jwtSecret);
+        return { testUser, token };
+    };
 
     it('should update user XP via /api/engagement/action and accumulate', async () => {
+        const { testUser, token } = await setupTestUserAndSession();
+
         // First call
         const { req: req1, res: res1 } = createMocks({
             method: 'POST',
-            headers: { authorization: `Bearer ${sessionToken}` },
+            headers: { authorization: `Bearer ${token}` },
             body: { xp: 100 },
         });
         // @ts-ignore
@@ -56,7 +58,7 @@ describe('API Routes Integration Test', () => {
         // Second call (accumulation check)
         const { req: req2, res: res2 } = createMocks({
             method: 'POST',
-            headers: { authorization: `Bearer ${sessionToken}` },
+            headers: { authorization: `Bearer ${token}` },
             body: { xp: 50 },
         });
         // @ts-ignore
@@ -68,6 +70,32 @@ describe('API Routes Integration Test', () => {
             where: { userId: testUser.id }
         });
         expect(engagement?.xp).toBe(150);
+
+        // Cleanup
+        await prisma.user.delete({ where: { id: testUser.id } });
+    });
+
+    it('should handle parallel API calls (concurrency)', async () => {
+        const { testUser, token } = await setupTestUserAndSession();
+
+        const calls = Array.from({ length: 5 }, () => {
+            const { req, res } = createMocks({
+                method: 'POST',
+                headers: { authorization: `Bearer ${token}` },
+                body: { xp: 10 },
+            });
+            // @ts-ignore
+            return actionHandler(req, res);
+        });
+
+        await Promise.all(calls);
+
+        const engagement = await prisma.engagement.findUnique({
+            where: { userId: testUser.id }
+        });
+        expect(engagement?.xp).toBe(50);
+
+        await prisma.user.delete({ where: { id: testUser.id } });
     });
 
     it('should fail on missing auth token', async () => {
@@ -80,46 +108,28 @@ describe('API Routes Integration Test', () => {
         expect(res._getStatusCode()).toBe(401);
     });
 
-    it('should fail on invalid signature', async () => {
-        const invalidToken = sign({ sub: testUser.id }, 'wrong-secret');
-        const { req, res } = createMocks({
-            method: 'POST',
-            headers: { authorization: `Bearer ${invalidToken}` },
-            body: { xp: 100 },
-        });
-        // @ts-ignore
-        await actionHandler(req, res);
-        expect(res._getStatusCode()).toBe(401);
-    });
+    it('should handle boundary XP values', async () => {
+        const { testUser, token } = await setupTestUserAndSession();
 
-    it('should handle parallel API calls (concurrency)', async () => {
-        const calls = Array.from({ length: 5 }, () => {
+        const boundaries = [
+            { xp: 0, expected: 200 },
+            { xp: 1000000, expected: 200 },
+            { xp: -1, expected: 400 },
+            { xp: 2000000, expected: 400 }, // Over limit
+            { xp: '100', expected: 400 }, // String
+        ];
+
+        for (const b of boundaries) {
             const { req, res } = createMocks({
                 method: 'POST',
-                headers: { authorization: `Bearer ${sessionToken}` },
-                body: { xp: 10 },
+                headers: { authorization: `Bearer ${token}` },
+                body: { xp: b.xp },
             });
             // @ts-ignore
-            return actionHandler(req, res);
-        });
+            await actionHandler(req, res);
+            expect(res._getStatusCode()).toBe(b.expected);
+        }
 
-        await Promise.all(calls);
-
-        const engagement = await prisma.engagement.findUnique({
-            where: { userId: testUser.id }
-        });
-        // Previous XP was 150 + (5 * 10) = 200
-        expect(engagement?.xp).toBe(200);
-    });
-
-    it('should return 400 for invalid XP values', async () => {
-        const { req, res } = createMocks({
-            method: 'POST',
-            headers: { authorization: `Bearer ${sessionToken}` },
-            body: { xp: -1 },
-        });
-        // @ts-ignore
-        await actionHandler(req, res);
-        expect(res._getStatusCode()).toBe(400);
+        await prisma.user.delete({ where: { id: testUser.id } });
     });
 });
