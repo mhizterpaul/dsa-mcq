@@ -1,4 +1,6 @@
 import { UpstashRedisCacheService } from '../../../infra/upstashRedisCacheService';
+import { ensureIntegrationTestEnv } from '../setup';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Integration test for Upstash Redis Cache.
@@ -6,13 +8,17 @@ import { UpstashRedisCacheService } from '../../../infra/upstashRedisCacheServic
  */
 describe('Upstash Redis Cache Integration Test', () => {
     let cacheService: UpstashRedisCacheService;
+    const testPrefix = `it:test:redis:${uuidv4()}:`;
 
     beforeAll(() => {
+        ensureIntegrationTestEnv();
         cacheService = new UpstashRedisCacheService();
     });
 
-    it('should set, get, and delete a value', async () => {
-        const key = `test-key-${Date.now()}`;
+    const getPrefixedKey = (key: string) => `${testPrefix}${key}`;
+
+    it('should set, get, and delete a value with namespace isolation', async () => {
+        const key = getPrefixedKey(`key-${Date.now()}`);
         const value = { data: 'test-value' };
 
         // Set
@@ -28,8 +34,8 @@ describe('Upstash Redis Cache Integration Test', () => {
         expect(afterDelete).toBeNull();
     });
 
-    it('should respect TTL', async () => {
-        const key = `test-ttl-key-${Date.now()}`;
+    it('should respect TTL using polling', async () => {
+        const key = getPrefixedKey(`ttl-key-${Date.now()}`);
         const value = 'temporary';
 
         // Set with 1 second TTL
@@ -38,10 +44,45 @@ describe('Upstash Redis Cache Integration Test', () => {
         const immediate = await cacheService.get(key);
         expect(immediate).toBe(value);
 
-        // Wait for 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Polling for expiration
+        const poll = async (attempts: number): Promise<any> => {
+            if (attempts <= 0) return await cacheService.get(key);
+            const val = await cacheService.get(key);
+            if (val === null) return null;
+            await new Promise(r => setTimeout(r, 500));
+            return poll(attempts - 1);
+        };
 
-        const expired = await cacheService.get(key);
+        const expired = await poll(6); // Poll for up to 3 seconds
         expect(expired).toBeNull();
+    });
+
+    it('should handle parallel writes (concurrency)', async () => {
+        const key = getPrefixedKey('concurrency-key');
+        const updates = Array.from({ length: 10 }, (_, i) => cacheService.set(key, `value-${i}`));
+
+        await Promise.all(updates);
+
+        const finalValue = await cacheService.get(key);
+        expect(finalValue).toMatch(/value-\d/);
+    });
+
+    it('should fail gracefully on oversized payloads', async () => {
+        const key = getPrefixedKey('oversized-key');
+        // Upstash has a limit, typically 1MB for free tier
+        const oversizedValue = 'a'.repeat(2 * 1024 * 1024); // 2MB
+
+        await expect(cacheService.set(key, oversizedValue)).rejects.toThrow();
+    });
+
+    it('should fail with invalid credentials', () => {
+        const originalUrl = process.env.UPSTASH_REDIS_REST_URL;
+        process.env.UPSTASH_REDIS_REST_URL = 'https://invalid-url.upstash.io';
+
+        try {
+            expect(() => new UpstashRedisCacheService()).toThrow();
+        } finally {
+            process.env.UPSTASH_REDIS_REST_URL = originalUrl;
+        }
     });
 });

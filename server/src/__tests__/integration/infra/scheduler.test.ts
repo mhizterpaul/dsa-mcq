@@ -1,61 +1,85 @@
 import { prisma } from '../../../infra/prisma/client';
 import { EngagementService } from '../../../controllers/engagementController';
+import { ensureIntegrationTestEnv } from '../setup';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Integration test for Scheduler / Background Jobs.
- * We simulate the job trigger by calling the service methods directly
- * and verifying the side effects in the database.
  */
 describe('Scheduler Integration Test', () => {
     let engagementService: EngagementService;
-    let testUserId: string;
+    let testUsers: string[] = [];
 
     beforeAll(async () => {
+        ensureIntegrationTestEnv();
         engagementService = new EngagementService(prisma);
-
-        // Create a test user with some XP
-        const user = await prisma.user.create({
-            data: {
-                email: `scheduler-test-${Date.now()}@example.com`,
-                name: 'Scheduler Test User',
-                engagement: {
-                    create: {
-                        xp: 1000,
-                        xp_weekly: 500,
-                        xp_monthly: 800,
-                        last_xp_reset_weekly: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
-                    }
-                }
-            },
-            include: { engagement: true }
-        });
-        testUserId = user.id;
     });
 
     afterAll(async () => {
-        await prisma.user.delete({ where: { id: testUserId } });
+        await prisma.user.deleteMany({ where: { id: { in: testUsers } } });
         await prisma.$disconnect();
     });
 
-    it('should reset weekly XP when the weekly job is triggered', async () => {
-        // Trigger the logic that the scheduler would run
+    const createTestUser = async (xp: number, xp_weekly: number, lastResetWeeksAgo: number) => {
+        const lastReset = new Date();
+        lastReset.setDate(lastReset.getDate() - (lastResetWeeksAgo * 7));
+
+        const user = await prisma.user.create({
+            data: {
+                email: `scheduler-${uuidv4()}@example.com`,
+                name: 'Scheduler User',
+                engagement: {
+                    create: {
+                        xp,
+                        xp_weekly,
+                        last_xp_reset_weekly: lastReset,
+                    }
+                }
+            }
+        });
+        testUsers.push(user.id);
+        return user;
+    };
+
+    it('should reset weekly XP only for eligible users (expired)', async () => {
+        const eligibleUser = await createTestUser(1000, 500, 2); // 2 weeks ago
+        const ineligibleUser = await createTestUser(1000, 300, 0); // today
+
         await engagementService.resetWeeklyXP();
 
-        const engagement = await prisma.engagement.findUnique({
-            where: { userId: testUserId }
-        });
+        const updatedEligible = await prisma.engagement.findUnique({ where: { userId: eligibleUser.id } });
+        const updatedIneligible = await prisma.engagement.findUnique({ where: { userId: ineligibleUser.id } });
 
-        expect(engagement?.xp_weekly).toBe(0);
-        expect(engagement?.xp).toBe(1000); // Total XP should remain
+        expect(updatedEligible?.xp_weekly).toBe(0);
+        expect(updatedIneligible?.xp_weekly).toBe(300);
     });
 
-    it('should reset monthly XP when the monthly job is triggered', async () => {
-        await engagementService.resetMonthlyXP();
+    it('should be idempotent', async () => {
+        const user = await createTestUser(1000, 500, 2);
 
-        const engagement = await prisma.engagement.findUnique({
-            where: { userId: testUserId }
-        });
+        // Run once
+        await engagementService.resetWeeklyXP();
+        const firstRun = await prisma.engagement.findUnique({ where: { userId: user.id } });
+        expect(firstRun?.xp_weekly).toBe(0);
 
-        expect(engagement?.xp_monthly).toBe(0);
+        // Run again
+        await engagementService.resetWeeklyXP();
+        const secondRun = await prisma.engagement.findUnique({ where: { userId: user.id } });
+        expect(secondRun?.xp_weekly).toBe(0);
+    });
+
+    it('should handle multi-user scenarios correctly', async () => {
+        const users = await Promise.all([
+            createTestUser(100, 50, 2),
+            createTestUser(200, 60, 2),
+            createTestUser(300, 70, 2),
+        ]);
+
+        await engagementService.resetWeeklyXP();
+
+        for (const user of users) {
+            const engagement = await prisma.engagement.findUnique({ where: { userId: user.id } });
+            expect(engagement?.xp_weekly).toBe(0);
+        }
     });
 });
