@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 6e7624616af0e0c886b4def4071ade27ca4247eb..9426d5fad716d14fab6b6e5f96e41ab2b90a8a13 100644
+--- a/package.json
++++ b/package.json
+@@ -24,7 +24,7 @@
+     "url": "https://github.com/alexreardon/use-memo-one.git"
+   },
+   "peerDependencies": {
+-    "react": "^16.8.0 || ^17.0.0 || ^18.0.0"
++    "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
+   },
+   "devDependencies": {
+     "@babel/core": "^7.5.0",
