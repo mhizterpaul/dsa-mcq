@@ -13,6 +13,10 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
+#credentials
+dsa-mcq-134aae86ec9e.json
+
+
 # development
 .env
 .env.local
