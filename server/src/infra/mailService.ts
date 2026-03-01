@@ -14,6 +14,7 @@ interface MailOptions {
 export class MailService {
   private transporter: nodemailer.Transporter;
   private prisma: PrismaClient;
+  public static readonly MAX_RETRIES = 3;
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
@@ -80,7 +81,7 @@ export class MailService {
 
   async retryFailedEmails() {
     const failedEmails = await this.prisma.outbox.findMany({
-      where: { retries: { lt: 3 } },
+      where: { retries: { lt: MailService.MAX_RETRIES } },
     });
 
     for (const email of failedEmails) {

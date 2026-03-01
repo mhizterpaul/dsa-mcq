@@ -46,15 +46,20 @@ describe('Mail Service Integration Test', () => {
         await realPrisma.$disconnect();
     });
 
-    it('should successfully send an email and not add to outbox', async () => {
+    it('should initialize transporter only once during instantiation', () => {
+        expect(nodemailer.createTransport).toHaveBeenCalled();
+    });
+
+    it('should successfully send an email, return messageId, and not add to outbox', async () => {
         const mailOptions = {
             to: 'recipient@example.com',
             subject: 'Test Subject',
             html: '<p>Hello world from Gmail OAuth2!</p>',
         };
 
-        await mailService.sendMail(mailOptions);
+        const result = await mailService.sendMail(mailOptions);
 
+        expect(result.messageId).toBe('test-id');
         expect(mockSendMail).toHaveBeenCalledWith(mailOptions);
         const outboxCount = await prisma.outbox.count();
         expect(outboxCount).toBe(0);
@@ -137,7 +142,7 @@ describe('Mail Service Integration Test', () => {
         expect(outboxEntry?.error).toBe('Still failing');
     });
 
-    it('should not retry more than 3 times', async () => {
+    it('should not retry more than MAX_RETRIES times', async () => {
         const mailOptions = {
             to: `retry-limit-${uuidv4()}@example.com`,
             subject: 'Retry Limit',
@@ -147,7 +152,7 @@ describe('Mail Service Integration Test', () => {
         await prisma.outbox.create({
             data: {
                 ...mailOptions,
-                retries: 3,
+                retries: MailService.MAX_RETRIES,
                 lastRetry: new Date(),
                 error: 'Last error',
             }
@@ -160,6 +165,38 @@ describe('Mail Service Integration Test', () => {
             where: { to: mailOptions.to }
         });
         expect(outboxEntry).toBeDefined();
-        expect(outboxEntry?.retries).toBe(3);
+        expect(outboxEntry?.retries).toBe(MailService.MAX_RETRIES);
+    });
+
+    it('should process multiple outbox entries correctly (batch processing)', async () => {
+        // Entry 1: Success on retry
+        const mail1 = { to: 'success@example.com', subject: 'S1', html: 'H1' };
+        await prisma.outbox.create({ data: { ...mail1, retries: 0, lastRetry: new Date(), error: 'E1' } });
+
+        // Entry 2: Failure on retry
+        const mail2 = { to: 'fail@example.com', subject: 'S2', html: 'H2' };
+        await prisma.outbox.create({ data: { ...mail2, retries: 1, lastRetry: new Date(), error: 'E2' } });
+
+        // Entry 3: Already at max retries
+        const mail3 = { to: 'max@example.com', subject: 'S3', html: 'H3' };
+        await prisma.outbox.create({ data: { ...mail3, retries: MailService.MAX_RETRIES, lastRetry: new Date(), error: 'E3' } });
+
+        mockSendMail
+            .mockResolvedValueOnce({ messageId: 'id1' })
+            .mockRejectedValueOnce(new Error('Persistent error'));
+
+        await mailService.retryFailedEmails();
+
+        expect(mockSendMail).toHaveBeenCalledTimes(2);
+
+        const outboxEntries = await prisma.outbox.findMany();
+        expect(outboxEntries).toHaveLength(2);
+
+        const entry2 = outboxEntries.find(e => e.to === 'fail@example.com');
+        expect(entry2?.retries).toBe(2);
+        expect(entry2?.error).toBe('Persistent error');
+
+        const entry3 = outboxEntries.find(e => e.to === 'max@example.com');
+        expect(entry3?.retries).toBe(MailService.MAX_RETRIES);
     });
 });
