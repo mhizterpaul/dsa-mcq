@@ -10,12 +10,17 @@ on:
 jobs:
   server-acceptance:
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '20.x'
           cache: 'yarn'
           cache-dependency-path: server/yarn.lock
       - name: Install Dependencies
@@ -24,8 +29,9 @@ jobs:
       - name: Run Acceptance Tests
         working-directory: server
         run: |
-          echo 'DATABASE_URL="file:./test.db"' > .env.test
+          echo 'DATABASE_URL="mongodb://localhost:27017/test"' > .env.test
           echo 'JWT_SECRET="test-secret"' >> .env.test
+          yarn prisma:generate
           npx dotenv-cli -e .env.test -- npx jest src/__tests__/acceptance/ --runInBand
 
   client-acceptance:
@@ -35,7 +41,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '20.x'
           cache: 'yarn'
           cache-dependency-path: client/yarn.lock
       - name: Install Dependencies
