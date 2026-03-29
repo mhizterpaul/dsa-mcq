@@ -1,0 +1,105 @@
+import React from 'react';
+import Reminders from './components/Reminders';
+import MotivationCard from './components/MotivationCard';
+import NotificationButton from './components/NotificationButton';
+import Leaderboard from './components/Leaderboard';
+import UserScore from './components/UserScore';
+import WeeklyKingOfQuiz from './components/WeeklyKingOfQuiz';
+import DailyQuizBanner from '../learning/components/DailyQuizBanner';
+import AchievementsView from './screens/AchievementsView';
+import LeaderboardView from './components/LeaderboardView';
+import engagementService from './services/engagementService';
+import { setWeeklyKingOfQuiz } from './store/globalEngagement.slice';
+import { AppDispatch } from '../mediator/store';
+
+export interface IEngagementComponent {
+  hydrate(dispatch: AppDispatch): Promise<void>;
+  loadGamificationState(): void;
+  scheduleReminders(): void;
+  renderLeaderboard(screen: string): React.ReactElement;
+  renderAchievements(screen: string, navigation: any): React.ReactElement;
+  renderLeaderboardView(screen: string): React.ReactElement;
+  renderGoalSetter(screen: string, onSetTarget: () => void): React.ReactElement;
+  renderReminders(screen: string): React.ReactElement;
+  renderMotivationCard(screen: string): React.ReactElement;
+  renderNotificationButton(screen: string, onPress: () => void): React.ReactElement;
+  renderUserScore(screen: string): React.ReactElement;
+  renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement;
+  renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement;
+  getUserMetrics(userId: string): Promise<any>;
+  fetchBadgesForSession(sessionId: string): Promise<any[]>;
+}
+
+export class EngagementComponentImpl {
+    async hydrate(dispatch: AppDispatch) {
+        try {
+            const weeklyKing = await engagementService.getWeeklyKing();
+            dispatch(setWeeklyKingOfQuiz(weeklyKing));
+        } catch (error) {
+            console.error('Failed to hydrate engagement component:', error);
+        }
+    }
+
+    loadGamificationState() {
+        console.log("Loading gamification state...");
+    }
+
+    scheduleReminders() {
+        console.log("Scheduling reminders...");
+    }
+
+    renderLeaderboard(screen: string): React.ReactElement {
+        return <Leaderboard players={[]} />;
+    }
+
+    renderAchievements(screen: string, navigation: any): React.ReactElement {
+        return <AchievementsView navigation={navigation} data={{} as any} />;
+    }
+
+    renderReminders(screen: string): React.ReactElement {
+        return <Reminders />;
+    }
+
+    renderMotivationCard(screen: string): React.ReactElement {
+        return <MotivationCard />;
+    }
+
+    renderNotificationButton(screen: string, onPress: () => void): React.ReactElement {
+        return <NotificationButton onPress={onPress} />;
+    }
+
+    renderUserScore(screen: string): React.ReactElement {
+        return <UserScore />;
+    }
+
+    renderWeeklyKingOfQuiz(screen: string, navigation: any): React.ReactElement {
+        return <WeeklyKingOfQuiz navigation={navigation} />;
+    }
+
+    renderDailyQuizBanner(screen: string, navigation: any): React.ReactElement {
+        return <DailyQuizBanner navigation={navigation} />;
+    }
+
+    renderLeaderboardView(screen: string): React.ReactElement {
+        return <LeaderboardView />;
+    }
+
+    async getUserMetrics(userId: string): Promise<any> {
+        console.log(`EngagementComponent retrieving metrics for ${userId}`);
+        return {
+            average_response_time: 120.5,
+            badgesCount: 5,
+            streak_length: 3,
+            session_attendance: 0.85,
+            leaderboard_rank: 15
+        };
+    }
+
+    async fetchBadgesForSession(sessionId: string): Promise<any[]> {
+        const response = await fetch(`http://localhost:3000/api/engagement/badges?sessionId=${sessionId}`);
+        if (!response.ok) {
+            return [];
+        }
+        return await response.json();
+    }
+}

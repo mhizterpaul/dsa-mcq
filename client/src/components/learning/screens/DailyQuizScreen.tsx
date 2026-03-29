@@ -37,6 +37,7 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(120); // 2:00 mins
     const [participantUpdates, setParticipantUpdates] = useState<ParticipantUpdate[]>([]);
+    const [lastKnownVersion, setLastKnownVersion] = useState<number | null>(null);
     const [answers, setAnswers] = useState<{ [questionId: string]: { answer: string; isCorrect: boolean } }>({});
 
     useEffect(() => {
@@ -74,7 +75,11 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
             if (!isMounted) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/daily-quiz/state`);
+                const url = lastKnownVersion
+                    ? `${API_BASE_URL}/daily-quiz/state?version=${lastKnownVersion}`
+                    : `${API_BASE_URL}/daily-quiz/state`;
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (!isMounted) return;
@@ -86,11 +91,17 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                         participantCount: data.participants.length
                     } : null);
 
+                    if (data.version) {
+                        setLastKnownVersion(data.version);
+                    }
+
                     if (data.status === 'FINISHED') {
                         navigation.replace('DailyQuizSummary', { sessionId: session?.sessionId });
                         return; // Stop polling on finish
                     }
                     retryCount = 0; // Reset retry count on success
+                } else if (data.status === 'NOT_MODIFIED') {
+                    retryCount = 0;
                 }
             } catch (error) {
                 console.error("Polling failed:", error);

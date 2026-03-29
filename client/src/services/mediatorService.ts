@@ -1,4 +1,4 @@
-import { EngagementComponent } from '../components/engagement/interface';
+import { EngagementComponentImpl } from '../components/engagement/EngagementComponentImpl';
 
 interface Badge {
     id: string;
@@ -7,12 +7,12 @@ interface Badge {
 
 const getEarnedBadgesForSession = async (sessionId: string): Promise<Badge[]> => {
     console.log(`Mediator fetching badges for session: ${sessionId}`);
-    const engagementComponent = new EngagementComponent();
+    const engagementComponent = new EngagementComponentImpl();
     return await engagementComponent.fetchBadgesForSession(sessionId);
 };
 
 const getUserProgress = async (userId: string): Promise<any> => {
-    const engagementComponent = new EngagementComponent();
+    const engagementComponent = new EngagementComponentImpl();
     return await engagementComponent.getUserMetrics(userId);
 };
 

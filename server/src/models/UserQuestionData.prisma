@@ -1,6 +1,6 @@
 model UserQuestionData {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @db.ObjectId
+  userId      String @db.ObjectId @db.ObjectId
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   questionId  String @db.ObjectId
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)

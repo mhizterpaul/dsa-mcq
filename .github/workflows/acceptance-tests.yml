@@ -29,7 +29,7 @@ jobs:
       - name: Run Acceptance Tests
         working-directory: server
         run: |
-          echo 'DATABASE_URL="mongodb://localhost:27017/test"' > .env.test
+          echo 'DATABASE_URL="mongodb://localhost:27017/test?directConnection=true"' > .env.test
           echo 'JWT_SECRET="test-secret"' >> .env.test
           yarn prisma:generate
           npx dotenv-cli -e .env.test -- npx jest src/__tests__/acceptance/ --runInBand
