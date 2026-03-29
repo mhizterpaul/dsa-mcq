@@ -1,0 +1,56 @@
+openapi: 3.0.0
+info:
+  title: DSA-MCQ API
+  version: 1.0.0
+  description: API for the DSA Multiple Choice Question platform.
+
+paths:
+  /daily-quiz/session:
+    get:
+      summary: Get or create a daily quiz session for the user.
+      responses:
+        '200':
+          description: Session details.
+  /daily-quiz/state:
+    get:
+      summary: Get the current state of the user's active session.
+      description: Supports long polling and versioning.
+      parameters:
+        - name: version
+          in: query
+          schema:
+            type: integer
+          description: Last known state version.
+      responses:
+        '200':
+          description: Current session state.
+  /daily-quiz/answer:
+    post:
+      summary: Submit an answer for a question in the session.
+      responses:
+        '200':
+          description: Result of the submission.
+  /daily-quiz/results:
+    get:
+      summary: Get the results of a finished quiz session.
+      responses:
+        '200':
+          description: Quiz rankings and XP earned.
+  /daily-quiz/exit:
+    post:
+      summary: Exit the current quiz session.
+      responses:
+        '200':
+          description: Successfully exited.
+  /learning/questions:
+    post:
+      summary: Fetch multiple questions by their IDs.
+      responses:
+        '200':
+          description: List of questions.
+  /sync:
+    post:
+      summary: Sync user progress between client and server.
+      responses:
+        '200':
+          description: Synced data.

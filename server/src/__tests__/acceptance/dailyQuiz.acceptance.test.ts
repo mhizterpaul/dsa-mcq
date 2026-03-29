@@ -1,6 +1,6 @@
 import { createMocks } from 'node-mocks-http';
 import sessionsHandler from '../../pages/api/daily-quiz/sessions';
-import eventsHandler from '../../pages/api/daily-quiz/events';
+import stateHandler from '../../pages/api/daily-quiz/state';
 import exitHandler from '../../pages/api/daily-quiz/exit';
 import answerHandler from '../../pages/api/daily-quiz/answer';
 import resultsHandler from '../../pages/api/daily-quiz/results';
@@ -24,7 +24,6 @@ const createToken = async (user: any, options: any = {}) => {
             sessionToken: `token-${sessionId}`
         }
     });
-    // Ensure options is an object
     const signOptions = typeof options === 'string' ? {} : options;
     return jwt.sign({ user: { id: user.id }, sessionId }, JWT_SECRET, signOptions);
 };
@@ -48,7 +47,6 @@ const defaultQuestionData = {
 describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     beforeEach(async () => {
         QuizService.resetState();
-        // Cleanup database in correct order
         await prisma.session.deleteMany();
         await prisma.quizParticipant.deleteMany();
         await prisma.quizQuestion.deleteMany();
@@ -68,7 +66,6 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     describe('Security & Authorization', () => {
         test.each([
             ['sessions', sessionsHandler],
-            ['events', eventsHandler],
             ['answer', answerHandler],
             ['exit', exitHandler],
             ['results', resultsHandler]
@@ -78,7 +75,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(res._getStatusCode()).toBe(401);
         });
 
-        test('rejects expired tokens', async () => {
+        test('should_reject_given_expired_tokens', async () => {
             await prisma.user.create({ data: userA });
             const token = await createToken(userA, { expiresIn: '-1s' });
             const { req, res } = createMocks({
@@ -91,7 +88,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     });
 
     describe('Session Matching & Capacity', () => {
-        test('users with similar achievements are matched into the same session', async () => {
+        test('should_match_users_given_similar_achievements', async () => {
             await prisma.user.createMany({ data: [userA, userB, userC] });
             await prisma.leaderboard.createMany({ data: [leaderboardA, leaderboardB, leaderboardC] });
 
@@ -127,7 +124,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(dataC.id).not.toBe(dataA.id);
         });
 
-        test('findOrCreateParticipant enforces capacity limits atomically', async () => {
+        test('should_enforce_capacity_limits_atomically_given_multiple_joins', async () => {
             process.env.SIMULATE_CONCURRENCY = 'true';
             process.env.USE_REAL_DB = 'true';
             await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4', email: 'u4@x.com' }, { id: 'u5', email: 'u5@x.com' }, { id: 'u6', email: 'u6@x.com' }] });
@@ -165,7 +162,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     });
 
     describe('Timer Integrity & Answer Handling', () => {
-        test('rejects answers after 5 minute timeout', async () => {
+        test('should_reject_answers_given_5_minute_timeout', async () => {
             await prisma.user.create({ data: userA });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
@@ -194,7 +191,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(JSON.parse(res._getData()).message).toContain('expired');
         });
 
-        test('prevents duplicate answers', async () => {
+        test('should_prevent_duplicate_answers_given_repeated_submission', async () => {
             await prisma.user.create({ data: userA });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
@@ -231,7 +228,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     });
 
     describe('Results Calculation', () => {
-        test('computes correct rankings and XP', async () => {
+        test('should_compute_correct_rankings_and_xp_given_finished_session', async () => {
             await prisma.user.createMany({ data: [userA, userB] });
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -263,13 +260,12 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
         });
     });
 
-    describe('SSE & Broadcast Isolation', () => {
-        test('broadcast isolation: only users in the same session receive updates', async () => {
+    describe('Polling & State Synchronization', () => {
+        test('should_isolate_updates_given_different_sessions', async () => {
             await prisma.user.createMany({ data: [userA, userB, userC] });
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // Give them distinct leaderboards
             await prisma.leaderboard.createMany({ data: [
                 { userId: userA.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
                 { userId: userB.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
@@ -280,57 +276,49 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             const tokenB = await createToken(userB);
             const tokenC = await createToken(userC);
 
-            // User A joins and creates participant (creates s1)
             const resInitA = createMocks().res;
             await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req, resInitA);
             const s1Id = JSON.parse(resInitA._getData()).id;
 
-            // User A opens SSE
-            const resA = createMocks().res;
-            resA.write = jest.fn();
-            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req, resA);
-
-            // User C joins and creates participant (creates s2)
             const resInitC = createMocks().res;
             await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenC}` } }).req, resInitC);
             const s2Id = JSON.parse(resInitC._getData()).id;
 
-            // User C opens SSE
-            const resC = createMocks().res;
-            resC.write = jest.fn();
-            await eventsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenC}` } }).req, resC);
-
             expect(s1Id).not.toBe(s2Id);
 
-            // User B joins Session 1
             await sessionsHandler(createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
             }).req, createMocks().res);
 
-            // User A should get update, User C should NOT
-            const aCalls = resA.write.mock.calls.map(c => c[0]);
-            const cCalls = resC.write.mock.calls.map(c => c[0]);
+            const { req: reqPollA, res: resPollA } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenA}` }
+            });
+            await stateHandler(reqPollA, resPollA);
+            const stateA = JSON.parse(resPollA._getData());
+            expect(stateA.participants.some((p: any) => p.userId === 'user-b')).toBe(true);
 
-            expect(aCalls.some(c => c.includes('participant_update'))).toBe(true);
-            expect(cCalls.some(c => c.includes('participant_update'))).toBe(false);
+            const { req: reqPollC, res: resPollC } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenC}` }
+            });
+            await stateHandler(reqPollC, resPollC);
+            const stateC = JSON.parse(resPollC._getData());
+            expect(stateC.participants.some((p: any) => p.userId === 'user-b')).toBe(false);
         });
 
-        test('user is notified when session available after failure', async () => {
-            await prisma.user.createMany({ data: [userA, userB] });
+        test('should_reflect_session_availability_given_server_load', async () => {
+            await prisma.user.create({ data: userA });
             const tokenA = await createToken(userA);
-            const tokenB = await createToken(userB);
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            // Cleanup existing sessions for today if any to avoid unique constraint error
             await prisma.quizSession.deleteMany({ where: { date: today } });
 
             for (let i = 0; i < 10; i++) {
-                // Ensure unique dates for sessions
                 const sessionDate = new Date(today);
                 sessionDate.setSeconds(i);
-
                 const s = await prisma.quizSession.create({ data: { id: `full-${i}`, date: sessionDate, startTime: new Date() } });
                 for (let j = 0; j < 5; j++) {
                     const uid = `u-${i}-${j}`;
@@ -339,24 +327,21 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 }
             }
 
-            const resEv = createMocks().res;
-            resEv.write = jest.fn();
-            const reqEv = createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req;
+            const { req: reqPoll1, res: resPoll1 } = createMocks({
+                method: 'GET',
+                headers: { authorization: `Bearer ${tokenA}` }
+            });
+            await stateHandler(reqPoll1, resPoll1);
+            expect(JSON.parse(resPoll1._getData()).status).toBe('WAITING');
 
-            await eventsHandler(reqEv, resEv);
-
-            expect(resEv.write).toHaveBeenCalledWith(expect.stringContaining('"type":"waiting"'));
-
-            // Free up a slot by deleting a session
             await prisma.quizSession.delete({ where: { id: 'full-0' } });
 
-            const { req: reqS, res: resS } = createMocks({
+            const { req: reqPoll2, res: resPoll2 } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${tokenB}` }
+                headers: { authorization: `Bearer ${tokenA}` }
             });
-            await sessionsHandler(reqS, resS);
-
-            expect(resEv.write).toHaveBeenCalledWith(expect.stringContaining('"type":"session_available"'));
+            await stateHandler(reqPoll2, resPoll2);
+            expect(JSON.parse(resPoll2._getData()).status).toBe('AVAILABLE');
         });
     });
 });

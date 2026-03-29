@@ -1,5 +1,5 @@
 model Engagement {
-  id                      String   @id @default(cuid())
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
   userId                  String   @unique
   user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   xp                      Int      @default(0)

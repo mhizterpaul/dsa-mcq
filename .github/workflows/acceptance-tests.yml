@@ -1,0 +1,46 @@
+name: Acceptance Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  merge_group:
+
+jobs:
+  server-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'yarn'
+          cache-dependency-path: server/yarn.lock
+      - name: Install Dependencies
+        working-directory: server
+        run: yarn install
+      - name: Run Acceptance Tests
+        working-directory: server
+        run: |
+          echo 'DATABASE_URL="file:./test.db"' > .env.test
+          echo 'JWT_SECRET="test-secret"' >> .env.test
+          npx dotenv-cli -e .env.test -- npx jest src/__tests__/acceptance/ --runInBand
+
+  client-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'yarn'
+          cache-dependency-path: client/yarn.lock
+      - name: Install Dependencies
+        working-directory: client
+        run: yarn install
+      - name: Run Acceptance Tests
+        working-directory: client
+        run: yarn test src/__tests__/acceptance/

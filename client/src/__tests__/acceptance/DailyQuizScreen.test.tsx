@@ -65,6 +65,12 @@ const server = setupServer(
   http.get('http://localhost:3000/api/daily-quiz/session', () => {
     return HttpResponse.json(mockSession);
   }),
+  http.get('http://localhost:3000/api/daily-quiz/state', () => {
+    return HttpResponse.json({
+        status: 'IN_PROGRESS',
+        participants: mockSession.participants,
+    });
+  }),
   http.post('http://localhost:3000/api/learning/questions', async ({ request }) => {
     return HttpResponse.json(mockQuestions);
   }),
@@ -246,29 +252,32 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(screen.getByTestId('home-button')).toBeOnTheScreen();
   });
 
-  test('handles real-time participant updates via SSE', async () => {
+  test('handles real-time participant updates via polling', async () => {
     await renderWithProviders({ profile: { profile: { bookmarks: [] } } });
     expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
-    // Trigger SSE event with 4 participants
-    await act(async () => {
-        if (mockSseListeners['message']) {
-            mockSseListeners['message']({
-                data: JSON.stringify({
-                    type: 'participant_update',
-                    payload: [
-                        { userId: 'user1', name: 'Alice', avatarUrl: '...' },
-                        { userId: 'user2', name: 'Bob', avatarUrl: '...' },
-                        { userId: 'user3', name: 'Charlie', avatarUrl: '...' },
-                        { userId: 'user4', name: 'David', avatarUrl: '...' },
-                    ]
-                })
+    // Change state to have 4 participants
+    server.use(
+        http.get('http://localhost:3000/api/daily-quiz/state', () => {
+            return HttpResponse.json({
+                status: 'IN_PROGRESS',
+                participants: [
+                    ...mockSession.participants,
+                    { userId: 'user4', name: 'David', avatarUrl: '...' },
+                ]
             });
-        }
+        })
+    );
+
+    // Advance timers to trigger polling
+    await act(async () => {
+        jest.advanceTimersByTime(2000);
     });
 
-    expect(screen.getByText('4 members in session')).toBeOnTheScreen();
+    await waitFor(() => {
+        expect(screen.getByText('4 members in session')).toBeOnTheScreen();
+    });
   });
 
   test('handles tie scores on the leaderboard', async () => {
@@ -305,29 +314,33 @@ describe('DailyQuizScreen Acceptance Tests', () => {
   });
 
   test('handles maximum (5) participants and UI scales', async () => {
+    server.use(
+        http.get('http://localhost:3000/api/daily-quiz/state', () => {
+            return HttpResponse.json({
+                status: 'IN_PROGRESS',
+                participants: [
+                    { userId: 'u1', name: 'A', avatarUrl: '...' },
+                    { userId: 'u2', name: 'B', avatarUrl: '...' },
+                    { userId: 'u3', name: 'C', avatarUrl: '...' },
+                    { userId: 'u4', name: 'D', avatarUrl: '...' },
+                    { userId: 'u5', name: 'E', avatarUrl: '...' },
+                ]
+            });
+        })
+    );
+
     await renderWithProviders();
     expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
 
     await act(async () => {
-        if (mockSseListeners['message']) {
-            mockSseListeners['message']({
-                data: JSON.stringify({
-                    type: 'participant_update',
-                    payload: [
-                        { userId: 'u1', name: 'A', avatarUrl: '...' },
-                        { userId: 'u2', name: 'B', avatarUrl: '...' },
-                        { userId: 'u3', name: 'C', avatarUrl: '...' },
-                        { userId: 'u4', name: 'D', avatarUrl: '...' },
-                        { userId: 'u5', name: 'E', avatarUrl: '...' },
-                    ]
-                })
-            });
-        }
+        jest.advanceTimersByTime(2000);
     });
 
-    expect(screen.getByText('5 members in session')).toBeOnTheScreen();
-    // AvatarGroup should show +2 if it slices at 3
-    expect(screen.getByText('+2')).toBeOnTheScreen();
+    await waitFor(() => {
+        expect(screen.getByText('5 members in session')).toBeOnTheScreen();
+        // AvatarGroup should show +2 if it slices at 3
+        expect(screen.getByText('+2')).toBeOnTheScreen();
+    });
   });
 
   test('handles participant leaving mid-quiz', async () => {
@@ -335,22 +348,26 @@ describe('DailyQuizScreen Acceptance Tests', () => {
     expect(await screen.findByTestId('member-tracking')).toBeOnTheScreen();
     expect(screen.getByText('3 members in session')).toBeOnTheScreen();
 
-    // Trigger SSE event with 2 participants (one left)
-    await act(async () => {
-        if (mockSseListeners['message']) {
-            mockSseListeners['message']({
-                data: JSON.stringify({
-                    type: 'participant_update',
-                    payload: [
-                        { userId: 'user1', name: 'Alice', avatarUrl: '...' },
-                        { userId: 'user2', name: 'Bob', avatarUrl: '...' },
-                    ]
-                })
+    // Trigger update with 2 participants (one left) via polling
+    server.use(
+        http.get('http://localhost:3000/api/daily-quiz/state', () => {
+            return HttpResponse.json({
+                status: 'IN_PROGRESS',
+                participants: [
+                    { userId: 'user1', name: 'Alice', avatarUrl: '...' },
+                    { userId: 'user2', name: 'Bob', avatarUrl: '...' },
+                ]
             });
-        }
+        })
+    );
+
+    await act(async () => {
+        jest.advanceTimersByTime(2000);
     });
 
-    expect(screen.getByText('2 members in session')).toBeOnTheScreen();
+    await waitFor(() => {
+        expect(screen.getByText('2 members in session')).toBeOnTheScreen();
+    });
   });
 
   test('timer expiration auto-advances to next question', async () => {

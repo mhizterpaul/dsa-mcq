@@ -1,5 +1,5 @@
 model Outbox {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   to        String
   subject   String
   html      String

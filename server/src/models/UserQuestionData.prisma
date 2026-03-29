@@ -1,8 +1,8 @@
 model UserQuestionData {
-  id          Int @id @default(autoincrement())
-  userId      String
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  Int
+  questionId  String @db.ObjectId
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   attempts    Int      @default(0)
   correct     Boolean  @default(false)
