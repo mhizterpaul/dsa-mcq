@@ -37,7 +37,8 @@ const mockQuestions = Array.from({ length: 50 }, (_, i) => ({
 // --- MSW Server Setup ---
 const server = setupServer(
   http.post('http://localhost:3000/api/learning/questions', async ({ request }) => {
-    const { ids } = (await request.json()) as { ids: number[] };
+    const body = await request.json() as { ids: any[] };
+    const ids = body.ids.map(id => Number(id));
     const filtered = mockQuestions.filter(q => ids.includes(q.id));
     return HttpResponse.json(filtered);
   })

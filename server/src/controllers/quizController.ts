@@ -34,10 +34,11 @@ export class QuizService {
     });
   }
 
-  async getQuestionsByIds(ids: number[]) {
+  async getQuestionsByIds(ids: (number | string)[]) {
+    const stringIds = ids.map(id => String(id));
     return this.prisma.question.findMany({
       where: {
-        id: { in: ids },
+        id: { in: stringIds },
       },
       orderBy: { id: 'asc' },
       include: {

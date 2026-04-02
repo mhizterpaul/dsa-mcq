@@ -15,6 +15,9 @@ export async function validateSession(sessionId: string, userId: string) {
     const session = await prisma.session.findUnique({
         where: { id: sessionId },
         include: { user: true }
+    }).catch(err => {
+        console.error('validateSession error:', err);
+        throw new Error('Internal Database Error');
     });
 
     if (!session) {
@@ -68,17 +71,7 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
     }
 
     // Capture potential database errors explicitly
-    let session;
-    try {
-        session = await validateSession(sessionId, userId);
-    } catch (error: any) {
-        // If it's one of our expected validation errors, re-throw it
-        if (['Session not found or invalid', 'Session expired', 'User not found'].includes(error.message)) {
-            throw error;
-        }
-        // Otherwise, it's likely a database connection error or similar
-        throw new Error('Internal Database Error');
-    }
+    const session = await validateSession(sessionId, userId);
 
     return {
         userId: session.user.id,

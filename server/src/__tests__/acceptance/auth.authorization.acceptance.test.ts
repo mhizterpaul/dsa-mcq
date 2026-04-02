@@ -132,7 +132,8 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   test.each(protectedEndpoints)(
     '$name handles database failure gracefully (returns sanitized 500)',
     async ({ name, handler, method, query, body }) => {
-      jest.spyOn(authUtils, 'authorizeRequest').mockRejectedValue(new Error('Internal Database Error'));
+      // Mock prisma instead
+      jest.spyOn(prisma.session, 'findUnique').mockRejectedValue(new Error('Internal Database Error'));
 
       const token = jwt.sign({ sub: testUser.id, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({

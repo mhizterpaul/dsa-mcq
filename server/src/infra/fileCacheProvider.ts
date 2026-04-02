@@ -26,22 +26,19 @@ export class FileCacheProvider {
 
     async get(key: string): Promise<any> {
         const filePath = this.getFilePath(key);
-        if (!fs.existsSync(filePath)) {
-            return null;
-        }
 
         try {
-            const data = fs.readFileSync(filePath, 'utf8');
+            await fs.promises.access(filePath);
+            const data = await fs.promises.readFile(filePath, 'utf8');
             const entry: CacheEntry = JSON.parse(data);
 
             if (entry.expiresAt && entry.expiresAt < Date.now()) {
-                this.delete(key);
+                await this.delete(key);
                 return null;
             }
 
             return entry.value;
         } catch (error) {
-            console.error('Error reading cache file:', error);
             return null;
         }
     }
@@ -54,8 +51,8 @@ export class FileCacheProvider {
         };
 
         try {
-            fs.writeFileSync(filePath, JSON.stringify(entry), 'utf8');
-            this.enforceSizeLimit();
+            await fs.promises.writeFile(filePath, JSON.stringify(entry), 'utf8');
+            await this.enforceSizeLimit();
         } catch (error) {
             console.error('Error writing cache file:', error);
         }
@@ -63,21 +60,20 @@ export class FileCacheProvider {
 
     async delete(key: string): Promise<void> {
         const filePath = this.getFilePath(key);
-        if (fs.existsSync(filePath)) {
-            try {
-                fs.unlinkSync(filePath);
-            } catch (error) {
-                console.error('Error deleting cache file:', error);
-            }
+        try {
+            await fs.promises.unlink(filePath);
+        } catch (error) {
+            // Ignore error if file doesn't exist
         }
     }
 
-    private enforceSizeLimit() {
-        const files = fs.readdirSync(this.cacheDir).map(file => {
+    private async enforceSizeLimit() {
+        const fileNames = await fs.promises.readdir(this.cacheDir);
+        const files = await Promise.all(fileNames.map(async (file) => {
             const filePath = path.join(this.cacheDir, file);
-            const stats = fs.statSync(filePath);
+            const stats = await fs.promises.stat(filePath);
             return { filePath, size: stats.size, mtime: stats.mtimeMs };
-        });
+        }));
 
         let totalSize = files.reduce((acc, file) => acc + file.size, 0);
 
@@ -88,8 +84,10 @@ export class FileCacheProvider {
             while (totalSize > this.maxSize && files.length > 0) {
                 const oldest = files.shift();
                 if (oldest) {
-                    fs.unlinkSync(oldest.filePath);
-                    totalSize -= oldest.size;
+                    try {
+                        await fs.promises.unlink(oldest.filePath);
+                        totalSize -= oldest.size;
+                    } catch (e) {}
                 }
             }
         }

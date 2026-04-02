@@ -6,6 +6,7 @@ import answerHandler from '../../pages/api/daily-quiz/answer';
 import resultsHandler from '../../pages/api/daily-quiz/results';
 import { prisma } from '../../infra/prisma/client';
 import { QuizService } from '../../controllers/quizController';
+import { EngagementService } from '../../controllers/engagementController';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = 'test-secret';
@@ -64,17 +65,25 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     });
 
     describe('Security & Authorization', () => {
+        /**
+         * @Doc("Endpoints must reject unauthorized access")
+         * @Route("/api/daily-quiz/*")
+         */
         test.each([
-            ['sessions', sessionsHandler],
-            ['answer', answerHandler],
-            ['exit', exitHandler],
-            ['results', resultsHandler]
+            ['sessions', (req: any, res: any) => sessionsHandler(req, res, new QuizService(prisma))],
+            ['answer', (req: any, res: any) => answerHandler(req, res, new QuizService(prisma))],
+            ['exit', (req: any, res: any) => exitHandler(req, res, new QuizService(prisma))],
+            ['results', (req: any, res: any) => resultsHandler(req, res, new QuizService(prisma), new EngagementService(prisma))]
         ])('%s endpoint rejects unauthenticated requests', async (_, handler) => {
             const { req, res } = createMocks({ method: 'GET' });
             await handler(req, res);
             expect(res._getStatusCode()).toBe(401);
         });
 
+        /**
+         * @Doc("Rejects requests with expired session tokens")
+         * @Route("/api/daily-quiz/sessions")
+         */
         test('should_reject_given_expired_tokens', async () => {
             await prisma.user.create({ data: userA });
             const token = await createToken(userA, { expiresIn: '-1s' });
@@ -82,12 +91,15 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${token}` }
             });
-            await sessionsHandler(req, res);
+            await sessionsHandler(req, res, new QuizService(prisma));
             expect(res._getStatusCode()).toBe(401);
         });
     });
 
     describe('Session Matching & Capacity', () => {
+        /**
+         * @Doc("Match users with compatible leaderboard stats")
+         */
         test('should_match_users_given_similar_achievements', async () => {
             await prisma.user.createMany({ data: [userA, userB, userC] });
             await prisma.leaderboard.createMany({ data: [leaderboardA, leaderboardB, leaderboardC] });
@@ -97,7 +109,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
             });
-            await sessionsHandler(reqA, resA);
+            await sessionsHandler(reqA, resA, new QuizService(prisma));
             expect(resA._getStatusCode()).toBe(200);
             const dataA = JSON.parse(resA._getData());
 
@@ -106,7 +118,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
             });
-            await sessionsHandler(reqB, resB);
+            await sessionsHandler(reqB, resB, new QuizService(prisma));
             expect(resB._getStatusCode()).toBe(200);
             const dataB = JSON.parse(resB._getData());
 
@@ -117,7 +129,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenC}` }
             });
-            await sessionsHandler(reqC, resC);
+            await sessionsHandler(reqC, resC, new QuizService(prisma));
             expect(resC._getStatusCode()).toBe(200);
             const dataC = JSON.parse(resC._getData());
 
@@ -145,6 +157,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
             const quizService = new QuizService(prisma);
 
+            /**
+             * @Doc("Ensures session capacity is never exceeded even under high concurrency")
+             * @Route("/api/daily-quiz/sessions")
+             */
             const results = await Promise.allSettled([
                 quizService.findOrCreateParticipant(session, userA),
                 quizService.findOrCreateParticipant(session, { id: 'u6' })
@@ -162,11 +178,15 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
     });
 
     describe('Timer Integrity & Answer Handling', () => {
+        /**
+         * @Doc("Enforces a strict 5-minute time limit for quiz submissions")
+         * @Route("/api/daily-quiz/answer")
+         */
         test('should_reject_answers_given_5_minute_timeout', async () => {
             await prisma.user.create({ data: userA });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
-                data: { id: 1, title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
+                data: { id: '1', title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
             });
 
             const expiredStartTime = new Date(Date.now() - 301000);
@@ -183,19 +203,23 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             const { req, res } = createMocks({
                 method: 'POST',
                 headers: { authorization: `Bearer ${token}` },
-                body: { questionId: 1, answer: 'A' }
+                body: { questionId: '1', answer: 'A' }
             });
 
-            await answerHandler(req, res);
+            await answerHandler(req, res, new QuizService(prisma));
             expect(res._getStatusCode()).toBe(400);
             expect(JSON.parse(res._getData()).message).toContain('expired');
         });
 
+        /**
+         * @Doc("Prevents users from submitting multiple answers for the same question")
+         * @Route("/api/daily-quiz/answer")
+         */
         test('should_prevent_duplicate_answers_given_repeated_submission', async () => {
             await prisma.user.create({ data: userA });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
-                data: { id: 1, title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
+                data: { id: '1', title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
             });
 
             const today = new Date();
@@ -212,9 +236,9 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 const { req, res } = createMocks({
                     method: 'POST',
                     headers: { authorization: `Bearer ${token}` },
-                    body: { questionId: 1, answer: 'A' }
+                    body: { questionId: '1', answer: 'A' }
                 });
-                await answerHandler(req, res);
+                await answerHandler(req, res, new QuizService(prisma));
                 return res;
             };
 
@@ -248,7 +272,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 headers: { authorization: `Bearer ${token}` }
             });
 
-            await resultsHandler(req, res);
+            await resultsHandler(req, res, new QuizService(prisma), new EngagementService(prisma));
             expect(res._getStatusCode()).toBe(200);
             const data = JSON.parse(res._getData());
 
@@ -277,11 +301,11 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             const tokenC = await createToken(userC);
 
             const resInitA = createMocks().res;
-            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req, resInitA);
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req, resInitA, new QuizService(prisma));
             const s1Id = JSON.parse(resInitA._getData()).id;
 
             const resInitC = createMocks().res;
-            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenC}` } }).req, resInitC);
+            await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenC}` } }).req, resInitC, new QuizService(prisma));
             const s2Id = JSON.parse(resInitC._getData()).id;
 
             expect(s1Id).not.toBe(s2Id);
@@ -289,13 +313,13 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             await sessionsHandler(createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
-            }).req, createMocks().res);
+            }).req, createMocks().res, new QuizService(prisma));
 
             const { req: reqPollA, res: resPollA } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
             });
-            await stateHandler(reqPollA, resPollA);
+            await stateHandler(reqPollA, resPollA, new QuizService(prisma));
             const stateA = JSON.parse(resPollA._getData());
             expect(stateA.participants.some((p: any) => p.userId === 'user-b')).toBe(true);
 
@@ -303,7 +327,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenC}` }
             });
-            await stateHandler(reqPollC, resPollC);
+            await stateHandler(reqPollC, resPollC, new QuizService(prisma));
             const stateC = JSON.parse(resPollC._getData());
             expect(stateC.participants.some((p: any) => p.userId === 'user-b')).toBe(false);
         });
@@ -331,7 +355,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
             });
-            await stateHandler(reqPoll1, resPoll1);
+            await stateHandler(reqPoll1, resPoll1, new QuizService(prisma));
             expect(JSON.parse(resPoll1._getData()).status).toBe('WAITING');
 
             await prisma.quizSession.delete({ where: { id: 'full-0' } });
@@ -340,7 +364,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` }
             });
-            await stateHandler(reqPoll2, resPoll2);
+            await stateHandler(reqPoll2, resPoll2, new QuizService(prisma));
             expect(JSON.parse(resPoll2._getData()).status).toBe('AVAILABLE');
         });
     });

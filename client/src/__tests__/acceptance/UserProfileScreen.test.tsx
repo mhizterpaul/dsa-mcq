@@ -1,4 +1,5 @@
 // @ts-ignore
+global.IS_REACT_ACT_ENVIRONMENT = true;
 
 import * as React from 'react';
 import { Provider } from 'react-redux';
@@ -7,9 +8,28 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { PaperProvider } from 'react-native-paper';
 import { render, screen, userEvent, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 
-import userReducer, { UserObject } from '../../components/user/store/user.slice';
+import rootReducer from '../../store/rootReducer';
+import { UserObject } from '../../components/user/store/user.slice';
 import UserProfileScreen from '../../screens/UserProfileScreen';
+
+// --- MSW Server Setup ---
+const server = setupServer(
+  http.get('http://localhost:3000/api/user/profile-summary', () => {
+    return HttpResponse.json({
+      user: { id: 'user1', fullName: 'Sammy Skott', email: 'sammy@example.com' },
+    });
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(async () => {
+    server.resetHandlers();
+    // Do not run pending timers here, let each test manage its timers
+});
+afterAll(() => server.close());
 
 // Mock navigation
 const mockGoBack = jest.fn();
@@ -27,15 +47,53 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+// Mock react-native-vector-icons
+jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
+
+// Mock Spinner
+jest.mock('../../components/common/components/Spinner', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return (props: any) => props.visible ? <View testID="auth-spinner"><Text>Loading...</Text></View> : null;
+});
+
+// Mock react-native-ui-lib components that cause issues in tests
+jest.mock('react-native-ui-lib', () => {
+  const React = require('react');
+  const { View, Text, TouchableOpacity } = require('react-native');
+
+  const MockView = (props: any) => <View {...props} />;
+  const MockText = (props: any) => <Text {...props} />;
+  const MockButton = (props: any) => (
+    <TouchableOpacity onPress={props.onPress} testID={props.testID}>
+      <Text>{props.label}</Text>
+    </TouchableOpacity>
+  );
+  MockButton.sizes = { xSmall: 'xSmall', small: 'small', medium: 'medium', large: 'large' };
+
+  const MockAvatar = (props: any) => <View testID="user-avatar" />;
+
+  return {
+    View: MockView,
+    Text: MockText,
+    Button: MockButton,
+    Avatar: MockAvatar,
+    Image: MockView,
+    Colors: { grey10: '#000', grey70: '#ccc', grey80: '#eee', white: '#fff', red10: '#f00', red80: '#fee' },
+    Spacings: {
+      'paddingH-20': 20, 'paddingV-10': 10, 'marginB-20': 20, 'marginT-40': 40,
+      'padding-15': 15, 'marginL-10': 10, 'marginT-10': 10, 'marginB-16': 16,
+      'paddingV-15': 15, 'padding-20': 20, 'marginB-15': 15, 'marginT-20': 20
+    },
+    Typography: { text60b: {}, text70b: {}, text80: {}, text80b: {}, text90: {}, text100b: {} },
+  };
+});
+
 // --- Redux Store + Render Helper ---
 const renderWithProviders = async (preloadedState?: any) => {
   const store = configureStore({
-    reducer: {
-      user: userReducer,
-      learning: (state = { recentQuizzes: { ids: [], entities: {} } }) => state,
-      engagement: (state = { streak: { currentStreak: 0 } }) => state,
-      profile: (state = { profile: { bookmarks: [] } }) => state,
-    },
+    reducer: rootReducer,
     preloadedState,
   });
 
@@ -68,7 +126,13 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('renders all required elements with default state', async () => {
-    await renderWithProviders();
+    await renderWithProviders({
+      user: {
+        currentUser: { id: 'user1', fullName: 'Sammy Skott', email: 'sammy@example.com' },
+        loading: false,
+        error: null,
+      }
+    });
 
     // Back button
     expect(await screen.findByTestId('back-button')).toBeOnTheScreen();
@@ -108,13 +172,13 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
       xp: 1000
     };
 
-    await renderWithProviders({
-      user: {
-        currentUser: customUser,
-        loading: false,
-        error: null,
-      },
-    });
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', () => {
+        return HttpResponse.json({ user: customUser });
+      })
+    );
+
+    await renderWithProviders();
 
     expect(await screen.findByTestId('user-name-block')).toHaveTextContent(/John Constantine/i);
     const statsBlock = screen.getByTestId('user-stats-block');
@@ -125,13 +189,14 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
 
   test('handles long username correctly', async () => {
     const longName = 'Maximilian Alexander von Lichtenstein the Third';
-    await renderWithProviders({
-      user: {
-        currentUser: { id: '1', fullName: longName, email: 'test@test.com' },
-        loading: false,
-        error: null,
-      },
-    });
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', () => {
+        return HttpResponse.json({
+          user: { id: '1', fullName: longName, email: 'test@test.com' }
+        });
+      })
+    );
+    await renderWithProviders();
 
     expect(await screen.findByTestId('user-name-block')).toHaveTextContent(new RegExp(longName, 'i'));
   });
@@ -157,13 +222,14 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('handles missing stats by showing defaults', async () => {
-    await renderWithProviders({
-      user: {
-        currentUser: { id: '1', fullName: 'Minimal User', email: 'min@user.com' },
-        loading: false,
-        error: null,
-      },
-    });
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', () => {
+        return HttpResponse.json({
+          user: { id: '1', fullName: 'Minimal User', email: 'min@user.com' }
+        });
+      })
+    );
+    await renderWithProviders();
 
     expect(await screen.findByTestId('user-name-block')).toHaveTextContent(/Minimal User/i);
     expect(screen.getByTestId('user-stats-block')).toHaveTextContent(/02/); // Default level
@@ -171,34 +237,52 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
 
   test('displays error message and handles retry', async () => {
     const errorMessage = 'Failed to fetch profile';
-    const { store } = await renderWithProviders({
-      user: {
-        currentUser: null,
-        loading: false,
-        error: errorMessage,
-      },
-    });
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', () => {
+        return new HttpResponse(null, { status: 500, statusText: errorMessage });
+      })
+    );
 
-    expect(await screen.findByTestId('error-message')).toHaveTextContent(new RegExp(errorMessage, 'i'));
+    const { store } = await renderWithProviders();
+
+    expect(await screen.findByTestId('error-message')).toBeOnTheScreen();
+
+    // Mock successful retry
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', () => {
+        return HttpResponse.json({
+          user: { id: 'user1', fullName: 'Sammy Skott', email: 'sammy@example.com' },
+        });
+      })
+    );
 
     const retryButton = screen.getByTestId('retry-button');
-    fireEvent.press(retryButton);
+    await user.press(retryButton);
 
-    // Should dispatch fetchUserProfile
     await waitFor(() => {
-        expect(store.getState().user.loading).toBe(true);
+        expect(screen.queryByTestId('error-message')).toBeNull();
     });
+    expect(screen.getByTestId('user-name-block')).toHaveTextContent(/Sammy Skott/i);
   });
 
   test('displays spinner when loading', async () => {
-    await renderWithProviders({
-      user: {
-        currentUser: null,
-        loading: true,
-        error: null,
-      },
+    server.use(
+      http.get('http://localhost:3000/api/user/profile-summary', async () => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return HttpResponse.json({
+          user: { id: 'user1', fullName: 'Sammy Skott', email: 'sammy@example.com' },
+        });
+      })
+    );
+
+    await renderWithProviders();
+
+    await waitFor(() => {
+        expect(screen.queryByTestId('auth-spinner')).not.toBeNull();
     });
 
-    expect(await screen.findByTestId('auth-spinner')).toBeOnTheScreen();
+    await waitFor(() => {
+        expect(screen.queryByTestId('auth-spinner')).toBeNull();
+    });
   });
 });

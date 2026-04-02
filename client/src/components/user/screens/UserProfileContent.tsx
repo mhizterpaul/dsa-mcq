@@ -21,16 +21,27 @@ const { width } = Dimensions.get("window");
 export default function UserProfileContent({ AdComponent }: { AdComponent?: React.ComponentType }) {
   const navigation = useNavigation();
   const dispatch: AppDispatch = useDispatch();
+
+  useEffect(() => {
+    const promise = dispatch(fetchUserProfile());
+    return () => {
+      promise.abort();
+    };
+  }, [dispatch]);
   const { currentUser, loading, error } = useSelector((state: RootState) => state.user);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    const animation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 1200,
       useNativeDriver: true,
-    }).start();
-  }, []);
+    });
+    animation.start();
+    return () => {
+      animation.stop();
+    };
+  }, [fadeAnim]);
 
   const user = {
     name: currentUser?.fullName || "Sammy Skott",

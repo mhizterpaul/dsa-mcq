@@ -9,7 +9,7 @@ model Question {
   title                 String
   body                  String
   difficulty            Difficulty
-  categoryId            String @db.ObjectId @db.ObjectId
+  categoryId            String @db.ObjectId
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
   tagsText              String          @default("")

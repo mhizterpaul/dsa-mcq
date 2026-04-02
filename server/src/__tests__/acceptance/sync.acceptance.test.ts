@@ -59,6 +59,10 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
   });
 
   describe('Authentication & Security', () => {
+      /**
+       * @Doc("Endpoints must reject unauthorized access")
+       * @Route("/api/sync")
+       */
       test('401 if missing token', async () => {
           const { req, res } = createMocks({ method: 'POST' });
           await syncHandler(req as any, res as any);
@@ -81,6 +85,10 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
           expect(res._getStatusCode()).toBe(403);
       });
 
+      /**
+       * @Doc("Rejects tampered payloads using HMAC signature verification")
+       * @Route("/api/sync")
+       */
       test('403 if invalid signature (tampering)', async () => {
           const body = { learning_sessions: [{ id: 'ls1', startTime: fixedNow }] };
           const signature = generateSignature(body, syncKey);
@@ -188,6 +196,10 @@ describe('Sync Acceptance Tests (QA Rigorous)', () => {
   });
 
   describe('Conflict Resolution (Deterministic)', () => {
+      /**
+       * @Doc("Implements Last-Write-Wins (LWW) conflict resolution")
+       * @Route("/api/sync")
+       */
       test('Server wins when client is outdated', async () => {
           const futureDate = new Date(fixedNow.getTime() + 1000);
           const pastDate = fixedNow;

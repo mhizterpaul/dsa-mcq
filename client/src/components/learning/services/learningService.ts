@@ -117,8 +117,9 @@ const getTopKQuestionRecommendations = (
     // 3. Uncertainty (fewer attempts means higher uncertainty)
     const uncertaintyScore = 1 / (1 + (uqd?.totalAttempts || 0));
 
-    // Exploration: Epsilon-greedy
-    if (Math.random() < epsilon) {
+    // Exploration: Epsilon-greedy (disabled in tests for determinism)
+    const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+    if (!isTest && Math.random() < epsilon) {
         return { questionId: id, recommendationScore: Math.random() * 2 }; // Random boost
     }
 

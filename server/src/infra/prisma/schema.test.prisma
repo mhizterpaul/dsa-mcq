@@ -5,13 +5,15 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url = "file:./test.db"
-
+  url      = "file:./test.db"
 }
 model Category {
-    id String @id @default(uuid())
+    id String @id @default(cuid())
     name String @unique
+    featured Boolean @default(false)
     questions Question[]
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
 model DevOpsMetric {
   id        String   @id @default(cuid())
@@ -80,26 +82,30 @@ model Outbox {
   error     String
   createdAt DateTime @default(now())
 }
-
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
 
 model Question {
-  id                    Int             @id @default(autoincrement())
+  id                    String             @id @default(cuid())
   title                 String
   body                  String
-  difficulty String
+  difficulty            Difficulty
   categoryId            String
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
-  tagsText              String?
+  tagsText              String          @default("")
   successRate           Float           @default(0)
   totalSubmissions      Int             @default(0)
   totalAccepted         Int             @default(0)
-  companyTags           String?
+  companyTags           String          @default("")
   likes                 Int             @default(0)
   dislikes              Int             @default(0)
-  hints                 String?
-  similarQuestionIds    String?
-  similarQuestionsText  String?
+  hints                 String          @default("")
+  similarQuestionIds    String          @default("")
+  similarQuestionsText  String          @default("")
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   quizQuestions       QuizQuestion[]
@@ -113,7 +119,6 @@ model Question {
 
   @@index([difficulty])
   @@index([categoryId])
-  @@index([tagsText])
 }
 model QuizSession {
   id          String   @id @default(cuid())
@@ -124,6 +129,8 @@ model QuizSession {
   questions   QuizQuestion[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([date])
 }
 
 model QuizParticipant {
@@ -141,27 +148,28 @@ model QuizParticipant {
 }
 
 model QuizQuestion {
-    id   Int @id @default(autoincrement())
+    id   String @id @default(cuid())
     sessionId   String
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    questionId  Int
+    questionId  String
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @updatedAt
 }
 model Tag {
-  id        Int       @id @default(autoincrement())
+  id        String       @id @default(cuid())
   name      String          @unique
   questions TagOnQuestion[]
 }
 
 model TagOnQuestion {
-  questionId Int
-  tagId      Int
+  id String @id @default(cuid())
+  questionId String
+  tagId      String
   question   Question @relation(fields: [questionId], references: [id])
   tag        Tag      @relation(fields: [tagId], references: [id])
 
-  @@id([questionId, tagId])
+  @@unique([questionId, tagId])
   @@index([tagId])
   @@index([questionId])
 }
@@ -186,10 +194,21 @@ model Account {
 model User {
   id                String    @id @default(cuid())
   name              String?
+  fullName          String?
   email             String?   @unique
   emailVerified     DateTime?
   image             String?
   password          String?
+  role              String    @default("USER")
+  level             Int       @default(1)
+  achievementsCount Int       @default(0)
+  weeklyGiftsCount  Int       @default(0)
+  preferences       String?   // JSON string
+  metadata          String?   // JSON string
+  isPremium         Boolean   @default(false)
+  isVerified        Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  isSyncing         Boolean   @default(false)
   accounts          Account[]
   sessions          Session[]
   engagement        Engagement?
@@ -207,10 +226,14 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  userAgent    String?
+  syncKey      String?
+  lastSyncedAt DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
+  id String @id @default(cuid())
   identifier String
   token      String   @unique
   expires    DateTime
@@ -218,10 +241,10 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 model UserQuestionData {
-  id          Int @id @default(autoincrement())
+  id          String @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  Int
+  questionId  String
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   attempts    Int      @default(0)
   correct     Boolean  @default(false)

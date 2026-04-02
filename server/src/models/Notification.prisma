@@ -1,6 +1,6 @@
 model Notification {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String
+  userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String
   type      String   // 'reminder' or 'nudge'

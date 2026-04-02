@@ -13,9 +13,9 @@ model QuizSession {
 
 model QuizParticipant {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @db.ObjectId @db.ObjectId
+  userId      String @db.ObjectId
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionId   String @db.ObjectId @db.ObjectId
+  sessionId   String @db.ObjectId
   session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   score       Int         @default(0)
   streak      Int         @default(0)
@@ -27,7 +27,7 @@ model QuizParticipant {
 
 model QuizQuestion {
     id   String @id @default(auto()) @map("_id") @db.ObjectId
-    sessionId   String @db.ObjectId @db.ObjectId
+    sessionId   String @db.ObjectId
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
     questionId  String @db.ObjectId
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)

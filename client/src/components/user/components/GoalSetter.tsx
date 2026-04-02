@@ -51,13 +51,17 @@ const GoalSetter = ({ navigation }: GoalSetterProps) => {
   const [engagementMetrics, setEngagementMetrics] = useState<any>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchMetrics = async () => {
         if (currentUser?.id) {
             const metrics = await mediatorService.getUserProgress(currentUser.id);
-            setEngagementMetrics(metrics);
+            if (isMounted) {
+                setEngagementMetrics(metrics);
+            }
         }
     };
     fetchMetrics();
+    return () => { isMounted = false; };
   }, [currentUser]);
 
   const [step, setStep] = useState(0);
