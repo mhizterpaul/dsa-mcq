@@ -4,16 +4,116 @@ info:
   version: 1.0.0
   description: API for the DSA Multiple Choice Question platform.
 
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
 paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                name: { type: string }
+                fullName: { type: string }
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Registration failed
+
+  /auth/login:
+    post:
+      summary: Login user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /user/me:
+    get:
+      summary: Get current user profile
+      tags: [User]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile data
+
+  /user/profile-summary:
+    get:
+      summary: Get a summary of user stats and profile
+      tags: [User]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile summary (XP, Level, Badges)
+
+  /user/profile:
+    put:
+      summary: Update user profile
+      tags: [User]
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string }
+                email: { type: string }
+                preferences: { type: object }
+                metadata: { type: object }
+      responses:
+        '200':
+          description: Profile updated
+
   /daily-quiz/session:
     get:
       summary: Get or create a daily quiz session for the user.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Session details.
+
   /daily-quiz/state:
     get:
       summary: Get the current state of the user's active session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
       description: Supports long polling and versioning.
       parameters:
         - name: version
@@ -24,33 +124,109 @@ paths:
       responses:
         '200':
           description: Current session state.
+
   /daily-quiz/answer:
     post:
       summary: Submit an answer for a question in the session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questionId, answer]
+              properties:
+                questionId: { type: string }
+                answer: { type: string }
       responses:
         '200':
           description: Result of the submission.
+
   /daily-quiz/results:
     get:
       summary: Get the results of a finished quiz session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Quiz rankings and XP earned.
+
   /daily-quiz/exit:
     post:
       summary: Exit the current quiz session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Successfully exited.
+
+  /learning/featured-categories:
+    get:
+      summary: Get list of featured DSA categories
+      tags: [Learning]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of categories with question counts
+
   /learning/questions:
     post:
       summary: Fetch multiple questions by their IDs.
+      tags: [Learning]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string }
+                revealAnswers: { type: boolean }
       responses:
         '200':
           description: List of questions.
+
+  /engagement/achievements:
+    get:
+      summary: Get user achievements
+      tags: [Engagement]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User badges and achievements
+
+  /engagement/leaderboard:
+    get:
+      summary: Get global leaderboard
+      tags: [Engagement]
+      responses:
+        '200':
+          description: Ranking of top users
+
   /sync:
     post:
       summary: Sync user progress between client and server.
+      tags: [Sync]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         '200':
           description: Synced data.
