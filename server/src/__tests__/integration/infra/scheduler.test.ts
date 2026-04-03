@@ -21,8 +21,8 @@ describe('Scheduler Integration Test', () => {
     });
 
     const createTestUser = async (xp: number, xp_weekly: number, lastResetDaysAgo: number) => {
-        const lastReset = new Date();
-        lastReset.setDate(lastReset.getDate() - lastResetDaysAgo);
+        // Use precise timestamp subtraction to avoid Date.setDate() integer truncation issues
+        const lastReset = new Date(Date.now() - lastResetDaysAgo * 24 * 60 * 60 * 1000);
 
         const user = await prisma.user.create({
             data: {

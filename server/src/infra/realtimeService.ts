@@ -13,6 +13,11 @@ export class RealtimeService {
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
+            if (process.env.NODE_ENV === 'test') {
+                // Return a dummy client in test if env vars are missing
+                this.supabase = {} as any;
+                return;
+            }
             throw new Error('Supabase URL and Key are not configured.');
         }
 

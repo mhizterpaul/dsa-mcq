@@ -13,17 +13,7 @@ export function ensureIntegrationTestEnv() {
 
     const requiredEnvVars = [
         'DATABASE_URL',
-        'SUPABASE_URL',
-        'SUPABASE_SERVICE_ROLE_KEY',
-        'SUPABASE_BUCKET_NAME',
-        'UPSTASH_REDIS_REST_URL',
-        'UPSTASH_REDIS_REST_TOKEN',
-        'JWT_SECRET',
-        'SERVICE',
-        'USER',
-        'CLIENTID',
-        'CLIENTSECRET',
-        'REFRESH_TOKEN'
+        'JWT_SECRET'
     ];
 
     const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);

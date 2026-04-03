@@ -17,7 +17,7 @@ describe('Supabase Realtime Integration Test', () => {
     });
 
     afterAll(async () => {
-        await prisma.$disconnect();
+        if (prisma) await prisma.$disconnect();
     });
 
     it('should receive events on Postgres table changes with multiple subscribers', async () => {

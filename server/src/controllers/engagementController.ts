@@ -133,8 +133,19 @@ export class EngagementService {
   }
 
   async resetWeeklyXP() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
     return this.prisma.engagement.updateMany({
-      data: { xp_weekly: 0 },
+      where: {
+          last_xp_reset_weekly: {
+              lte: sevenDaysAgo
+          }
+      },
+      data: {
+          xp_weekly: 0,
+          last_xp_reset_weekly: new Date()
+      },
     });
   }
 

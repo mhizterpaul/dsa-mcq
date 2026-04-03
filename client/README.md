@@ -6,9 +6,11 @@ The mobile application for the DSA-MCQ platform, built with **React Native** and
 - **Framework**: React Native
 - **State Management**: Redux Toolkit (Slices)
 - **Navigation**: React Navigation (Stack)
-- **Styling**: React Native UI Lib / Paper
-- **Networking**: Fetch API with Polling for real-time updates
-- **Testing**: Jest + React Native Testing Library (RNTL) + MSW
+- **UI Design System**:
+  - **[React Native UI Lib](https://wix.github.io/react-native-ui-lib/)**: Used for foundational components, layout (View, Text), and themed elements.
+  - **[React Native Paper](https://reactnativepaper.com/)**: Used for Material Design components like Buttons, Appbar, and Menu.
+- **Networking**: Fetch API with Polling for real-time updates.
+- **Testing**: Jest + React Native Testing Library (RNTL) + MSW.
 
 ## 🧪 Testing
 

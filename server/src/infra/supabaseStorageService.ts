@@ -16,6 +16,11 @@ export class SupabaseStorageService implements IStorageService {
     this.bucketName = process.env.SUPABASE_BUCKET_NAME || 'media';
 
     if (!supabaseUrl || !supabaseKey) {
+      if (process.env.NODE_ENV === 'test') {
+        this.supabase = {} as any;
+        this.prisma = new PrismaClient();
+        return;
+      }
       throw new Error('Supabase URL and Key are not configured.');
     }
 

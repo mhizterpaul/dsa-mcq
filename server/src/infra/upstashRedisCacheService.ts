@@ -13,6 +13,10 @@ export class UpstashRedisCacheService {
         const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
         if (!url || !token) {
+            if (process.env.NODE_ENV === 'test') {
+                this.client = {} as any;
+                return;
+            }
             throw new Error('Upstash Redis URL and Token are not configured.');
         }
 

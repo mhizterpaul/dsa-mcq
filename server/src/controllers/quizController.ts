@@ -236,7 +236,7 @@ export class QuizService {
     }));
   }
 
-  async handleAnswer(userId: string, questionId: number, answer: string) {
+  async handleAnswer(userId: string, questionId: string, answer: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
