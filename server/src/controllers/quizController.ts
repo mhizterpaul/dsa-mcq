@@ -20,7 +20,7 @@ export class QuizService {
     if (difficulty) {
         where.difficulty = difficulty.toUpperCase() as any;
     }
-    return this.prisma.question.findMany({
+    const questions = await this.prisma.question.findMany({
       where,
       orderBy: { id: 'asc' },
       include: {
@@ -32,6 +32,12 @@ export class QuizService {
         },
       },
     });
+
+    const { classifyQuestion } = await import('../utils/classifier');
+    return questions.map(q => ({
+      ...q,
+      type: classifyQuestion(q.title + ' ' + q.body)
+    }));
   }
 
   async getQuestionsByIds(ids: (number | string)[]) {
@@ -396,5 +402,28 @@ export class QuizService {
           where: { id: sessionId },
           data: { endTime: new Date() }
       });
+  }
+
+  async cleanupExpiredSessions() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const timeout = new Date(Date.now() - 300000); // 5 mins ago
+
+    // Update sessions where startTime < 5 mins ago and endTime is null
+    const result = await this.prisma.quizSession.updateMany({
+        where: {
+            startTime: { lt: timeout },
+            endTime: null,
+            date: { gte: today }
+        },
+        data: {
+            endTime: new Date()
+        }
+    });
+
+    if (result.count > 0) {
+        console.log(`Cleaned up ${result.count} expired sessions.`);
+    }
+    return result.count;
   }
 }

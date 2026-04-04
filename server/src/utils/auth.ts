@@ -63,7 +63,7 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
         throw new Error('Invalid token');
     }
 
-    const userId = decoded.sub || decoded.user?.id;
+    const userId = decoded.sub || decoded.user?.id || (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : undefined);
     const sessionId = decoded.sessionId;
 
     if (!userId || !sessionId) {

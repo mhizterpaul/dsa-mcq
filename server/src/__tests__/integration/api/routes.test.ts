@@ -38,7 +38,7 @@ describe('API Routes Integration Test', () => {
             },
         });
 
-        const token = sign({ sub: testUser.id, sessionId: session.id }, jwtSecret);
+        const token = sign({ user: testUser, sessionId: session.id }, jwtSecret);
         return { testUser, token };
     };
 

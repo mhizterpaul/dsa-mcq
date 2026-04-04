@@ -18,7 +18,8 @@
     "prisma:migrate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma migrate dev --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate-deploy": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma migrate deploy --schema ./src/infra/prisma/schema.prisma",
     "seed": "yarn prisma:pregenerate && node --loader ts-node/esm src/infra/prisma/seed.ts",
-    "seed:prod": "yarn prisma:migrate-deploy && yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts"
+    "seed:prod": "yarn prisma:migrate-deploy && yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts",
+    "generateDocs": "npx tsx scripts/generateDocs.ts"
   },
   "prisma": {
     "seed": "ts-node src/infra/prisma/seed.ts"
@@ -59,11 +60,13 @@
     "eventsource": "^4.0.0",
     "formidable": "^3.5.4",
     "jest": "^29.7.0",
+    "jest-openapi": "^0.14.2",
     "node-mocks-http": "^1.17.2",
     "prismock": "^1.35.4",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.4"
   }
 }

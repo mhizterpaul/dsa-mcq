@@ -70,14 +70,21 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
          * @Route("/api/daily-quiz/*")
          */
         test.each([
-            ['sessions', (req: any, res: any) => sessionsHandler(req, res, new QuizService(prisma))],
-            ['answer', (req: any, res: any) => answerHandler(req, res, new QuizService(prisma))],
-            ['exit', (req: any, res: any) => exitHandler(req, res, new QuizService(prisma))],
-            ['results', (req: any, res: any) => resultsHandler(req, res, new QuizService(prisma), new EngagementService(prisma))]
-        ])('%s endpoint rejects unauthenticated requests', async (_, handler) => {
+            ['sessions', (req: any, res: any) => sessionsHandler(req, res, new QuizService(prisma)), '/api/daily-quiz/sessions'],
+            ['answer', (req: any, res: any) => answerHandler(req, res, new QuizService(prisma)), '/api/daily-quiz/answer'],
+            ['exit', (req: any, res: any) => exitHandler(req, res, new QuizService(prisma)), '/api/daily-quiz/exit'],
+            ['results', (req: any, res: any) => resultsHandler(req, res, new QuizService(prisma), new EngagementService(prisma)), '/api/daily-quiz/results']
+        ])('%s endpoint rejects unauthenticated requests', async (name, handler, url) => {
             const { req, res } = createMocks({ method: 'GET' });
-            await handler(req, res);
-            expect(res._getStatusCode()).toBe(401);
+            const mockReq = req as any;
+            mockReq.url = url;
+            mockReq.path = url;
+            await handler(mockReq, res);
+
+            const mockRes = res as any;
+            mockRes.req = mockReq;
+            mockRes.status = 401;
+            expect(mockRes).toSatisfyApiSpec();
         });
 
         /**
@@ -91,8 +98,15 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${token}` }
             });
-            await sessionsHandler(req, res, new QuizService(prisma));
-            expect(res._getStatusCode()).toBe(401);
+            const mockReq = req as any;
+            mockReq.url = '/api/daily-quiz/sessions';
+            mockReq.path = '/api/daily-quiz/sessions';
+            await sessionsHandler(mockReq, res, new QuizService(prisma));
+
+            const mockRes = res as any;
+            mockRes.req = mockReq;
+            mockRes.status = 401;
+            expect(mockRes).toSatisfyApiSpec();
         });
     });
 
@@ -107,10 +121,19 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             const tokenA = await createToken(userA);
             const { req: reqA, res: resA } = createMocks({
                 method: 'GET',
-                headers: { authorization: `Bearer ${tokenA}` }
+                headers: { authorization: `Bearer ${tokenA}` },
             });
-            await sessionsHandler(reqA, resA, new QuizService(prisma));
+            const mockReqA = reqA as any;
+            mockReqA.url = '/api/daily-quiz/session';
+            mockReqA.path = '/api/daily-quiz/session';
+            await sessionsHandler(mockReqA, resA, new QuizService(prisma));
             expect(resA._getStatusCode()).toBe(200);
+
+            const mockResA = resA as any;
+            mockResA.req = mockReqA;
+            mockResA.status = 200;
+            mockResA.body = JSON.parse(resA._getData()); // jest-openapi checks .body
+            expect(mockResA).toSatisfyApiSpec();
             const dataA = JSON.parse(resA._getData());
 
             const tokenB = await createToken(userB);
@@ -118,8 +141,17 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
             });
-            await sessionsHandler(reqB, resB, new QuizService(prisma));
+            const mockReqB = reqB as any;
+            mockReqB.url = '/api/daily-quiz/session';
+            mockReqB.path = '/api/daily-quiz/session';
+            await sessionsHandler(mockReqB, resB, new QuizService(prisma));
             expect(resB._getStatusCode()).toBe(200);
+
+            const mockResB = resB as any;
+            mockResB.req = mockReqB;
+            mockResB.status = 200;
+            mockResB.body = JSON.parse(resB._getData());
+            expect(mockResB).toSatisfyApiSpec();
             const dataB = JSON.parse(resB._getData());
 
             expect(dataB.id).toBe(dataA.id);

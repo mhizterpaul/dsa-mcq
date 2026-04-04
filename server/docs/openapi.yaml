@@ -2,10 +2,10 @@ openapi: 3.0.0
 info:
   title: DSA-MCQ API
   version: 1.0.0
-  description: API for the DSA Multiple Choice Question platform.
+  description: Executable acceptance contract for the DSA Multiple Choice Question platform.
 
 servers:
-  - url: http://localhost:3000/api
+  - url: /api
     description: Local development server
 
 components:
@@ -15,7 +15,94 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        error: { type: string }
+
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        fullName: { type: string }
+        level: { type: integer }
+        xp: { type: integer }
+        image: { type: string, nullable: true }
+
+    Question:
+      type: object
+      required: [id, question, category, options]
+      properties:
+        id: { type: string }
+        question: { type: string }
+        category: { type: string }
+        tags: { type: array, items: { type: string } }
+        options:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string }
+              isCorrect: { type: boolean }
+
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        featured: { type: boolean }
+        _count:
+          type: object
+          properties:
+            questions: { type: integer }
+
+    QuizSession:
+      type: object
+      required: [id, participants]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [AVAILABLE, WAITING, IN_PROGRESS, FINISHED] }
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: string }
+              name: { type: string }
+              avatarUrl: { type: string, nullable: true }
+
+tags:
+  - name: Auth
+  - name: User
+  - name: Daily Quiz
+  - name: Learning
+  - name: Engagement
+  - name: Sync
+  - name: System
+
 paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  timestamp: { type: string }
+
   /auth/register:
     post:
       summary: Register a new user
@@ -29,14 +116,25 @@ paths:
               required: [email, password]
               properties:
                 email: { type: string }
-                password: { type: string }
+                password: { type: string, minLength: 6 }
                 name: { type: string }
                 fullName: { type: string }
       responses:
         '201':
           description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  syncKey: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
         '400':
-          description: Registration failed
+          description: Invalid payload or registration failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /auth/login:
     post:
@@ -55,8 +153,19 @@ paths:
       responses:
         '200':
           description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  syncKey: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
         '401':
           description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /user/me:
     get:
@@ -67,6 +176,14 @@ paths:
       responses:
         '200':
           description: User profile data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /user/profile-summary:
     get:
@@ -76,58 +193,102 @@ paths:
         - BearerAuth: []
       responses:
         '200':
-          description: Profile summary (XP, Level, Badges)
+          description: Profile summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Unauthorized
 
-  /user/profile:
-    put:
-      summary: Update user profile
-      tags: [User]
+  /daily-quiz/sessions:
+    get:
+      summary: Get or create a daily quiz session for the user (Internal Alias)
+      tags: [Daily Quiz]
       security:
         - BearerAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                fullName: { type: string }
-                email: { type: string }
-                preferences: { type: object }
-                metadata: { type: object }
       responses:
         '200':
-          description: Profile updated
+          description: Session details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizSession' }
+        '401':
+          description: Unauthorized
 
   /daily-quiz/session:
     get:
-      summary: Get or create a daily quiz session for the user.
+      summary: Get or create a daily quiz session for the user
       tags: [Daily Quiz]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Session details.
+          description: Session details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizSession' }
+        '401':
+          description: Unauthorized
 
   /daily-quiz/state:
     get:
-      summary: Get the current state of the user's active session.
+      summary: Get the current state of the user's active session
       tags: [Daily Quiz]
       security:
         - BearerAuth: []
-      description: Supports long polling and versioning.
       parameters:
         - name: version
           in: query
-          schema:
-            type: integer
-          description: Last known state version.
+          schema: { type: integer }
       responses:
         '200':
-          description: Current session state.
+          description: Current session state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizSession' }
+        '401':
+          description: Unauthorized
+
+  /daily-quiz/results:
+    get:
+      summary: Get the results of a finished quiz session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Quiz rankings and XP earned.
+        '401':
+          description: Unauthorized
+
+  /daily-quiz/exit:
+    get:
+      summary: Exit the current quiz session (GET method check)
+      tags: [Daily Quiz]
+      responses:
+        '401':
+          description: Unauthorized
+    post:
+      summary: Exit the current quiz session.
+      tags: [Daily Quiz]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully exited.
 
   /daily-quiz/answer:
+    get:
+      summary: Submit an answer for a question (GET method check)
+      tags: [Daily Quiz]
+      responses:
+        '401':
+          description: Unauthorized
     post:
-      summary: Submit an answer for a question in the session.
+      summary: Submit an answer for a question
       tags: [Daily Quiz]
       security:
         - BearerAuth: []
@@ -143,41 +304,39 @@ paths:
                 answer: { type: string }
       responses:
         '200':
-          description: Result of the submission.
-
-  /daily-quiz/results:
-    get:
-      summary: Get the results of a finished quiz session.
-      tags: [Daily Quiz]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Quiz rankings and XP earned.
-
-  /daily-quiz/exit:
-    post:
-      summary: Exit the current quiz session.
-      tags: [Daily Quiz]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully exited.
+          description: Result of the submission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  isCorrect: { type: boolean }
+        '400':
+          description: Bad request (expired session, already answered)
+        '401':
+          description: Unauthorized
 
   /learning/featured-categories:
     get:
-      summary: Get list of featured DSA categories
+      summary: Get list of featured categories
       tags: [Learning]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: List of categories with question counts
+          description: List of categories
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
 
   /learning/questions:
     post:
-      summary: Fetch multiple questions by their IDs.
+      summary: Fetch multiple questions by IDs
       tags: [Learning]
       security:
         - BearerAuth: []
@@ -189,35 +348,20 @@ paths:
               type: object
               required: [ids]
               properties:
-                ids:
-                  type: array
-                  items: { type: string }
+                ids: { type: array, items: { type: string } }
                 revealAnswers: { type: boolean }
       responses:
         '200':
-          description: List of questions.
-
-  /engagement/achievements:
-    get:
-      summary: Get user achievements
-      tags: [Engagement]
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: User badges and achievements
-
-  /engagement/leaderboard:
-    get:
-      summary: Get global leaderboard
-      tags: [Engagement]
-      responses:
-        '200':
-          description: Ranking of top users
+          description: List of questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Question' }
 
   /sync:
     post:
-      summary: Sync user progress between client and server.
+      summary: Sync user progress
       tags: [Sync]
       security:
         - BearerAuth: []
@@ -229,4 +373,8 @@ paths:
               type: object
       responses:
         '200':
-          description: Synced data.
+          description: Synced data
+        '409':
+          description: Sync already in progress
+        '403':
+          description: Invalid signature
