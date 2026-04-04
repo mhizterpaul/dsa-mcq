@@ -13,7 +13,7 @@
     "test:coverage": "yarn prisma:generate && jest --coverage",
     "prisma:pregenerate": "cat src/infra/prisma/schema.header.prisma src/models/*.prisma > src/infra/prisma/schema.prisma",
     "prisma:generate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma generate --schema ./src/infra/prisma/schema.prisma",
-    "prisma:generate:test": "yarn prisma:pregenerate && npx ts-node scripts/setupTestDb.ts && npx prisma generate --schema ./src/infra/prisma/schema.test.prisma && npx prisma db push --schema ./src/infra/prisma/schema.test.prisma",
+    "prisma:generate:test": "yarn prisma:pregenerate && npx tsx scripts/setupTestDb.ts && npx prisma generate --schema ./src/infra/prisma/schema.test.prisma && npx prisma db push --schema ./src/infra/prisma/schema.test.prisma",
     "prisma:generate:prod": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma generate --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma migrate dev --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate-deploy": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma migrate deploy --schema ./src/infra/prisma/schema.prisma",
@@ -63,6 +63,7 @@
     "prismock": "^1.35.4",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
