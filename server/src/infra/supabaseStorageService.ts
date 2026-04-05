@@ -17,7 +17,16 @@ export class SupabaseStorageService implements IStorageService {
 
     if (!supabaseUrl || !supabaseKey) {
       if (process.env.NODE_ENV === 'test') {
-        this.supabase = {} as any;
+        this.supabase = {
+            storage: {
+                from: () => ({
+                    upload: async (path: string) => ({ data: { path }, error: null }),
+                    getPublicUrl: (path: string) => ({ data: { publicUrl: `https://test.supabase.co/${path}` } }),
+                    remove: async () => ({ error: null }),
+                    update: async () => ({ error: null })
+                })
+            }
+        } as any;
         this.prisma = new PrismaClient();
         return;
       }

@@ -21,10 +21,19 @@ export async function validateSession(sessionId: string, userId: string) {
     });
 
     if (!session) {
+        if (process.env.NODE_ENV === 'test') console.log('Auth Failure: Session not found in DB', { sessionId });
         throw new Error('Session not found or invalid');
     }
 
-    if (session.userId !== userId) {
+    const sUserId = String(session.userId).trim();
+    const pUserId = String(userId).trim();
+    if (sUserId !== pUserId) {
+        if (process.env.NODE_ENV === 'test') {
+            console.log('Auth Failure: Session userId mismatch', {
+                sessionUserId: sUserId,
+                payloadUserId: pUserId
+            });
+        }
         throw new Error('Session not found or invalid');
     }
 
@@ -63,10 +72,13 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
         throw new Error('Invalid token');
     }
 
-    const userId = decoded.sub || decoded.user?.id || (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : undefined);
+    const userId = decoded.sub ||
+                   (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : decoded.user) ||
+                   decoded.id;
     const sessionId = decoded.sessionId;
 
     if (!userId || !sessionId) {
+        if (process.env.NODE_ENV === 'test') console.log('Auth Failure: Missing userId or sessionId in payload', { userId, sessionId, decoded });
         throw new Error('Invalid token payload');
     }
 

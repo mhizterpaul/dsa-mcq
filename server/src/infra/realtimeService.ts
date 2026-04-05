@@ -15,7 +15,16 @@ export class RealtimeService {
         if (!supabaseUrl || !supabaseKey) {
             if (process.env.NODE_ENV === 'test') {
                 // Return a dummy client in test if env vars are missing
-                this.supabase = {} as any;
+                this.supabase = {
+                    channel: () => ({
+                        on: () => ({
+                            subscribe: () => ({})
+                        }),
+                        subscribe: (cb: any) => cb('SUBSCRIBED'),
+                        send: async () => ({})
+                    }),
+                    removeChannel: async () => ({})
+                } as any;
                 return;
             }
             throw new Error('Supabase URL and Key are not configured.');

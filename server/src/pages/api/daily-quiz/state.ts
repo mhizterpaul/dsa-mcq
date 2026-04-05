@@ -16,7 +16,33 @@ export async function stateHandler(req: NextApiRequest, res: NextApiResponse, qu
 
     if (req.method === 'GET') {
         try {
-            const lastKnownVersion = parseInt(req.query.version as string);
+            const versionQuery = req.query.version as string;
+            const lastKnownVersion = (versionQuery !== undefined && versionQuery !== '' && versionQuery !== 'NaN') ? parseInt(versionQuery) : NaN;
+
+            // If no version provided, return current state immediately (no long polling)
+            if (isNaN(lastKnownVersion)) {
+                const session = await quizService.getUserActiveSession(user.id);
+                if (!session) {
+                    const availableSession = await quizService.getOrCreateDailyQuizSession(user);
+                    if (!availableSession) {
+                        return res.status(200).json({ status: 'WAITING', version: 0 });
+                    }
+                    return res.status(200).json({
+                        status: 'AVAILABLE',
+                        sessionId: availableSession.id,
+                        version: availableSession.updatedAt ? availableSession.updatedAt.getTime() : 0
+                    });
+                }
+                const participants = await quizService.getSessionParticipants(session.id);
+                return res.status(200).json({
+                    status: session.endTime ? 'FINISHED' : 'IN_PROGRESS',
+                    sessionId: session.id,
+                    version: session.updatedAt ? session.updatedAt.getTime() : 0,
+                    participants,
+                    endTime: session.endTime,
+                });
+            }
+
             const startTime = Date.now();
             const timeout = 5000; // 5 seconds long polling
 
@@ -26,14 +52,13 @@ export async function stateHandler(req: NextApiRequest, res: NextApiResponse, qu
                 if (!session) {
                     const availableSession = await quizService.getOrCreateDailyQuizSession(user);
                     if (!availableSession) {
-                        if (lastKnownVersion === 0) { // Using 0 as "no version" indicator
+                        if (lastKnownVersion === 0) {
                            return res.status(200).json({ status: 'WAITING', version: 0 });
                         }
-                        // Long poll wait
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         continue;
                     }
-                    const currentVersion = availableSession.updatedAt.getTime();
+                    const currentVersion = availableSession.updatedAt ? availableSession.updatedAt.getTime() : 0;
                     if (lastKnownVersion === currentVersion) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         continue;
@@ -41,10 +66,9 @@ export async function stateHandler(req: NextApiRequest, res: NextApiResponse, qu
                     return res.status(200).json({ status: 'AVAILABLE', sessionId: availableSession.id, version: currentVersion });
                 }
 
-                const currentVersion = session.updatedAt.getTime();
+                const currentVersion = session.updatedAt ? session.updatedAt.getTime() : 0;
 
                 if (lastKnownVersion === currentVersion) {
-                    // Long poll: wait for change
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     continue;
                 }
@@ -60,8 +84,7 @@ export async function stateHandler(req: NextApiRequest, res: NextApiResponse, qu
                 });
             }
 
-            // Timeout reached, return current state (even if same version) or 304
-            // Returning 304 is standard for long polling with no changes
+            // Timeout reached, return 304 Not Modified
             return res.status(304).end();
 
         } catch (error: any) {

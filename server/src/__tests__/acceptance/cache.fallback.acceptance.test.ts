@@ -16,6 +16,8 @@ describe('Cache Fallback Acceptance Scenario', () => {
     beforeEach(async () => {
         await prisma.session.deleteMany();
         await prisma.engagement.deleteMany();
+        await prisma.leaderboard.deleteMany();
+        await prisma.quizParticipant.deleteMany();
         await prisma.user.deleteMany();
 
         // Ensure cache directory is clean
@@ -33,7 +35,7 @@ describe('Cache Fallback Acceptance Scenario', () => {
                 expires: new Date(Date.now() + 3600000)
             }
         });
-        token = jwt.sign({ user: testUser, sessionId: session.id }, JWT_SECRET);
+        token = jwt.sign({ user: { id: testUser.id }, sessionId: session.id }, JWT_SECRET);
     });
 
     afterAll(async () => {

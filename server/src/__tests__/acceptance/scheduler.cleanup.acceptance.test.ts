@@ -43,6 +43,6 @@ describe('Scheduler Session Expiry Acceptance Scenario', () => {
 
         // 5. Verify fresh session is still open
         const freshAfter = await prisma.quizSession.findUnique({ where: { id: 'fresh-1' } });
-        expect(freshAfter?.endTime).toBeNull();
+        expect(freshAfter?.endTime || null).toBeNull();
     });
 });

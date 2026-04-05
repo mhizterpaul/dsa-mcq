@@ -15,9 +15,17 @@ describe('Polling Sync Consistency & Long Polling', () => {
         await prisma.session.deleteMany();
         await prisma.quizParticipant.deleteMany();
         await prisma.quizSession.deleteMany();
+        await prisma.leaderboard.deleteMany();
+        await prisma.engagement.deleteMany();
+        await prisma.learningSession.deleteMany();
+        await prisma.userQuestionData.deleteMany();
+        await prisma.notification.deleteMany();
+        await prisma.media.deleteMany();
+        await prisma.account.deleteMany();
+        await prisma.verificationToken.deleteMany();
         await prisma.user.deleteMany();
 
-        await prisma.user.create({ data: userA });
+        await prisma.user.create({ data: { ...userA } });
         const session = await prisma.session.create({
             data: {
                 id: 'sess-a',
@@ -26,7 +34,7 @@ describe('Polling Sync Consistency & Long Polling', () => {
                 expires: new Date(Date.now() + 3600000)
             }
         });
-        tokenA = jwt.sign({ user: userA, sessionId: session.id }, JWT_SECRET);
+        tokenA = jwt.sign({ user: { id: userA.id }, sessionId: session.id }, JWT_SECRET);
     });
 
     afterAll(async () => {
@@ -43,6 +51,8 @@ describe('Polling Sync Consistency & Long Polling', () => {
         const qSession = await prisma.quizSession.create({
             data: { id: 's1', date: today, startTime: new Date(), updatedAt: new Date(1000) }
         });
+        // Force updatedAt since Prisma might overwrite it
+        await prisma.$executeRaw`UPDATE QuizSession SET updatedAt = 1000 WHERE id = 's1'`;
         await prisma.quizParticipant.create({
             data: { userId: userA.id, sessionId: qSession.id }
         });
@@ -72,6 +82,7 @@ describe('Polling Sync Consistency & Long Polling', () => {
         const qSession = await prisma.quizSession.create({
             data: { id: 's1', date: today, startTime: new Date(), updatedAt: new Date(2000) }
         });
+        await prisma.$executeRaw`UPDATE QuizSession SET updatedAt = 2000 WHERE id = 's1'`;
         await prisma.quizParticipant.create({
             data: { userId: userA.id, sessionId: qSession.id }
         });

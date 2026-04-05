@@ -25,7 +25,7 @@ const createToken = async (user: any, options: any = {}) => {
             sessionToken: `token-${sessionId}`
         }
     });
-    const signOptions = typeof options === 'string' ? {} : options;
+    const signOptions = typeof options === 'object' ? options : {};
     return jwt.sign({ user: { id: user.id }, sessionId }, JWT_SECRET, signOptions);
 };
 
@@ -92,8 +92,8 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
          * @Route("/api/daily-quiz/sessions")
          */
         test('should_reject_given_expired_tokens', async () => {
-            await prisma.user.create({ data: userA });
-            const token = await createToken(userA, { expiresIn: '-1s' });
+            const user = await prisma.user.create({ data: { ...userA, id: undefined } });
+            const token = await createToken(user, { expiresIn: '-1s' });
             const { req, res } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${token}` }
@@ -115,10 +115,18 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
          * @Doc("Match users with compatible leaderboard stats")
          */
         test('should_match_users_given_similar_achievements', async () => {
-            await prisma.user.createMany({ data: [userA, userB, userC] });
-            await prisma.leaderboard.createMany({ data: [leaderboardA, leaderboardB, leaderboardC] });
+            const [uA, uB, uC] = await Promise.all([
+                prisma.user.create({ data: { ...userA, id: undefined } }),
+                prisma.user.create({ data: { ...userB, id: undefined } }),
+                prisma.user.create({ data: { ...userC, id: undefined } }),
+            ]);
+            await prisma.leaderboard.createMany({ data: [
+                { ...leaderboardA, userId: uA.id },
+                { ...leaderboardB, userId: uB.id },
+                { ...leaderboardC, userId: uC.id },
+            ] });
 
-            const tokenA = await createToken(userA);
+            const tokenA = await createToken(uA);
             const { req: reqA, res: resA } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenA}` },
@@ -136,7 +144,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(mockResA).toSatisfyApiSpec();
             const dataA = JSON.parse(resA._getData());
 
-            const tokenB = await createToken(userB);
+            const tokenB = await createToken(uB);
             const { req: reqB, res: resB } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenB}` }
@@ -156,7 +164,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
             expect(dataB.id).toBe(dataA.id);
 
-            const tokenC = await createToken(userC);
+            const tokenC = await createToken(uC);
             const { req: reqC, res: resC } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${tokenC}` }
@@ -171,7 +179,14 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
         test('should_enforce_capacity_limits_atomically_given_multiple_joins', async () => {
             process.env.SIMULATE_CONCURRENCY = 'true';
             process.env.USE_REAL_DB = 'true';
-            await prisma.user.createMany({ data: [userA, userB, userC, { id: 'u4', email: 'u4@x.com' }, { id: 'u5', email: 'u5@x.com' }, { id: 'u6', email: 'u6@x.com' }] });
+            const [uA, uB, uC, u4, u5, u6] = await Promise.all([
+                prisma.user.create({ data: { ...userA, id: undefined } }),
+                prisma.user.create({ data: { ...userB, id: undefined } }),
+                prisma.user.create({ data: { ...userC, id: undefined } }),
+                prisma.user.create({ data: { email: 'u4@x.com' } }),
+                prisma.user.create({ data: { email: 'u5@x.com' } }),
+                prisma.user.create({ data: { email: 'u6@x.com' } }),
+            ]);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const session = await prisma.quizSession.create({
@@ -180,10 +195,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
             await prisma.quizParticipant.createMany({
                 data: [
-                    { userId: 'user-b', sessionId: 's1' },
-                    { userId: 'user-c', sessionId: 's1' },
-                    { userId: 'u4', sessionId: 's1' },
-                    { userId: 'u5', sessionId: 's1' },
+                    { userId: uB.id, sessionId: 's1' },
+                    { userId: uC.id, sessionId: 's1' },
+                    { userId: u4.id, sessionId: 's1' },
+                    { userId: u5.id, sessionId: 's1' },
                 ]
             });
 
@@ -194,8 +209,8 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
              * @Route("/api/daily-quiz/sessions")
              */
             const results = await Promise.allSettled([
-                quizService.findOrCreateParticipant(session, userA),
-                quizService.findOrCreateParticipant(session, { id: 'u6' })
+                quizService.findOrCreateParticipant(session, uA),
+                quizService.findOrCreateParticipant(session, u6)
             ]);
 
             const fulfilled = results.filter(r => r.status === 'fulfilled');
@@ -215,7 +230,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
          * @Route("/api/daily-quiz/answer")
          */
         test('should_reject_answers_given_5_minute_timeout', async () => {
-            await prisma.user.create({ data: userA });
+            const user = await prisma.user.create({ data: { ...userA, id: undefined } });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
                 data: { id: '1', title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
@@ -228,10 +243,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 data: { id: 'expired-session', date: today, startTime: expiredStartTime }
             });
             await prisma.quizParticipant.create({
-                data: { userId: userA.id, sessionId: session.id }
+                data: { userId: user.id, sessionId: session.id }
             });
 
-            const token = await createToken(userA);
+            const token = await createToken(user);
             const { req, res } = createMocks({
                 method: 'POST',
                 headers: { authorization: `Bearer ${token}` },
@@ -248,7 +263,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
          * @Route("/api/daily-quiz/answer")
          */
         test('should_prevent_duplicate_answers_given_repeated_submission', async () => {
-            await prisma.user.create({ data: userA });
+            const user = await prisma.user.create({ data: { ...userA, id: undefined } });
             const cat = await prisma.category.create({ data: { id: 'cat1', name: 'Algorithms' } });
             await prisma.question.create({
                 data: { id: '1', title: 'Q1', body: 'B1', correct: 'A', difficulty: 'EASY', categoryId: 'cat1', a: 'A', b: 'B', c: 'C', d: 'D', ...defaultQuestionData }
@@ -260,10 +275,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
                 data: { id: 's1', date: today, startTime: new Date() }
             });
             await prisma.quizParticipant.create({
-                data: { userId: userA.id, sessionId: session.id }
+                data: { userId: user.id, sessionId: session.id }
             });
 
-            const token = await createToken(userA);
+            const token = await createToken(user);
             const answer = async () => {
                 const { req, res } = createMocks({
                     method: 'POST',
@@ -285,7 +300,10 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
 
     describe('Results Calculation', () => {
         test('should_compute_correct_rankings_and_xp_given_finished_session', async () => {
-            await prisma.user.createMany({ data: [userA, userB] });
+            const [uA, uB] = await Promise.all([
+                prisma.user.create({ data: { ...userA, id: undefined } }),
+                prisma.user.create({ data: { ...userB, id: undefined } }),
+            ]);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const session = await prisma.quizSession.create({
@@ -293,12 +311,12 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             });
             await prisma.quizParticipant.createMany({
                 data: [
-                    { userId: userA.id, sessionId: 's1', score: 20 },
-                    { userId: userB.id, sessionId: 's1', score: 10 },
+                    { userId: uA.id, sessionId: 's1', score: 20 },
+                    { userId: uB.id, sessionId: 's1', score: 10 },
                 ]
             });
 
-            const token = await createToken(userA);
+            const token = await createToken(uA);
             const { req, res } = createMocks({
                 method: 'GET',
                 headers: { authorization: `Bearer ${token}` }
@@ -312,25 +330,29 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             expect(data.xpEarned).toBe(100);
             expect(data.totalParticipants).toBe(2);
             expect(data.leaderboard).toHaveLength(2);
-            expect(data.leaderboard[0].id).toBe('user-a');
+            expect(data.leaderboard[0].id).toBe(uA.id);
         });
     });
 
     describe('Polling & State Synchronization', () => {
         test('should_isolate_updates_given_different_sessions', async () => {
-            await prisma.user.createMany({ data: [userA, userB, userC] });
+            const [uA, uB, uC] = await Promise.all([
+                prisma.user.create({ data: { ...userA, id: undefined } }),
+                prisma.user.create({ data: { ...userB, id: undefined } }),
+                prisma.user.create({ data: { ...userC, id: undefined } }),
+            ]);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             await prisma.leaderboard.createMany({ data: [
-                { userId: userA.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
-                { userId: userB.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
-                { userId: userC.id, rank: 1000, xp: 10000, userHighestBadge: 'bronze' },
+                { userId: uA.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
+                { userId: uB.id, rank: 1, xp: 100, userHighestBadge: 'gold' },
+                { userId: uC.id, rank: 1000, xp: 10000, userHighestBadge: 'bronze' },
             ] });
 
-            const tokenA = await createToken(userA);
-            const tokenB = await createToken(userB);
-            const tokenC = await createToken(userC);
+            const tokenA = await createToken(uA);
+            const tokenB = await createToken(uB);
+            const tokenC = await createToken(uC);
 
             const resInitA = createMocks().res;
             await sessionsHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${tokenA}` } }).req, resInitA, new QuizService(prisma));
@@ -353,7 +375,7 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             });
             await stateHandler(reqPollA, resPollA, new QuizService(prisma));
             const stateA = JSON.parse(resPollA._getData());
-            expect(stateA.participants.some((p: any) => p.userId === 'user-b')).toBe(true);
+            expect(stateA.participants.some((p: any) => p.userId === uB.id)).toBe(true);
 
             const { req: reqPollC, res: resPollC } = createMocks({
                 method: 'GET',
@@ -361,12 +383,12 @@ describe('Daily Quiz Acceptance Tests (Real DB)', () => {
             });
             await stateHandler(reqPollC, resPollC, new QuizService(prisma));
             const stateC = JSON.parse(resPollC._getData());
-            expect(stateC.participants.some((p: any) => p.userId === 'user-b')).toBe(false);
+            expect(stateC.participants.some((p: any) => p.userId === uB.id)).toBe(false);
         });
 
         test('should_reflect_session_availability_given_server_load', async () => {
-            await prisma.user.create({ data: userA });
-            const tokenA = await createToken(userA);
+            const uA = await prisma.user.create({ data: { ...userA, id: undefined } });
+            const tokenA = await createToken(uA);
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
