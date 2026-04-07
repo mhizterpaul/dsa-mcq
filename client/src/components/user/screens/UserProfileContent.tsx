@@ -51,21 +51,39 @@ export default function UserProfileContent({ AdComponent }: { AdComponent?: Reac
     avatarUri: currentUser?.avatarUrl || "https://via.placeholder.com/150",
   };
 
+  const [menuVisible, setMenuVisible] = useState(false);
+
   return (
     <View flex bg-grey80>
       <Spinner visible={loading} />
       {/* Header */}
       <View row spread centerV paddingH-20 paddingV-10 marginB-20 marginT-40>
-        <BackButton
-          navigation={navigation as any}
-          style={styles.backButton}
-          iconName="chevron-left"
-          iconSize={24}
-          iconColor="#111"
-        />
-        <Text text70b color_grey10 testID="screen-title">User profile</Text>
-        <UserProfileSummary showGreeting={false} />
+        <View row centerV>
+            <BackButton
+            navigation={navigation as any}
+            style={styles.backButton}
+            iconName="chevron-left"
+            iconSize={24}
+            iconColor="#111"
+            />
+            <Text text70b color_grey10 testID="screen-title" marginL-10>User profile</Text>
+        </View>
+
+        <View row centerV>
+            <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)} testID="menu-button">
+                <Ionicons name="ellipsis-vertical" size={24} color="#111" />
+            </TouchableOpacity>
+            <UserProfileSummary showGreeting={false} />
+        </View>
       </View>
+
+      {menuVisible && (
+          <View absR marginT-80 marginR-20 bg-white br20 padding-10 style={styles.cardShadow}>
+              <TouchableOpacity onPress={() => setMenuVisible(false)}>
+                  <Text text80 color_grey10>Coin history</Text>
+              </TouchableOpacity>
+          </View>
+      )}
 
       {error && (
         <View paddingH-20 marginB-20>

@@ -13,11 +13,28 @@ describe('Cache Fallback Acceptance Scenario', () => {
     const testUser = { id: 'cache-user-1', email: 'cache@test.com', name: 'CacheUser' };
     let token: string;
 
+    beforeAll(() => {
+        process.env.FORCE_FILE_CACHE = 'true';
+    });
+
+    afterAll(() => {
+        delete process.env.FORCE_FILE_CACHE;
+    });
+
     beforeEach(async () => {
         await prisma.session.deleteMany();
         await prisma.engagement.deleteMany();
         await prisma.leaderboard.deleteMany();
         await prisma.quizParticipant.deleteMany();
+        await prisma.quizSession.deleteMany();
+        await prisma.leaderboard.deleteMany();
+        await prisma.engagement.deleteMany();
+        await prisma.learningSession.deleteMany();
+        await prisma.userQuestionData.deleteMany();
+        await prisma.notification.deleteMany();
+        await prisma.media.deleteMany();
+        await prisma.account.deleteMany();
+        await prisma.verificationToken.deleteMany();
         await prisma.user.deleteMany();
 
         // Ensure cache directory is clean
@@ -85,5 +102,62 @@ describe('Cache Fallback Acceptance Scenario', () => {
 
         expect(res._getStatusCode()).toBe(500);
         spy.mockRestore();
+    });
+
+    test('should_not_leak_cache_across_users', async () => {
+        const userB = { id: 'user-b', email: 'b@test.com', name: 'UserB' };
+        await prisma.user.create({ data: userB });
+        const sessionB = await prisma.session.create({
+            data: { id: 'sess-b', userId: userB.id, sessionToken: 'tk-b', expires: new Date(Date.now() + 3600000) }
+        });
+        const tokenB = jwt.sign({ user: { id: userB.id }, sessionId: sessionB.id }, JWT_SECRET);
+
+        // 1. Warm cache for User A
+        const { req: reqA, res: resA } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${token}` }
+        });
+        await profileSummaryHandler(reqA as any, resA as any);
+        expect(resA._getStatusCode()).toBe(200);
+
+        // 2. Simulate DB failure
+        const spy = jest.spyOn(userController, 'getProfileSummary').mockRejectedValue(new Error('DB Failure'));
+
+        // 3. User B requests, should NOT see User A's data (Cache Miss)
+        const { req: reqB, res: resB } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${tokenB}` }
+        });
+        await profileSummaryHandler(reqB as any, resB as any);
+
+        expect(resB._getStatusCode()).toBe(500); // Because it didn't hit User A's cache
+
+        spy.mockRestore();
+    });
+
+    test('should_authorize_when_db_down_using_cache', async () => {
+        // 1. Warm Auth Cache
+        const { req: req1, res: res1 } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${token}` }
+        });
+        await profileSummaryHandler(req1 as any, res1 as any);
+
+        // 2. Mock DB failure for validateSession (Prisma call)
+        const validateSpy = jest.spyOn(prisma.session, 'findUnique').mockRejectedValue(new Error('Database Connection Error'));
+        const controllerSpy = jest.spyOn(userController, 'getProfileSummary').mockRejectedValue(new Error('DB Connection Error'));
+
+        // 3. Request should still authorize and return cached profile
+        const { req: req2, res: res2 } = createMocks({
+            method: 'GET',
+            headers: { authorization: `Bearer ${token}` }
+        });
+        await profileSummaryHandler(req2 as any, res2 as any);
+
+        expect(res2._getStatusCode()).toBe(200);
+        expect(JSON.parse(res2._getData()).source).toBe('CACHE');
+
+        validateSpy.mockRestore();
+        controllerSpy.mockRestore();
     });
 });

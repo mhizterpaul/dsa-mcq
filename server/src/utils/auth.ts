@@ -11,29 +11,32 @@ export interface AuthContext {
     syncKey?: string;
 }
 
-export async function validateSession(sessionId: string, userId: string) {
-    const session = await prisma.session.findUnique({
-        where: { id: sessionId },
-        include: { user: true }
-    }).catch(err => {
-        console.error('validateSession error:', err);
-        throw new Error('Internal Database Error');
-    });
+export async function validateSession(sessionId: string, userId: string, cacheService?: CacheService) {
+    const cacheKey = `session:${sessionId}`;
+    let session = cacheService ? await cacheService.get(cacheKey) : null;
 
     if (!session) {
-        if (process.env.NODE_ENV === 'test') console.log('Auth Failure: Session not found in DB', { sessionId });
+        session = await prisma.session.findUnique({
+            where: { id: sessionId },
+            include: { user: true }
+        }).catch(err => {
+            console.error('validateSession error:', err);
+            throw new Error('Internal Database Error');
+        });
+
+        if (session && cacheService) {
+            // Cache session for 5 minutes for Auth Resilience
+            await cacheService.set(cacheKey, session, 300);
+        }
+    } else {
+        console.log('[Auth] Validated session from cache:', sessionId);
+    }
+
+    if (!session) {
         throw new Error('Session not found or invalid');
     }
 
-    const sUserId = String(session.userId).trim();
-    const pUserId = String(userId).trim();
-    if (sUserId !== pUserId) {
-        if (process.env.NODE_ENV === 'test') {
-            console.log('Auth Failure: Session userId mismatch', {
-                sessionUserId: sUserId,
-                payloadUserId: pUserId
-            });
-        }
+    if (session.userId !== userId) {
         throw new Error('Session not found or invalid');
     }
 
@@ -72,18 +75,15 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
         throw new Error('Invalid token');
     }
 
-    const userId = decoded.sub ||
-                   (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : decoded.user) ||
-                   decoded.id;
+    const userId = decoded.sub || decoded.user?.id || (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : undefined);
     const sessionId = decoded.sessionId;
 
     if (!userId || !sessionId) {
-        if (process.env.NODE_ENV === 'test') console.log('Auth Failure: Missing userId or sessionId in payload', { userId, sessionId, decoded });
         throw new Error('Invalid token payload');
     }
 
     // Capture potential database errors explicitly
-    const session = await validateSession(sessionId, userId);
+    const session = await validateSession(sessionId, userId, cacheService);
 
     return {
         userId: session.user.id,

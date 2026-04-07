@@ -80,6 +80,15 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                     : `${API_BASE_URL}/daily-quiz/state`;
 
                 const response = await fetch(url);
+
+                if (response.status === 304) {
+                    retryCount = 0;
+                    if (isMounted) {
+                        intervalId = setTimeout(pollState, baseInterval);
+                    }
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (!isMounted) return;
