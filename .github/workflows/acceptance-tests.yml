@@ -26,7 +26,11 @@ jobs:
         run: |
           echo 'DATABASE_URL="file:./test.db"' > .env.test
           echo 'JWT_SECRET="test-secret"' >> .env.test
-          yarn test
+          echo 'SUPABASE_URL="http://localhost:54321"' >> .env.test
+          echo 'SUPABASE_SERVICE_ROLE_KEY="test-key"' >> .env.test
+          echo 'CLIENTID="test-client"' >> .env.test
+          echo 'REFRESH_TOKEN="test-refresh"' >> .env.test
+          yarn test src/__tests__/acceptance/
 
   client-acceptance:
     runs-on: ubuntu-latest

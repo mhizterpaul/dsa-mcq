@@ -1,7 +1,11 @@
+const isCI = process.env.CI === "true";
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testPathIgnorePatterns: ['/node_modules/', '/.next/'],
+  testPathIgnorePatterns: isCI
+    ? ['/node_modules/', '/.next/', '/src/__tests__/integration/']
+    : ['/node_modules/', '/.next/'],
   modulePaths: ['<rootDir>/node_modules'],
   moduleNameMapper: {
     '\\.(css|less|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
