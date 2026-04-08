@@ -6,7 +6,7 @@ import GameModes from './components/GameModes';
 import FeaturedCategories from './components/FeaturedCategories';
 import RecentQuizzes from './components/RecentQuizzes';
 import QuizView from './components/QuizView';
-import DailyQuizScreen from './screens/DailyQuiz';
+import DailyQuizScreen from './screens/DailyQuizScreen';
 import SessionSummary from './components/SessionSummary';
 import learningService from './services/learningService';
 import { setCategories } from './store/category.slice';

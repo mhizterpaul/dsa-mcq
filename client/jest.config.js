@@ -13,5 +13,6 @@ module.exports = {
     '^react-test-renderer$': 'test-renderer',
     '^msw/node$': '<rootDir>/node_modules/msw/lib/node/index.js',
     '^msw/native$': '<rootDir>/node_modules/msw/lib/native/index.js',
+    'react-native-quick-sqlite': '<rootDir>/src/infra/sqlite/database.ts',
   },
 };
