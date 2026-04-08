@@ -33,11 +33,7 @@ export class QuizService {
       },
     });
 
-    const { classifyQuestion } = await import('../utils/classifier');
-    return questions.map(q => ({
-      ...q,
-      type: classifyQuestion(q.title + ' ' + q.body)
-    }));
+    return questions;
   }
 
   async getQuestionsByIds(ids: (number | string)[]) {

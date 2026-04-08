@@ -13,7 +13,11 @@ export function ensureIntegrationTestEnv() {
 
     const requiredEnvVars = [
         'DATABASE_URL',
-        'JWT_SECRET'
+        'JWT_SECRET',
+        'SUPABASE_URL',
+        'SUPABASE_SERVICE_ROLE_KEY',
+        'CLIENTID',
+        'REFRESH_TOKEN'
     ];
 
     const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
