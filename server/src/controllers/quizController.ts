@@ -418,8 +418,33 @@ export class QuizService {
     });
 
     if (result.count > 0) {
-        console.log(`Cleaned up ${result.count} expired sessions.`);
+        await this.prisma.auditLog.create({
+            data: {
+                action: 'EXPIRED_SESSIONS_CLEANUP',
+                payload: JSON.stringify({ count: result.count }),
+                status: 'SUCCESS'
+            }
+        });
     }
     return result.count;
+  }
+
+  async createSession(data: { startTime?: Date, date?: Date } = {}) {
+      const session = await this.prisma.quizSession.create({
+          data: {
+              date: data.date || new Date(),
+              startTime: data.startTime || new Date(),
+          }
+      });
+
+      await this.prisma.auditLog.create({
+          data: {
+              action: 'SESSION_CREATED',
+              payload: JSON.stringify({ sessionId: session.id }),
+              status: 'SUCCESS'
+          }
+      });
+
+      return session;
   }
 }

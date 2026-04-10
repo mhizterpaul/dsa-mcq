@@ -136,7 +136,7 @@ export class EngagementService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    return this.prisma.engagement.updateMany({
+    const result = await this.prisma.engagement.updateMany({
       where: {
           last_xp_reset_weekly: {
               lte: sevenDaysAgo
@@ -147,6 +147,26 @@ export class EngagementService {
           last_xp_reset_weekly: new Date()
       },
     });
+
+    await this.prisma.auditLog.create({
+        data: {
+            action: 'WEEKLY_XP_RESET',
+            payload: JSON.stringify({ affectedCount: result.count }),
+            status: 'SUCCESS'
+        }
+    });
+
+    return result;
+  }
+
+  async resetDailyKingOfQuiz() {
+      // Mock implementation: in a real system this might clear a specific 'daily_king' flag or similar
+      await this.prisma.auditLog.create({
+          data: {
+              action: 'DAILY_KING_RESET',
+              status: 'SUCCESS'
+          }
+      });
   }
 
   private async calculateRank(xp: number): Promise<number> {

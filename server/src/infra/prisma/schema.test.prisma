@@ -7,6 +7,15 @@ datasource db {
   provider = "sqlite"
   url      = "file:./test.db"
 }
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  actorId   String?
+  actorType String   @default("USER")
+  payload   String?  // JSON string
+  status    String   @default("SUCCESS")
+  createdAt DateTime @default(now())
+}
 model Category {
     id String @id @default(cuid())
     name String @unique
