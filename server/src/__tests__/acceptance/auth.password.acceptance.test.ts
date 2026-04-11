@@ -107,6 +107,15 @@ describe('Password Reset Acceptance Scenario', () => {
         // 5. Verify token is consumed
         const vTokenAfter = await prisma.verificationToken.findUnique({ where: { token } });
         expect(vTokenAfter).toBeNull();
+
+        // 6. Verify Token Replay Protection
+        const replayRes = createMocks({
+            method: 'POST',
+            headers: { 'x-client-signature': resetSignature },
+            body: resetBody
+        });
+        await resetPasswordHandler(replayRes.req as any, replayRes.res as any, prisma);
+        expect(replayRes.res._getStatusCode()).toBe(400);
     });
 
     test('should_fail_reset_given_invalid_token', async () => {
@@ -121,5 +130,28 @@ describe('Password Reset Acceptance Scenario', () => {
 
         await resetPasswordHandler(req as any, res as any, prisma);
         expect(res._getStatusCode()).toBe(400);
+    });
+
+    test('should_fail_reset_given_expired_token', async () => {
+        const user = await prisma.user.findUnique({ where: { email: testUser.email } });
+        const token = 'expired-token';
+        const expires = new Date(Date.now() - 3600000); // 1 hour ago
+
+        await prisma.verificationToken.create({
+            data: { identifier: user!.id, token, expires }
+        });
+
+        const resetBody = { token, password: 'new-password' };
+        const resetSignature = generateSignature(resetBody, JWT_SECRET);
+
+        const { req, res } = createMocks({
+            method: 'POST',
+            headers: { 'x-client-signature': resetSignature },
+            body: resetBody
+        });
+
+        await resetPasswordHandler(req as any, res as any, prisma);
+        expect(res._getStatusCode()).toBe(400);
+        expect(JSON.parse(res._getData()).message).toMatch(/expired/i);
     });
 });
