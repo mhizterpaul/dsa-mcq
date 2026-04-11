@@ -30,7 +30,7 @@ describe('Hardened Security Acceptance Tests', () => {
             }
         });
 
-        const token = jwt.sign({ sub: testUser.id, sessionId: session.id }, JWT_SECRET);
+        const token = jwt.sign({ user: { id: testUser.id }, sessionId: session.id }, JWT_SECRET);
         const { req, res } = createMocks({
             method: 'GET',
             headers: { authorization: `Bearer ${token}` }
@@ -53,7 +53,7 @@ describe('Hardened Security Acceptance Tests', () => {
         });
 
         // JWT claims to be user-1, but provides session-id of user-2
-        const token = jwt.sign({ sub: testUser.id, sessionId: sessionOfOther.id }, JWT_SECRET);
+        const token = jwt.sign({ user: { id: testUser.id }, sessionId: sessionOfOther.id }, JWT_SECRET);
         const { req, res } = createMocks({
             method: 'GET',
             headers: { authorization: `Bearer ${token}` }
@@ -75,7 +75,7 @@ describe('Hardened Security Acceptance Tests', () => {
             }
         });
 
-        const token = jwt.sign({ sub: testUser.id, sessionId: session.id }, JWT_SECRET);
+        const token = jwt.sign({ user: { id: testUser.id }, sessionId: session.id }, JWT_SECRET);
         const { req: req1, res: res1 } = createMocks({
             method: 'GET',
             headers: { authorization: `Bearer ${token}` }
@@ -106,8 +106,8 @@ describe('Hardened Security Acceptance Tests', () => {
             data: { id: 's2', userId: testUser.id, sessionToken: 'tk2', expires: new Date(Date.now() + 3600000) }
         });
 
-        const t1 = jwt.sign({ sub: testUser.id, sessionId: s1.id }, JWT_SECRET);
-        const t2 = jwt.sign({ sub: testUser.id, sessionId: s2.id }, JWT_SECRET);
+        const t1 = jwt.sign({ user: { id: testUser.id }, sessionId: s1.id }, JWT_SECRET);
+        const t2 = jwt.sign({ user: { id: testUser.id }, sessionId: s2.id }, JWT_SECRET);
 
         const { res: res1 } = createMocks({ method: 'GET', headers: { authorization: `Bearer ${t1}` } });
         await meHandler(createMocks({ method: 'GET', headers: { authorization: `Bearer ${t1}` } }).req, res1);

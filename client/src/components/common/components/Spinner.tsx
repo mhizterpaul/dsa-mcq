@@ -9,8 +9,8 @@ const Spinner: React.FC<SpinnerProps> = ({ visible }) => {
   return (
     <Modal transparent={true} animationType="none" visible={visible}>
       <View style={styles.modalBackground}>
-        <View style={styles.activityIndicatorWrapper}>
-<ActivityIndicator testID="auth-spinner" size="large" color="#0000ff" />
+        <View style={styles.activityIndicatorWrapper} testID="auth-spinner">
+          <ActivityIndicator size="large" color="#0000ff" />
         </View>
       </View>
     </Modal>

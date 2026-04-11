@@ -8,16 +8,18 @@
     "build": "next build",
     "start": "yarn prisma:migrate-deploy && next start",
     "lint": "next lint",
-    "test": "yarn prisma:generate && dotenv -e .env.test -- jest --runInBand",
+    "test": "yarn prisma:generate:test && dotenv -e .env.test -- jest --runInBand",
     "test:watch": "yarn prisma:generate && jest --watch --runInBand",
     "test:coverage": "yarn prisma:generate && jest --coverage",
     "prisma:pregenerate": "cat src/infra/prisma/schema.header.prisma src/models/*.prisma > src/infra/prisma/schema.prisma",
     "prisma:generate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma generate --schema ./src/infra/prisma/schema.prisma",
+    "prisma:generate:test": "yarn prisma:pregenerate && npx tsx scripts/setupTestDb.ts && npx prisma generate --schema ./src/infra/prisma/schema.test.prisma && npx prisma db push --schema ./src/infra/prisma/schema.test.prisma",
     "prisma:generate:prod": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma generate --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate": "yarn prisma:pregenerate && dotenv -e .env.test -- prisma migrate dev --schema ./src/infra/prisma/schema.prisma",
     "prisma:migrate-deploy": "yarn prisma:pregenerate && dotenv -e .env.production -- prisma migrate deploy --schema ./src/infra/prisma/schema.prisma",
     "seed": "yarn prisma:pregenerate && node --loader ts-node/esm src/infra/prisma/seed.ts",
-    "seed:prod": "yarn prisma:migrate-deploy && yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts"
+    "seed:prod": "yarn prisma:migrate-deploy && yarn prisma:generate:prod && dotenv -e .env.production -- ts-node src/infra/prisma/seed.ts",
+    "generateDocs": "npx tsx scripts/generateDocs.ts"
   },
   "prisma": {
     "seed": "ts-node src/infra/prisma/seed.ts"
@@ -54,13 +56,17 @@
     "@types/react-dom": "18.3.0",
     "@types/uuid": "^8.3.4",
     "csv-parse": "^5.5.5",
-    "dotenv-cli": "^10.0.0",
+    "dotenv-cli": "^11.0.0",
     "eventsource": "^4.0.0",
     "formidable": "^3.5.4",
     "jest": "^29.7.0",
+    "jest-openapi": "^0.14.2",
     "node-mocks-http": "^1.17.2",
-    "ts-jest": "^29.4.1",
+    "prismock": "^1.35.4",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.4"
   }
 }

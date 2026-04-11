@@ -16,9 +16,12 @@ export async function answerHandler(req: NextApiRequest, res: NextApiResponse, q
 
     if (req.method === 'POST') {
         const { questionId, answer } = req.body;
+        if (!questionId || !answer) {
+            return res.status(400).json({ message: "Missing questionId or answer" });
+        }
 
         try {
-            const result = await quizService.handleAnswer(user.id, questionId, answer);
+            const result = await quizService.handleAnswer(user.id, String(questionId), answer);
             res.status(200).json(result);
         } catch (error: any) {
             res.status(400).json({ message: error.message });

@@ -248,11 +248,12 @@ export const fetchUserProfile = createAsyncThunk<
   UserObject,
   void,
   { rejectValue: string }
->('user/fetchProfile', async (_, { dispatch, rejectWithValue }) => {
+>('user/fetchProfile', async (_, { dispatch, rejectWithValue, signal }) => {
   try {
     const response = await fetch(`${API_BASE_URL}/user/profile-summary`, {
       method: 'GET',
       credentials: 'include',
+      signal,
     });
     if (!response.ok) {
       // Dispatch logoutUser on failure to clear the session

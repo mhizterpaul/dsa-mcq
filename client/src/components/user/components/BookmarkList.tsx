@@ -99,27 +99,34 @@ const BookmarkList = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchQuestions = async () => {
             if (profile && profile.bookmarks.length > 0) {
                 setLoading(true);
                 setError(null);
                 try {
-                    const ids = profile.bookmarks.map(b => parseInt(b.questionId, 10));
+                    const ids = profile.bookmarks.map(b => b.questionId);
                     const fetchedQuestions = await learningService.getQuestionsByIds(ids);
+                    if (!isMounted) return;
                     const questionMap = fetchedQuestions.reduce((acc, q) => {
                         acc[String(q.id)] = q;
                         return acc;
                     }, {} as Record<string, Question>);
                     setQuestions(questionMap);
                 } catch (error) {
-                    console.error("Error fetching bookmarked questions:", error);
-                    setError("Failed to load bookmarks");
+                    if (isMounted) {
+                        console.error("Error fetching bookmarked questions:", error);
+                        setError("Failed to load bookmarks");
+                    }
                 } finally {
-                    setLoading(false);
+                    if (isMounted) {
+                        setLoading(false);
+                    }
                 }
             }
         };
         fetchQuestions();
+        return () => { isMounted = false; };
     }, [profile?.bookmarks]);
 
     const filteredBookmarks = useMemo(() => {

@@ -4,11 +4,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  actorId   String?  @db.ObjectId
+  actorType String   @default("USER")
+  payload   String?  // JSON string
+  status    String   @default("SUCCESS")
+  createdAt DateTime @default(now())
+}
 model Category { 
-    id String @id @default(uuid()) 
+    id String @id @default(auto()) @map("_id") @db.ObjectId
     name String @unique 
     featured Boolean @default(false)
     questions Question[] 
@@ -16,15 +25,15 @@ model Category {
     updatedAt DateTime @updatedAt
 }
 model DevOpsMetric {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   type      String
   payload   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 model Engagement {
-  id                      String   @id @default(cuid())
-  userId                  String   @unique
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                  String   @unique @db.ObjectId
   user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   xp                      Int      @default(0)
   xp_weekly               Int      @default(0)
@@ -35,16 +44,16 @@ model Engagement {
   updatedAt               DateTime @updatedAt
 }
 model Leaderboard {
-  id                String  @id @default(cuid())
-  userId            String  @unique
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @unique @db.ObjectId
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   rank              Int
   userHighestBadge  String?
   xp                Int
 }
 model LearningSession {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   startTime DateTime
   endTime   DateTime?
@@ -52,8 +61,8 @@ model LearningSession {
   updatedAt DateTime @updatedAt
 }
 model Media {
-  id          String   @id @default(cuid())
-  userId      String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider    String
   providerId  String
@@ -62,8 +71,8 @@ model Media {
   updatedAt   DateTime @updatedAt
 }
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String
   type      String   // 'reminder' or 'nudge'
@@ -73,7 +82,7 @@ model Notification {
   updatedAt DateTime @updatedAt
 }
 model Outbox {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   to        String
   subject   String
   html      String
@@ -89,11 +98,11 @@ enum Difficulty {
 }
 
 model Question {
-  id                    Int             @id @default(autoincrement())
+  id                    String             @id @default(auto()) @map("_id") @db.ObjectId
   title                 String
   body                  String
   difficulty            Difficulty
-  categoryId            String
+  categoryId            String @db.ObjectId
   category              Category        @relation(fields: [categoryId], references: [id])
   tags                  TagOnQuestion[]
   tagsText              String          @default("")
@@ -121,7 +130,7 @@ model Question {
   @@index([categoryId])
 }
 model QuizSession {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   date        DateTime
   startTime   DateTime
   endTime     DateTime?
@@ -134,10 +143,10 @@ model QuizSession {
 }
 
 model QuizParticipant {
-  id          String      @id @default(cuid())
-  userId      String
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionId   String
+  sessionId   String @db.ObjectId
   session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   score       Int         @default(0)
   streak      Int         @default(0)
@@ -148,33 +157,34 @@ model QuizParticipant {
 }
 
 model QuizQuestion {
-    id   Int @id @default(autoincrement())
-    sessionId   String
+    id   String @id @default(auto()) @map("_id") @db.ObjectId
+    sessionId   String @db.ObjectId
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    questionId  Int
+    questionId  String @db.ObjectId
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @updatedAt
 }
 model Tag {
-  id        Int       @id @default(autoincrement())
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
   name      String          @unique
   questions TagOnQuestion[]
 }
 
 model TagOnQuestion {
-  questionId Int
-  tagId      Int
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  questionId String @db.ObjectId
+  tagId      String @db.ObjectId
   question   Question @relation(fields: [questionId], references: [id])
   tag        Tag      @relation(fields: [tagId], references: [id])
 
-  @@id([questionId, tagId])
+  @@unique([questionId, tagId])
   @@index([tagId])
   @@index([questionId])
 }
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String @db.ObjectId
   type               String
   provider           String
   providerAccountId  String
@@ -191,7 +201,7 @@ model Account {
 }
 
 model User {
-  id                String    @id @default(cuid())
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
   name              String?
   fullName          String?
   email             String?   @unique
@@ -221,9 +231,9 @@ model User {
 }
 
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   sessionToken String   @unique
-  userId       String
+  userId       String @db.ObjectId
   expires      DateTime
   userAgent    String?
   syncKey      String?
@@ -232,6 +242,7 @@ model Session {
 }
 
 model VerificationToken {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
   identifier String
   token      String   @unique
   expires    DateTime
@@ -239,10 +250,10 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 model UserQuestionData {
-  id          Int @id @default(autoincrement())
-  userId      String
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  Int
+  questionId  String @db.ObjectId
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   attempts    Int      @default(0)
   correct     Boolean  @default(false)

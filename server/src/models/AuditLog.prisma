@@ -1,0 +1,9 @@
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  actorId   String?  @db.ObjectId
+  actorType String   @default("USER")
+  payload   String?  // JSON string
+  status    String   @default("SUCCESS")
+  createdAt DateTime @default(now())
+}

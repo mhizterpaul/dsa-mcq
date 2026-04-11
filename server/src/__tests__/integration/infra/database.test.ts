@@ -14,7 +14,7 @@ describe('Database Integration Test', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
+    if (prisma) await prisma.$disconnect();
   });
 
   beforeEach(async () => {

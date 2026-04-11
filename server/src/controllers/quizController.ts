@@ -20,7 +20,7 @@ export class QuizService {
     if (difficulty) {
         where.difficulty = difficulty.toUpperCase() as any;
     }
-    return this.prisma.question.findMany({
+    const questions = await this.prisma.question.findMany({
       where,
       orderBy: { id: 'asc' },
       include: {
@@ -32,12 +32,15 @@ export class QuizService {
         },
       },
     });
+
+    return questions;
   }
 
-  async getQuestionsByIds(ids: number[]) {
+  async getQuestionsByIds(ids: (number | string)[]) {
+    const stringIds = ids.map(id => String(id));
     return this.prisma.question.findMany({
       where: {
-        id: { in: ids },
+        id: { in: stringIds },
       },
       orderBy: { id: 'asc' },
       include: {
@@ -235,7 +238,7 @@ export class QuizService {
     }));
   }
 
-  async handleAnswer(userId: string, questionId: number, answer: string) {
+  async handleAnswer(userId: string, questionId: string, answer: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -395,5 +398,53 @@ export class QuizService {
           where: { id: sessionId },
           data: { endTime: new Date() }
       });
+  }
+
+  async cleanupExpiredSessions() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const timeout = new Date(Date.now() - 300000); // 5 mins ago
+
+    // Update sessions where startTime < 5 mins ago and endTime is null
+    const result = await this.prisma.quizSession.updateMany({
+        where: {
+            startTime: { lt: timeout },
+            endTime: null,
+            date: { gte: today }
+        },
+        data: {
+            endTime: new Date()
+        }
+    });
+
+    if (result.count > 0) {
+        await this.prisma.auditLog.create({
+            data: {
+                action: 'EXPIRED_SESSIONS_CLEANUP',
+                payload: JSON.stringify({ count: result.count }),
+                status: 'SUCCESS'
+            }
+        });
+    }
+    return result.count;
+  }
+
+  async createSession(data: { startTime?: Date, date?: Date } = {}) {
+      const session = await this.prisma.quizSession.create({
+          data: {
+              date: data.date || new Date(),
+              startTime: data.startTime || new Date(),
+          }
+      });
+
+      await this.prisma.auditLog.create({
+          data: {
+              action: 'SESSION_CREATED',
+              payload: JSON.stringify({ sessionId: session.id }),
+              status: 'SUCCESS'
+          }
+      });
+
+      return session;
   }
 }

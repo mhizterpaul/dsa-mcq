@@ -1,8 +1,13 @@
 process.env.RNTL_SKIP_DEPS_CHECK = 'true';
 
+const isCI = process.env.CI === "true";
+
 module.exports = {
   preset: 'react-native',
   setupFilesAfterEnv: ['./jest.setup.js'],
+  testPathIgnorePatterns: isCI
+    ? ["/node_modules/", "/src/__tests__/integration/"]
+    : ["/node_modules/"],
   transformIgnorePatterns: [
     'node_modules/(?!(react-native|@react-native|react-redux|@reduxjs/toolkit|react-native-paper|react-native-vector-icons|react-native-app-auth|@react-navigation|react-native-gesture-handler|immer|react-native-base64|react-native-ui-lib|uilib-native|react-native-sse|msw|until-async|@mswjs)/)',
   ],

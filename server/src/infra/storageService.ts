@@ -1,5 +1,4 @@
 import { GoogleStorageService } from './googleStorageService';
-import { DropboxStorageService } from './dropboxStorageService';
 import { SupabaseStorageService } from './supabaseStorageService';
 
 export interface IStorageService {
@@ -24,13 +23,11 @@ class MockStorageService implements IStorageService {
 export class StorageService implements IStorageService {
   private provider: IStorageService;
 
-  constructor(provider: 'google' | 'dropbox' | 'supabase' | 'mock' = 'google') {
+  constructor(provider: 'google' | 'supabase' | 'mock' = 'google') {
     if (process.env.NODE_ENV === 'test') {
         this.provider = new MockStorageService();
     } else if (provider === 'google') {
       this.provider = new GoogleStorageService();
-    } else if (provider === 'dropbox') {
-      this.provider = new DropboxStorageService();
     } else if (provider === 'supabase') {
       this.provider = new SupabaseStorageService();
     } else {

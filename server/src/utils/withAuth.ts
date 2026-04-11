@@ -36,6 +36,7 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       ];
 
       if (clientErrors.includes(error.message)) {
+          if (process.env.NODE_ENV === 'test') console.log('Auth Failure:', error.message);
           return res.status(401).json({ message: error.message });
       }
 

@@ -1,5 +1,5 @@
 model QuizSession {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   date        DateTime
   startTime   DateTime
   endTime     DateTime?
@@ -12,10 +12,10 @@ model QuizSession {
 }
 
 model QuizParticipant {
-  id          String      @id @default(cuid())
-  userId      String
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionId   String
+  sessionId   String @db.ObjectId
   session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   score       Int         @default(0)
   streak      Int         @default(0)
@@ -26,10 +26,10 @@ model QuizParticipant {
 }
 
 model QuizQuestion {
-    id   Int @id @default(autoincrement())
-    sessionId   String
+    id   String @id @default(auto()) @map("_id") @db.ObjectId
+    sessionId   String @db.ObjectId
     session     QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    questionId  Int
+    questionId  String @db.ObjectId
     question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @updatedAt

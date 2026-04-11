@@ -113,7 +113,7 @@ describe('Learning Route Acceptance Tests', () => {
 
       await prisma.question.create({
         data: {
-          id: 1,
+          id: '1',
           title: 'Q1',
           body: 'B1',
           difficulty: 'EASY',
@@ -205,7 +205,7 @@ describe('Learning Route Acceptance Tests', () => {
 
       const q1 = await prisma.question.create({
         data: {
-          id: 101,
+          id: '101',
           title: 'Two Sum',
           body: 'Given an array...',
           difficulty: 'EASY',
@@ -232,7 +232,7 @@ describe('Learning Route Acceptance Tests', () => {
       const { req, res } = createMocks({
         method: 'POST',
         headers: { authorization: `Bearer ${token}` },
-        body: { ids: [101], revealAnswers: true },
+        body: { ids: ['101'], revealAnswers: true },
       });
 
       await questionsHandler(req, res);
@@ -242,7 +242,7 @@ describe('Learning Route Acceptance Tests', () => {
 
       expect(data).toHaveLength(1);
       expect(data[0]).toEqual({
-        id: 101,
+        id: '101',
         question: 'Two Sum: Given an array...',
         category: 'Algorithms',
         tags: ['Array'],
@@ -295,7 +295,7 @@ describe('Learning Route Acceptance Tests', () => {
       const cat = await prisma.category.create({ data: { name: 'Dups' } });
       const q = await prisma.question.create({
         data: {
-          id: 501, title: 'Q', body: 'B', difficulty: 'EASY', categoryId: cat.id,
+          id: '501', title: 'Q', body: 'B', difficulty: 'EASY', categoryId: cat.id,
           a: 'A', b: 'B', c: 'C', d: 'D', correct: 'A',
           tagsText: '', companyTags: '', hints: '', similarQuestionIds: '', similarQuestionsText: ''
         }
@@ -304,13 +304,13 @@ describe('Learning Route Acceptance Tests', () => {
       const { req, res } = createMocks({
         method: 'POST',
         headers: { authorization: `Bearer ${token}` },
-        body: { ids: [501, 501] },
+        body: { ids: ['501', '501'] },
       });
       await questionsHandler(req, res);
       expect(res._getStatusCode()).toBe(200);
       const data = JSON.parse(res._getData());
       expect(data).toHaveLength(1);
-      expect(data[0].id).toBe(501);
+      expect(data[0].id).toBe('501');
 
       // DTO Freeze
       expect(Object.keys(data[0]).sort()).toEqual(['id', 'question', 'category', 'tags', 'options'].sort());
@@ -320,14 +320,14 @@ describe('Learning Route Acceptance Tests', () => {
       const cat = await prisma.category.create({ data: { name: 'Order' } });
       await prisma.question.create({
         data: {
-          id: 200, title: 'Q200', body: 'B', difficulty: 'EASY', categoryId: cat.id,
+          id: '200', title: 'Q200', body: 'B', difficulty: 'EASY', categoryId: cat.id,
           a: 'A', b: 'B', c: 'C', d: 'D', correct: 'A',
           tagsText: '', companyTags: '', hints: '', similarQuestionIds: '', similarQuestionsText: ''
         }
       });
       await prisma.question.create({
         data: {
-          id: 100, title: 'Q100', body: 'B', difficulty: 'EASY', categoryId: cat.id,
+          id: '100', title: 'Q100', body: 'B', difficulty: 'EASY', categoryId: cat.id,
           a: 'A', b: 'B', c: 'C', d: 'D', correct: 'A',
           tagsText: '', companyTags: '', hints: '', similarQuestionIds: '', similarQuestionsText: ''
         }
@@ -336,20 +336,20 @@ describe('Learning Route Acceptance Tests', () => {
       const { req, res } = createMocks({
         method: 'POST',
         headers: { authorization: `Bearer ${token}` },
-        body: { ids: [200, 100] },
+        body: { ids: ['200', '100'] },
       });
       await questionsHandler(req, res);
       const data = JSON.parse(res._getData());
-      expect(data[0].id).toBe(100);
-      expect(data[1].id).toBe(200);
+      expect(data[0].id).toBe('100');
+      expect(data[1].id).toBe('200');
     });
 
-    test('rejects non-numeric ids', async () => {
+    test('rejects invalid id types', async () => {
       const token = createToken(testUser, testSession.id);
       const { req, res } = createMocks({
         method: 'POST',
         headers: { authorization: `Bearer ${token}` },
-        body: { ids: [1, "oops"] },
+        body: { ids: [1, { complex: 'id' }] },
       });
       await questionsHandler(req, res);
       expect(res._getStatusCode()).toBe(400);
@@ -376,7 +376,7 @@ describe('Learning Route Acceptance Tests', () => {
 
         await prisma.question.create({
             data: {
-                id: 201,
+                id: '201',
                 title: 'Linked List',
                 body: 'Reverse it',
                 difficulty: 'MEDIUM',
@@ -403,7 +403,7 @@ describe('Learning Route Acceptance Tests', () => {
         const data = JSON.parse(res._getData());
 
         expect(data).toHaveLength(1);
-        expect(data[0].id).toBe(201);
+        expect(data[0].id).toBe('201');
         expect(data[0].options[1].isCorrect).toBe(true);
 
       // Contract DTO Test: Assert exact response schema shape
@@ -481,7 +481,7 @@ describe('Learning Route Acceptance Tests', () => {
         const cat = await prisma.category.create({ data: { name: 'Secure' } });
         const q = await prisma.question.create({
           data: {
-            id: 901, title: 'Q', body: 'B', difficulty: 'EASY', categoryId: cat.id,
+            id: '901', title: 'Q', body: 'B', difficulty: 'EASY', categoryId: cat.id,
             a: 'A', b: 'B', c: 'C', d: 'D', correct: 'A',
             tagsText: '', companyTags: '', hints: '', similarQuestionIds: '', similarQuestionsText: ''
           }
@@ -490,7 +490,7 @@ describe('Learning Route Acceptance Tests', () => {
         const { req, res } = createMocks({
           method: 'POST',
           headers: { authorization: `Bearer ${token}` },
-          body: { ids: [901] },
+          body: { ids: ['901'] },
         });
         await questionsHandler(req, res);
         const data = JSON.parse(res._getData());

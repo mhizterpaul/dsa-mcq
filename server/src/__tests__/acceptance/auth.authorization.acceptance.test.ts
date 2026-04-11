@@ -77,7 +77,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   test.each(protectedEndpoints)(
     '$name rejects malformed authorization header',
     async ({ name, handler, method, query }) => {
-      const token = jwt.sign({ sub: testUser.id, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+      const token = jwt.sign({ user: { id: testUser.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
         method,
         headers: { authorization: token },
@@ -106,7 +106,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
           await prisma.engagement.create({ data: { userId: user.id, xp: 0 } });
       }
 
-      const token = jwt.sign({ sub: user.id, sessionId: session.id }, process.env.JWT_SECRET!);
+      const token = jwt.sign({ user: { id: user.id }, sessionId: session.id }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
         method,
         headers: {
@@ -132,9 +132,10 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
   test.each(protectedEndpoints)(
     '$name handles database failure gracefully (returns sanitized 500)',
     async ({ name, handler, method, query, body }) => {
-      jest.spyOn(authUtils, 'authorizeRequest').mockRejectedValue(new Error('Internal Database Error'));
+      // Mock prisma instead
+      jest.spyOn(prisma.session, 'findUnique').mockRejectedValue(new Error('Internal Database Error'));
 
-      const token = jwt.sign({ sub: testUser.id, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
+      const token = jwt.sign({ user: { id: testUser.id }, sessionId: 'sess-1' }, process.env.JWT_SECRET!);
       const { req, res } = createMocks({
         method,
         headers: { authorization: `Bearer ${token}` },
@@ -161,7 +162,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
         }
     });
 
-    const userToken = jwt.sign({ sub: user.id, sessionId: session.id }, process.env.JWT_SECRET!);
+    const userToken = jwt.sign({ user: { id: user.id }, sessionId: session.id }, process.env.JWT_SECRET!);
     const { req, res } = createMocks({
       method: 'GET',
       headers: { authorization: `Bearer ${userToken}` },
@@ -183,7 +184,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
       });
 
       const tamperedToken = jwt.sign(
-          { sub: user.id, role: 'ADMIN', sessionId: session.id },
+          { user: { id: user.id }, role: 'ADMIN', sessionId: session.id },
           process.env.JWT_SECRET!
       );
 
@@ -212,7 +213,7 @@ describe('Cross-Endpoint Authorization Enforcement', () => {
                 }
             });
 
-            const adminToken = jwt.sign({ sub: user.id, sessionId: session.id }, process.env.JWT_SECRET!);
+            const adminToken = jwt.sign({ user: { id: user.id }, sessionId: session.id }, process.env.JWT_SECRET!);
             const { req, res } = createMocks({
               method: 'GET',
               headers: { authorization: `Bearer ${adminToken}` },

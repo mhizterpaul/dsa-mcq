@@ -102,6 +102,10 @@ describe('User Acceptance Tests (Real DB)', () => {
   });
 
   describe('GET /api/user/profile-summary', () => {
+    /**
+     * @Doc("Retrieves essential user profile data for the dashboard")
+     * @Route("/api/user/profile-summary")
+     */
     test('returns user profile summary with all client-required fields', async () => {
       const { req, res } = createMocks({
         method: 'GET',
@@ -137,6 +141,10 @@ describe('User Acceptance Tests (Real DB)', () => {
   });
 
   describe('PUT /api/user/profile', () => {
+    /**
+     * @Doc("Allows users to update their profile information and preferences")
+     * @Route("/api/user/profile")
+     */
     test('updates user preferences, metadata, and email', async () => {
       const newPreferences = { theme: 'light', notifications: true };
       const newMetadata = { lastLogin: '2023-02-01', device: 'iPhone' };
@@ -178,6 +186,10 @@ describe('User Acceptance Tests (Real DB)', () => {
   });
 
   describe('POST /api/user/profile-picture', () => {
+    /**
+     * @Doc("Uploads and updates the user's avatar image")
+     * @Route("/api/user/profile-picture")
+     */
     test('updates user profile picture', async () => {
         const uploadMock = jest.spyOn(StorageService.prototype, 'upload').mockResolvedValue('https://example.com/new-avatar.png');
 

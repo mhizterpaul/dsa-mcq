@@ -25,7 +25,7 @@ describe('Authorization Logic Unit Tests', () => {
     });
 
     describe('validateSession', () => {
-        test('should return session and user when valid', async () => {
+        test('should_return_session_and_user_given_valid_id', async () => {
             await prisma.user.create({ data: testUser });
             await prisma.session.create({ data: testSession });
 
@@ -34,19 +34,19 @@ describe('Authorization Logic Unit Tests', () => {
             expect(session.user.id).toBe(testUser.id);
         });
 
-        test('should throw if session not found', async () => {
+        test('should_throw_given_non_existent_session', async () => {
             await expect(validateSession('non-existent', 'user-1'))
                 .rejects.toThrow('Session not found or invalid');
         });
 
-        test('should throw if session belongs to different user', async () => {
+        test('should_throw_given_session_belongs_to_different_user', async () => {
             await prisma.user.create({ data: testUser });
             await prisma.session.create({ data: testSession });
             await expect(validateSession(testSession.id, 'other-user'))
                 .rejects.toThrow('Session not found or invalid');
         });
 
-        test('should throw if session expired', async () => {
+        test('should_throw_given_session_expired', async () => {
             await prisma.user.create({ data: testUser });
             await prisma.session.create({
                 data: { ...testSession, expires: new Date(Date.now() - 1000) }
@@ -55,7 +55,7 @@ describe('Authorization Logic Unit Tests', () => {
                 .rejects.toThrow('Session expired');
         });
 
-        test('should throw if user not found', async () => {
+        test('should_throw_given_user_not_found', async () => {
             const user = await prisma.user.create({ data: testUser });
             await prisma.session.create({ data: testSession });
             await prisma.user.delete({ where: { id: user.id } });
@@ -72,7 +72,7 @@ describe('Authorization Logic Unit Tests', () => {
             }
         } as any);
 
-        test('should succeed with valid token and session', async () => {
+        test('should_succeed_given_valid_token_and_session', async () => {
             await prisma.user.create({ data: testUser });
             await prisma.session.create({ data: testSession });
 
@@ -84,30 +84,30 @@ describe('Authorization Logic Unit Tests', () => {
             expect(context.role).toBe(testUser.role);
         });
 
-        test('should throw on missing auth header', async () => {
+        test('should_throw_given_missing_auth_header', async () => {
             await expect(authorizeRequest(createReq()))
                 .rejects.toThrow('Missing or invalid Authorization header');
         });
 
-        test('should throw on malformed auth header', async () => {
+        test('should_throw_given_malformed_auth_header', async () => {
             const req = { headers: { authorization: 'token' } } as any;
             await expect(authorizeRequest(req))
                 .rejects.toThrow('Missing or invalid Authorization header');
         });
 
-        test('should throw on invalid JWT signature', async () => {
+        test('should_throw_given_invalid_jwt_signature', async () => {
             const token = jwt.sign({ sub: '123' }, 'wrong-secret');
             await expect(authorizeRequest(createReq(token)))
                 .rejects.toThrow('Invalid token');
         });
 
-        test('should throw on expired JWT', async () => {
+        test('should_throw_given_expired_jwt', async () => {
             const token = jwt.sign({ sub: '123' }, JWT_SECRET, { expiresIn: '-1s' });
             await expect(authorizeRequest(createReq(token)))
                 .rejects.toThrow('Token expired');
         });
 
-        test('should throw on blacklisted token', async () => {
+        test('should_throw_given_blacklisted_token', async () => {
             const cache = new CacheService();
             const token = jwt.sign({ sub: '123', sessionId: '456' }, JWT_SECRET);
             await cache.set(token, true);
@@ -116,13 +116,13 @@ describe('Authorization Logic Unit Tests', () => {
                 .rejects.toThrow('Invalid token');
         });
 
-        test('should throw on missing sub/sessionId in payload', async () => {
+        test('should_throw_given_missing_sub_or_sessionid_in_payload', async () => {
             const token = jwt.sign({ foo: 'bar' }, JWT_SECRET);
             await expect(authorizeRequest(createReq(token)))
                 .rejects.toThrow('Invalid token payload');
         });
 
-        test('should map unexpected DB errors to Internal Database Error', async () => {
+        test('should_map_to_internal_database_error_given_unexpected_db_errors', async () => {
             const findUniqueSpy = jest.spyOn(prisma.session, 'findUnique').mockRejectedValue(new Error('Prisma Crash'));
 
             const token = jwt.sign({ sub: testUser.id, sessionId: testSession.id }, JWT_SECRET);

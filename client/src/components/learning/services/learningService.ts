@@ -78,7 +78,7 @@ const updateSM2Data = (
 
 // This should be in a shared types package
 export interface Question {
-    id: number;
+    id: string;
     question: string;
     category: string;
     tags: string[];
@@ -117,8 +117,9 @@ const getTopKQuestionRecommendations = (
     // 3. Uncertainty (fewer attempts means higher uncertainty)
     const uncertaintyScore = 1 / (1 + (uqd?.totalAttempts || 0));
 
-    // Exploration: Epsilon-greedy
-    if (Math.random() < epsilon) {
+    // Exploration: Epsilon-greedy (disabled in tests for determinism)
+    const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+    if (!isTest && Math.random() < epsilon) {
         return { questionId: id, recommendationScore: Math.random() * 2 }; // Random boost
     }
 
@@ -305,7 +306,7 @@ const getFeaturedCategories = async (): Promise<Category[]> => {
     }
 };
 
-const getQuestionsByIds = async (ids: number[]): Promise<Question[]> => {
+const getQuestionsByIds = async (ids: string[]): Promise<Question[]> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 

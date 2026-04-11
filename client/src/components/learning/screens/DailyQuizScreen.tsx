@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import SSE from 'react-native-sse';
-
 import { Question, API_BASE_URL } from '../services/learningService';
 import { toggleBookmark } from '../../user/store/userProfile.slice';
 import { QuestionResponse } from '../../user/store/primitives/UserProfile';
@@ -39,6 +37,7 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(120); // 2:00 mins
     const [participantUpdates, setParticipantUpdates] = useState<ParticipantUpdate[]>([]);
+    const [lastKnownVersion, setLastKnownVersion] = useState<number | null>(null);
     const [answers, setAnswers] = useState<{ [questionId: string]: { answer: string; isCorrect: boolean } }>({});
 
     useEffect(() => {
@@ -52,7 +51,7 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
                     const qResponse = await fetch(`${API_BASE_URL}/learning/questions`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ids: data.questionIds.map((id: string) => parseInt(id, 10)) }),
+                        body: JSON.stringify({ ids: data.questionIds }),
                     });
                     const qData = await qResponse.json();
                     setQuestions(qData);
@@ -65,32 +64,72 @@ const DailyQuizScreen: React.FC<ScreenProps> = ({ navigation }) => {
     }, []);
 
     useEffect(() => {
-        if (session) {
-            const sse = new SSE(`${API_BASE_URL}/daily-quiz/events`);
+        if (!session?.sessionId) return;
 
-            sse.addEventListener('message', (event) => {
-                if (!event.data) return;
-                const data = JSON.parse(event.data);
-                switch (data.type) {
-                    case 'participant_update':
-                        setSession(prev => prev ? {
-                            ...prev,
-                            participants: data.payload,
-                            participantCount: data.payload.length
-                        } : null);
-                        break;
-                    case 'session_end':
-                        navigation.replace('DailyQuizSummary', { sessionId: session.sessionId });
-                        sse.close();
-                        break;
+        let intervalId: NodeJS.Timeout;
+        let isMounted = true;
+        let retryCount = 0;
+        const baseInterval = 2000;
+
+        const pollState = async () => {
+            if (!isMounted) return;
+
+            try {
+                const url = lastKnownVersion
+                    ? `${API_BASE_URL}/daily-quiz/state?version=${lastKnownVersion}`
+                    : `${API_BASE_URL}/daily-quiz/state`;
+
+                const response = await fetch(url);
+
+                if (response.status === 304) {
+                    retryCount = 0;
+                    if (isMounted) {
+                        intervalId = setTimeout(pollState, baseInterval);
+                    }
+                    return;
                 }
-            });
 
-            return () => {
-                sse.close();
-            };
-        }
-    }, [session, navigation]);
+                const data = await response.json();
+
+                if (!isMounted) return;
+
+                if (data.status === 'IN_PROGRESS' || data.status === 'FINISHED') {
+                    setSession(prev => prev ? {
+                        ...prev,
+                        participants: data.participants,
+                        participantCount: data.participants.length
+                    } : null);
+
+                    if (data.version) {
+                        setLastKnownVersion(data.version);
+                    }
+
+                    if (data.status === 'FINISHED') {
+                        navigation.replace('DailyQuizSummary', { sessionId: session?.sessionId });
+                        return; // Stop polling on finish
+                    }
+                    retryCount = 0; // Reset retry count on success
+                } else if (data.status === 'NOT_MODIFIED') {
+                    retryCount = 0;
+                }
+            } catch (error) {
+                console.error("Polling failed:", error);
+                retryCount++;
+            }
+
+            if (isMounted) {
+                const nextInterval = Math.min(baseInterval * Math.pow(2, retryCount), 30000);
+                intervalId = setTimeout(pollState, nextInterval);
+            }
+        };
+
+        pollState();
+
+        return () => {
+            isMounted = false;
+            if (intervalId) clearTimeout(intervalId);
+        };
+    }, [session?.sessionId, navigation]);
 
     useEffect(() => {
         let intervalId: NodeJS.Timeout;

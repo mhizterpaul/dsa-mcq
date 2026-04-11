@@ -11,11 +11,26 @@ export interface AuthContext {
     syncKey?: string;
 }
 
-export async function validateSession(sessionId: string, userId: string) {
-    const session = await prisma.session.findUnique({
-        where: { id: sessionId },
-        include: { user: true }
-    });
+export async function validateSession(sessionId: string, userId: string, cacheService?: CacheService) {
+    const cacheKey = `session:${sessionId}`;
+    let session = cacheService ? await cacheService.get(cacheKey) : null;
+
+    if (!session) {
+        session = await prisma.session.findUnique({
+            where: { id: sessionId },
+            include: { user: true }
+        }).catch(err => {
+            console.error('validateSession error:', err);
+            throw new Error('Internal Database Error');
+        });
+
+        if (session && cacheService) {
+            // Cache session for 5 minutes for Auth Resilience
+            await cacheService.set(cacheKey, session, 300);
+        }
+    } else {
+        console.log('[Auth] Validated session from cache:', sessionId);
+    }
 
     if (!session) {
         throw new Error('Session not found or invalid');
@@ -60,7 +75,7 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
         throw new Error('Invalid token');
     }
 
-    const userId = decoded.sub || decoded.user?.id;
+    const userId = decoded.sub || decoded.user?.id || (decoded.user && typeof decoded.user === 'object' ? decoded.user.id : undefined);
     const sessionId = decoded.sessionId;
 
     if (!userId || !sessionId) {
@@ -68,17 +83,7 @@ export async function authorizeRequest(req: NextApiRequest, cache?: CacheService
     }
 
     // Capture potential database errors explicitly
-    let session;
-    try {
-        session = await validateSession(sessionId, userId);
-    } catch (error: any) {
-        // If it's one of our expected validation errors, re-throw it
-        if (['Session not found or invalid', 'Session expired', 'User not found'].includes(error.message)) {
-            throw error;
-        }
-        // Otherwise, it's likely a database connection error or similar
-        throw new Error('Internal Database Error');
-    }
+    const session = await validateSession(sessionId, userId, cacheService);
 
     return {
         userId: session.user.id,

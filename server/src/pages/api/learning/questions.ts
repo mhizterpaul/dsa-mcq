@@ -28,8 +28,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (ids.length > 50) {
       return res.status(400).json({ message: 'Maximum 50 questions per request' });
     }
-    if (ids.some(id => typeof id !== 'number')) {
-      return res.status(400).json({ message: 'ids must be an array of numbers' });
+    if (ids.some(id => typeof id !== 'number' && typeof id !== 'string')) {
+      return res.status(400).json({ message: 'ids must be an array of numbers or strings' });
     }
     const questions = await quizService.getQuestionsByIds(ids);
     const shouldReveal = revealAnswers === true;

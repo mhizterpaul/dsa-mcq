@@ -24,3 +24,6 @@ yarn-error.log
 # SQLite
 *.db
 *.db-journal
+
+# Documentation
+jest-results.json

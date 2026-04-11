@@ -8,8 +8,25 @@ import { PaperProvider } from 'react-native-paper';
 import { render, screen, userEvent, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
 
-import userReducer, { UserObject } from '../../components/user/store/user.slice';
+import userReducer, { UserObject, fetchUserProfile } from '../../components/user/store/user.slice';
 import UserProfileScreen from '../../screens/UserProfileScreen';
+
+// Mock react-native-vector-icons
+jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
+
+
+// Mock Spinner
+jest.mock('../../components/common/components/Spinner', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return (props: any) => props.visible ? <View testID="auth-spinner"><Text>Loading...</Text></View> : null;
+});
+
+
+// Global fetch mock
+const mockFetch = jest.fn();
+global.fetch = mockFetch as any;
 
 // Mock navigation
 const mockGoBack = jest.fn();
@@ -68,6 +85,11 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('renders all required elements with default state', async () => {
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: { id: '1', fullName: 'Sammy Skott', email: 'sammy@test.com' } }),
+    });
+
     await renderWithProviders();
 
     // Back button
@@ -90,6 +112,10 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('back button triggers navigation.goBack()', async () => {
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: null }),
+    });
     await renderWithProviders();
     const backButton = await screen.findByTestId('back-button');
     await user.press(backButton);
@@ -108,6 +134,11 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
       xp: 1000
     };
 
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: customUser }),
+    });
+
     await renderWithProviders({
       user: {
         currentUser: customUser,
@@ -125,6 +156,11 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
 
   test('handles long username correctly', async () => {
     const longName = 'Maximilian Alexander von Lichtenstein the Third';
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: { id: '1', fullName: longName, email: 'test@test.com' } }),
+    });
+
     await renderWithProviders({
       user: {
         currentUser: { id: '1', fullName: longName, email: 'test@test.com' },
@@ -137,8 +173,13 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('dropdown menu opens and closes correctly', async () => {
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: null }),
+    });
     await renderWithProviders();
-    const menuButton = await screen.findByTestId('menu-button');
+    const menuButtons = await screen.findAllByTestId('menu-button');
+    const menuButton = menuButtons[0]; // The one in UserProfileContent
 
     // Open menu
     await user.press(menuButton);
@@ -157,9 +198,15 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
   });
 
   test('handles missing stats by showing defaults', async () => {
+    const minimalUser = { id: '1', fullName: 'Minimal User', email: 'min@user.com' };
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: minimalUser }),
+    });
+
     await renderWithProviders({
       user: {
-        currentUser: { id: '1', fullName: 'Minimal User', email: 'min@user.com' },
+        currentUser: minimalUser,
         loading: false,
         error: null,
       },
@@ -171,6 +218,12 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
 
   test('displays error message and handles retry', async () => {
     const errorMessage = 'Failed to fetch profile';
+    mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: errorMessage }),
+    });
+
     const { store } = await renderWithProviders({
       user: {
         currentUser: null,
@@ -182,15 +235,24 @@ describe('UserProfileScreen Acceptance Enhanced', () => {
     expect(await screen.findByTestId('error-message')).toHaveTextContent(new RegExp(errorMessage, 'i'));
 
     const retryButton = screen.getByTestId('retry-button');
+
+    mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: { id: '1', fullName: 'Retried User' } }),
+    });
+
     fireEvent.press(retryButton);
 
-    // Should dispatch fetchUserProfile
+    // Should dispatch fetchUserProfile and eventually succeed
     await waitFor(() => {
-        expect(store.getState().user.loading).toBe(true);
+        expect(store.getState().user.currentUser?.fullName).toBe('Retried User');
     });
   });
 
   test('displays spinner when loading', async () => {
+    // Prevent the auto-fetch from finishing immediately
+    mockFetch.mockReturnValue(new Promise(() => {}));
+
     await renderWithProviders({
       user: {
         currentUser: null,

@@ -1,5 +1,5 @@
 model DevOpsMetric {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   type      String
   payload   String
   createdAt DateTime @default(now())
