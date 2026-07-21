@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { Anomaly, AnomalyType, AnomalySeverity } from '../store/primitives/Anomaly';
 import { sqliteService } from '../../common/services/sqliteService';
 import { metricsService } from './metricsService';
+import { API_BASE_URL } from '../../../config';
 
 class AnalyticsService {
     private sessionStartTime = Date.now();
@@ -108,7 +109,7 @@ class AnalyticsService {
         }
     }
 
-    // Concrete Mobile-Only resource deficiency check using NetInfo and RAM Heap thresholds configurable via Env Variables
+    // Concrete Mobile-Only resource deficiency check using NetInfo and Device RAM size with advanced Constrained Memory & Storage Evaluators
     public async checkResourceDeficiency(): Promise<void> {
         if (Platform.OS === 'web') {
             return; // Skip on web client as requested
@@ -118,17 +119,9 @@ class AnalyticsService {
             ? parseInt(process.env.MIN_BANDWIDTH_KBPS, 10)
             : 1000;
 
-        const MAX_HEAP_BYTES = (typeof process !== 'undefined' && process.env?.MAX_HEAP_BYTES)
-            ? parseInt(process.env.MAX_HEAP_BYTES, 10)
-            : 150 * 1024 * 1024;
-
         const MAX_PING_MS = (typeof process !== 'undefined' && process.env?.MAX_PING_MS)
             ? parseInt(process.env.MAX_PING_MS, 10)
             : 150;
-
-        const MIN_RAM_GB = (typeof process !== 'undefined' && process.env?.MIN_RAM_GB)
-            ? parseInt(process.env.MIN_RAM_GB, 10)
-            : 2;
 
         const netState = await NetInfo.fetch();
         let isConstrained = false;
@@ -144,29 +137,124 @@ class AnalyticsService {
         }
 
         // Check latency (Ping above 150ms should be considered high latency and captured)
-        // Since we are checking constraints on the device, we can estimate ping/latency using netState
-        // Or if details contain response latency
-        const currentPing = (netState.details as any)?.latency || 0;
+        // Measured against a host server endpoint
+        let currentPing = 0;
+        const pingStart = Date.now();
+        try {
+            await fetch(`${API_BASE_URL}/health`, { method: 'GET' });
+            currentPing = Date.now() - pingStart;
+        } catch (error) {
+            currentPing = 999; // Fallback to high value if request fails
+        }
+
         if (currentPing > MAX_PING_MS) {
             isConstrained = true;
             evidence.push({ message: `High network latency detected: ${currentPing}ms`, limit: MAX_PING_MS });
         }
 
-        // Check RAM limits (ram below 2gb should be captured as low memory)
+        // --- 1. Constrained Memory (RAM) Evaluator ---
+        // Formula: safe os operating conditions + estimated os operational data + program installed * average_size(configurable) + estimated user data size(configurable) - total memory below safe limits for loaded apps in ram
+        const safeOsLimitGb = (typeof process !== 'undefined' && process.env?.SAFE_OS_LIMIT_GB)
+            ? parseFloat(process.env.SAFE_OS_LIMIT_GB)
+            : 1.0;
+
+        const estimatedOsDataGb = (typeof process !== 'undefined' && process.env?.ESTIMATED_OS_DATA_GB)
+            ? parseFloat(process.env.ESTIMATED_OS_DATA_GB)
+            : 0.5;
+
+        const programsInstalled = (typeof process !== 'undefined' && process.env?.PROGRAMS_INSTALLED)
+            ? parseInt(process.env.PROGRAMS_INSTALLED, 10)
+            : 10;
+
+        const averageProgramSizeGb = (typeof process !== 'undefined' && process.env?.AVERAGE_PROGRAM_SIZE_GB)
+            ? parseFloat(process.env.AVERAGE_PROGRAM_SIZE_GB)
+            : 0.05;
+
+        const estimatedUserDataSizeGb = (typeof process !== 'undefined' && process.env?.ESTIMATED_USER_DATA_SIZE_GB)
+            ? parseFloat(process.env.ESTIMATED_USER_DATA_SIZE_GB)
+            : 0.1;
+
+        const totalMemBelowSafeLimitsGb = (typeof process !== 'undefined' && process.env?.TOTAL_MEM_BELOW_SAFE_LIMITS_GB)
+            ? parseFloat(process.env.TOTAL_MEM_BELOW_SAFE_LIMITS_GB)
+            : 0.2;
+
         const totalRamGb = (navigator as any)?.deviceMemory || 4; // fallback to 4GB if unsupported
-        if (totalRamGb < MIN_RAM_GB) {
+
+        const safeConditionsThreshold = safeOsLimitGb + estimatedOsDataGb + (programsInstalled * averageProgramSizeGb) + estimatedUserDataSizeGb - totalMemBelowSafeLimitsGb;
+
+        if (totalRamGb < safeConditionsThreshold) {
             isConstrained = true;
-            evidence.push({ message: `Low device memory detected: ${totalRamGb}GB RAM`, limit: MIN_RAM_GB });
+            evidence.push({
+                message: `Constrained memory constraint triggered: device memory ${totalRamGb}GB is below safe threshold ${safeConditionsThreshold}GB`,
+                details: {
+                    deviceMemoryGb: totalRamGb,
+                    safeConditionsThresholdGb: safeConditionsThreshold,
+                    safeOsLimitGb,
+                    estimatedOsDataGb,
+                    programsInstalled,
+                    averageProgramSizeGb,
+                    estimatedUserDataSizeGb,
+                    totalMemBelowSafeLimitsGb,
+                    clientInstanceMetadata: {
+                        platform: Platform.OS,
+                        version: Platform.Version,
+                        sessionStartTime: this.sessionStartTime,
+                        visitedScreensCount: this.visitedScreens.length,
+                        currentScreen: this.currentScreen,
+                    }
+                }
+            });
         }
 
-        // Check RAM heap limits
-        const heapLimit = (typeof performance !== 'undefined' && (performance as any).memory)
-            ? (performance as any).memory.usedJSHeapSize
-            : null;
+        // --- 2. Constrained Storage Evaluator ---
+        // Formula: safe os operating conditions + estimated os operational data + program installed * average_size(configurable) + estimated user data size(configurable) - total available storage, below safe limits?
+        const safeOsStorageLimitGb = (typeof process !== 'undefined' && process.env?.SAFE_OS_STORAGE_LIMIT_GB)
+            ? parseFloat(process.env.SAFE_OS_STORAGE_LIMIT_GB)
+            : 2.0;
 
-        if (heapLimit && heapLimit > MAX_HEAP_BYTES) {
+        const estimatedOsStorageDataGb = (typeof process !== 'undefined' && process.env?.ESTIMATED_OS_STORAGE_DATA_GB)
+            ? parseFloat(process.env.ESTIMATED_OS_STORAGE_DATA_GB)
+            : 1.0;
+
+        const storageProgramsInstalled = (typeof process !== 'undefined' && process.env?.STORAGE_PROGRAMS_INSTALLED)
+            ? parseInt(process.env.STORAGE_PROGRAMS_INSTALLED, 10)
+            : 20;
+
+        const averageStorageProgramSizeGb = (typeof process !== 'undefined' && process.env?.AVERAGE_STORAGE_PROGRAM_SIZE_GB)
+            ? parseFloat(process.env.AVERAGE_STORAGE_PROGRAM_SIZE_GB)
+            : 0.1;
+
+        const estimatedStorageUserDataSizeGb = (typeof process !== 'undefined' && process.env?.ESTIMATED_STORAGE_USER_DATA_SIZE_GB)
+            ? parseFloat(process.env.ESTIMATED_STORAGE_USER_DATA_SIZE_GB)
+            : 0.5;
+
+        const totalAvailableStorageGb = (typeof process !== 'undefined' && process.env?.TOTAL_AVAILABLE_STORAGE_GB)
+            ? parseFloat(process.env.TOTAL_AVAILABLE_STORAGE_GB)
+            : 5.0; // Default/Mock available storage in GB
+
+        const storageSafeConditionsThreshold = safeOsStorageLimitGb + estimatedOsStorageDataGb + (storageProgramsInstalled * averageStorageProgramSizeGb) + estimatedStorageUserDataSizeGb;
+
+        if (totalAvailableStorageGb < storageSafeConditionsThreshold) {
             isConstrained = true;
-            evidence.push({ message: 'High JS heap usage detected', heapLimit, maxAllowed: MAX_HEAP_BYTES });
+            evidence.push({
+                message: `Constrained storage constraint triggered: available storage ${totalAvailableStorageGb}GB is below safe threshold ${storageSafeConditionsThreshold}GB`,
+                details: {
+                    totalAvailableStorageGb,
+                    storageSafeConditionsThresholdGb: storageSafeConditionsThreshold,
+                    safeOsStorageLimitGb,
+                    estimatedOsStorageDataGb,
+                    storageProgramsInstalled,
+                    averageStorageProgramSizeGb,
+                    estimatedStorageUserDataSizeGb,
+                    clientInstanceMetadata: {
+                        platform: Platform.OS,
+                        version: Platform.Version,
+                        sessionStartTime: this.sessionStartTime,
+                        visitedScreensCount: this.visitedScreens.length,
+                        currentScreen: this.currentScreen,
+                    }
+                }
+            });
         }
 
         if (isConstrained) {

@@ -25,3 +25,6 @@ dsa-mcq-134aae86ec9e.json
 
 # Yarn lock
 yarn.lock
+
+# package-lock.json
+package-lock.json

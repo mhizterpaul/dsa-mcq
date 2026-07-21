@@ -33,12 +33,14 @@ import devOpsMetricsReducer from '../components/analytics/store/devopsMetrics.sl
 import engagementKPIsReducer from '../components/engagement/store/engagementKPIs.slice';
 import anomaliesReducer from '../components/analytics/store/anomalies.slice';
 import insightsReducer from '../components/analytics/store/insights.slice';
+import usageAnalyticsReducer from '../components/analytics/store/usageAnalytics.slice';
 
 const analyticsRootReducer = combineReducers({
     devOpsMetrics: devOpsMetricsReducer,
     engagementKPIs: engagementKPIsReducer,
     anomalies: anomaliesReducer,
     insights: insightsReducer,
+    usageAnalytics: usageAnalyticsReducer,
 });
 
 // User Component Reducer

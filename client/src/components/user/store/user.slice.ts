@@ -127,6 +127,29 @@ export const loginWithProviderToken = createAsyncThunk<
   }
 });
 
+// OAuth authorization code exchange
+export const exchangeAuthorizationCode = createAsyncThunk<
+  AuthResponse,
+  { provider: 'google' | 'github' | 'x'; code: string; codeVerifier: string; redirectUri: string },
+  { rejectValue: string }
+>('user/exchangeAuthorizationCode', async ({ provider, code, codeVerifier, redirectUri }, { rejectWithValue }) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/v1/oauth/${provider}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, codeVerifier, redirectUri }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'OAuth exchange failed');
+    }
+    return await response.json();
+  } catch (err: any) {
+    return rejectWithValue(err.message || 'OAuth exchange failed');
+  }
+});
+
 // Twitter login
 export const loginWithTwitter = createAsyncThunk<
   AuthResponse,
@@ -343,6 +366,10 @@ const userSlice = createSlice({
       .addCase(loginWithProviderToken.pending, setLoading)
       .addCase(loginWithProviderToken.fulfilled, setSuccess)
       .addCase(loginWithProviderToken.rejected, setError)
+
+      .addCase(exchangeAuthorizationCode.pending, setLoading)
+      .addCase(exchangeAuthorizationCode.fulfilled, setSuccess)
+      .addCase(exchangeAuthorizationCode.rejected, setError)
 
       .addCase(loginWithTwitter.pending, setLoading)
       .addCase(loginWithTwitter.fulfilled, setSuccess)

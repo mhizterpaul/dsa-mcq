@@ -30,3 +30,4 @@ jest-results.json
 
 # Yarn lock
 yarn.lock
+package-lock.json

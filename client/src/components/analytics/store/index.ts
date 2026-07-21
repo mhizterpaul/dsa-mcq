@@ -5,12 +5,14 @@ import devOpsMetricsReducer from './devOpsMetrics.slice';
 import engagementKPIsReducer from '../../engagement/store/engagementKPIs.slice';
 import anomaliesReducer from './anomalies.slice';
 import insightsReducer from './insights.slice';
+import usageAnalyticsReducer from './usageAnalytics.slice';
 
 const analyticsRootReducer = combineReducers({
     devOpsMetrics: devOpsMetricsReducer,
     engagementKPIs: engagementKPIsReducer,
     anomalies: anomaliesReducer,
     insights: insightsReducer,
+    usageAnalytics: usageAnalyticsReducer,
 });
 
 const store = configureStore({
